@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitAI — Recovery-aware productivity & fitness assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #05070d;
+    --bg-1: #0a0e18;
+    --bg-2: #0e1422;
+    --ink: #eef2fb;
+    --ink-soft: #aab3c7;
+    --ink-dim: #6b7488;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.14);
+    --glass: rgba(255, 255, 255, 0.045);
+    --glass-2: rgba(255, 255, 255, 0.07);
+
+    --push: #ff7a59;
+    --push-2: #ff4d6d;
+    --maintain: #5ee7d3;
+    --maintain-2: #4f9cff;
+    --recover: #a98bff;
+    --recover-2: #6a7bff;
+
+    --accent: #6ea8ff;
+    --accent-2: #9b8cff;
+
+    --radius-xl: 30px;
+    --radius-lg: 22px;
+    --radius-md: 16px;
+    --radius-sm: 12px;
+
+    --shadow-soft: 0 30px 80px -40px rgba(0, 0, 0, 0.9);
+    --maxw: 1180px;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-display: "Sora", var(--font-sans);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--ink);
+    background: var(--bg-0);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Ambient gradient field */
+  .ambient {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+      radial-gradient(60% 50% at 78% -5%, rgba(110, 168, 255, 0.18), transparent 60%),
+      radial-gradient(55% 45% at 12% 8%, rgba(169, 139, 255, 0.16), transparent 60%),
+      radial-gradient(50% 60% at 50% 110%, rgba(94, 231, 211, 0.10), transparent 60%),
+      linear-gradient(180deg, var(--bg-0), var(--bg-1) 40%, var(--bg-0));
+  }
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.4;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 26px; }
+
+  /* ---------- Glass primitives ---------- */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 600;
+  }
+
+  .section { padding: 110px 0; position: relative; }
+  .section-head { max-width: 640px; margin-bottom: 56px; }
+  .section-head h2 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 14px 0 16px;
+    font-weight: 700;
+  }
+  .section-head p { color: var(--ink-soft); font-size: 17px; }
+
+  .gradient-text {
+    background: linear-gradient(110deg, #fff 10%, #a9c6ff 45%, #c4b3ff 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 13px 22px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+    font-family: var(--font-sans);
+  }
+  .btn-primary {
+    color: #08111f;
+    background: linear-gradient(120deg, #cfe2ff, #9fb8ff 55%, #c9bcff);
+    box-shadow: 0 18px 40px -16px rgba(126, 160, 255, 0.7);
+  }
+  .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 26px 55px -18px rgba(126, 160, 255, 0.85); }
+  .btn-ghost {
+    color: var(--ink);
+    background: var(--glass-2);
+    border-color: var(--line-strong);
+  }
+  .btn-ghost:hover { transform: translateY(-3px); background: rgba(255, 255, 255, 0.11); }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s ease, background 0.3s ease;
+  }
+  nav.scrolled { border-color: var(--line); background: rgba(6, 9, 16, 0.6); }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 70px; }
+  .brand { display: flex; align-items: center; gap: 11px; font-family: var(--font-display); font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
+  .brand .mark {
+    width: 32px; height: 32px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center;
+    box-shadow: 0 0 24px -4px rgba(110, 168, 255, 0.7);
+    position: relative;
+  }
+  .brand .mark::after {
+    content: ""; position: absolute; inset: 6px; border-radius: 6px;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0.1));
+    mix-blend-mode: overlay;
+  }
+  .nav-links { display: flex; gap: 30px; font-size: 14px; color: var(--ink-soft); }
+  .nav-links a { transition: color 0.2s ease; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta { display: flex; gap: 12px; align-items: center; }
+  .menu-toggle { display: none; }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 70px 0 60px; position: relative; }
+  .hero-grid { display: grid; grid-template-columns: 1.02fr 0.98fr; gap: 50px; align-items: center; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 7px 14px 7px 9px; border-radius: 999px;
+    background: var(--glass-2); border: 1px solid var(--line);
+    font-size: 12.5px; color: var(--ink-soft); margin-bottom: 26px;
+  }
+  .hero-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--maintain); box-shadow: 0 0 12px var(--maintain); }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(40px, 6vw, 68px);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    font-weight: 800;
+    margin-bottom: 22px;
+  }
+  .hero p.lead { font-size: 18px; color: var(--ink-soft); max-width: 520px; margin-bottom: 32px; }
+  .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 26px; }
+  .trust { font-size: 13.5px; color: var(--ink-dim); display: flex; align-items: center; gap: 10px; }
+  .trust .pill { display: inline-flex; gap: 7px; }
+
+  /* Hero dashboard preview */
+  .hero-preview { position: relative; }
+  .hero-preview .glow {
+    position: absolute; inset: -40px -20px;
+    background: radial-gradient(circle at 70% 30%, rgba(110,168,255,0.25), transparent 60%),
+                radial-gradient(circle at 20% 80%, rgba(169,139,255,0.22), transparent 60%);
+    filter: blur(20px); z-index: -1;
+  }
+  .preview-card { padding: 22px; border-radius: var(--radius-xl); }
+  .preview-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .preview-top .label { font-size: 12px; color: var(--ink-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+  .status-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 999px;
+    background: linear-gradient(120deg, rgba(94,231,211,0.18), rgba(79,156,255,0.18));
+    border: 1px solid rgba(94,231,211,0.3); color: #bdf3ea;
+  }
+  .ring-row { display: flex; align-items: center; gap: 22px; margin-bottom: 22px; }
+  .ring {
+    --val: 78;
+    width: 118px; height: 118px; border-radius: 50%;
+    background:
+      radial-gradient(closest-side, var(--bg-2) 70%, transparent 71% 100%),
+      conic-gradient(from 220deg, var(--maintain), var(--maintain-2) calc(var(--val) * 1%), rgba(255,255,255,0.06) 0);
+    display: grid; place-items: center; position: relative;
+    flex-shrink: 0;
+  }
+  .ring .ring-val { font-family: var(--font-display); font-size: 30px; font-weight: 700; }
+  .ring .ring-sub { font-size: 10.5px; color: var(--ink-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+  .ring-meta { display: flex; flex-direction: column; gap: 11px; flex: 1; }
+  .mini-metric { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  .mini-metric span:first-child { color: var(--ink-soft); }
+  .mini-metric span:last-child { font-weight: 600; }
+  .bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; margin-top: 5px; }
+  .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .preview-foot {
+    margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--ink-soft);
+  }
+  .preview-foot b { color: var(--ink); font-weight: 600; }
+
+  /* Floating mini chips on preview */
+  .float-chip {
+    position: absolute; padding: 10px 14px; border-radius: 14px; font-size: 12.5px;
+    background: rgba(14,20,34,0.8); border: 1px solid var(--line-strong);
+    backdrop-filter: blur(14px); display: flex; align-items: center; gap: 9px;
+    box-shadow: 0 20px 40px -22px rgba(0,0,0,0.9);
+    animation: floaty 6s ease-in-out infinite;
+  }
+  .float-chip .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; }
+  .float-chip.a { top: -18px; left: -26px; }
+  .float-chip.b { bottom: 26px; right: -30px; animation-delay: 1.5s; }
+  @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+  /* ---------- Marquee strip ---------- */
+  .strip { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 22px 0; }
+  .strip-inner { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; align-items: center; color: var(--ink-dim); font-size: 13.5px; }
+  .strip-inner span { display: inline-flex; align-items: center; gap: 9px; }
+
+  /* ---------- Decision cards ---------- */
+  .decision-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .dcard {
+    padding: 28px; border-radius: var(--radius-xl); position: relative; overflow: hidden;
+    border: 1px solid var(--line); background: var(--glass);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+  .dcard:hover { transform: translateY(-6px); border-color: var(--line-strong); }
+  .dcard::before {
+    content: ""; position: absolute; inset: 0; opacity: 0.5; z-index: 0;
+    background: radial-gradient(80% 60% at 50% -10%, var(--c1), transparent 65%);
+  }
+  .dcard > * { position: relative; z-index: 1; }
+  .dcard.push { --c1: rgba(255,122,89,0.22); }
+  .dcard.maintain { --c1: rgba(94,231,211,0.2); }
+  .dcard.recover { --c1: rgba(169,139,255,0.22); }
+  .dcard .badge {
+    display: inline-flex; align-items: center; gap: 9px; font-weight: 600; font-size: 13px;
+    padding: 7px 13px; border-radius: 999px; margin-bottom: 18px;
+  }
+  .dcard.push .badge { background: rgba(255,122,89,0.14); color: #ffb9a3; border: 1px solid rgba(255,122,89,0.3); }
+  .dcard.maintain .badge { background: rgba(94,231,211,0.12); color: #b6f1e7; border: 1px solid rgba(94,231,211,0.3); }
+  .dcard.recover .badge { background: rgba(169,139,255,0.14); color: #d2c4ff; border: 1px solid rgba(169,139,255,0.3); }
+  .dcard h3 { font-family: var(--font-display); font-size: 23px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .dcard .desc { color: var(--ink-soft); font-size: 14.5px; margin-bottom: 22px; min-height: 64px; }
+  .dcard .rec { display: flex; flex-direction: column; gap: 13px; }
+  .rec-row { display: flex; align-items: center; gap: 12px; }
+  .rec-row .k { font-size: 12px; color: var(--ink-dim); width: 92px; flex-shrink: 0; letter-spacing: 0.04em; }
+  .rec-row .v { font-size: 13.5px; font-weight: 600; }
+  .intensity { display: flex; gap: 4px; }
+  .intensity i { width: 22px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.1); }
+  .dcard.push .intensity i.on { background: linear-gradient(90deg, var(--push), var(--push-2)); }
+  .dcard.maintain .intensity i.on { background: linear-gradient(90deg, var(--maintain), var(--maintain-2)); }
+  .dcard.recover .intensity i.on { background: linear-gradient(90deg, var(--recover), var(--recover-2)); }
+
+  /* ---------- Main dashboard ---------- */
+  .dash {
+    border-radius: var(--radius-xl); padding: 30px; position: relative; overflow: hidden;
+  }
+  .dash-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; margin-bottom: 28px; }
+  .dash-head .today { font-size: 13px; color: var(--ink-dim); margin-bottom: 8px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .dash-head h3 { font-family: var(--font-display); font-size: clamp(26px, 3.4vw, 36px); font-weight: 700; letter-spacing: -0.02em; }
+  .dash-head h3 em { font-style: normal; background: linear-gradient(120deg, var(--maintain), var(--maintain-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .dash-layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; }
+  .readiness-card { padding: 26px; border-radius: var(--radius-lg); background: var(--glass-2); border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .big-ring {
+    --val: 74;
+    width: 168px; height: 168px; border-radius: 50%; margin: 6px 0 18px;
+    background:
+      radial-gradient(closest-side, var(--bg-2) 72%, transparent 73% 100%),
+      conic-gradient(from 215deg, var(--maintain), var(--maintain-2) calc(var(--val) * 1%), rgba(255,255,255,0.06) 0);
+    display: grid; place-items: center; position: relative;
+  }
+  .big-ring::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; box-shadow: 0 0 50px -8px rgba(94,231,211,0.5); z-index: -1; }
+  .big-ring .v { font-family: var(--font-display); font-size: 46px; font-weight: 800; line-height: 1; }
+  .big-ring .l { font-size: 11px; color: var(--ink-dim); letter-spacing: 0.16em; text-transform: uppercase; margin-top: 4px; }
+  .readiness-card .verdict { font-size: 13.5px; color: var(--ink-soft); }
+  .readiness-card .verdict b { color: var(--ink); }
+
+  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .metric {
+    padding: 18px; border-radius: var(--radius-md); background: var(--glass);
+    border: 1px solid var(--line); transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+  .metric:hover { transform: translateY(-4px); border-color: var(--line-strong); }
+  .metric .mhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .metric .mlabel { font-size: 12.5px; color: var(--ink-soft); }
+  .metric .mic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--line); }
+  .metric .mval { font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .metric .mval small { font-size: 14px; color: var(--ink-dim); font-weight: 500; }
+  .metric .mtrend { font-size: 12px; margin-top: 7px; display: flex; align-items: center; gap: 6px; }
+  .trend-up { color: #79e6c4; } .trend-down { color: #ff9b8a; } .trend-flat { color: var(--ink-dim); }
+
+  /* sparkline */
+  .spark { display: flex; align-items: flex-end; gap: 3px; height: 30px; margin-top: 10px; }
+  .spark i { flex: 1; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, var(--accent), rgba(110,168,255,0.2)); opacity: 0.85; }
+
+  .dash-action {
+    margin-top: 22px; padding: 20px 24px; border-radius: var(--radius-lg);
+    background: linear-gradient(120deg, rgba(110,168,255,0.12), rgba(155,140,255,0.12));
+    border: 1px solid var(--line-strong); display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+  }
+  .dash-action .txt { max-width: 560px; }
+  .dash-action .txt .t { font-family: var(--font-display); font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+  .dash-action .txt .d { font-size: 13.5px; color: var(--ink-soft); }
+
+  /* ---------- Daily flow timeline ---------- */
+  .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; position: relative; }
+  .flow::before { content: ""; position: absolute; top: 26px; left: 8%; right: 8%; height: 2px; background: linear-gradient(90deg, transparent, var(--line-strong) 12%, var(--line-strong) 88%, transparent); }
+  .step { text-align: center; padding: 0 12px; position: relative; }
+  .step .node {
+    width: 54px; height: 54px; border-radius: 16px; margin: 0 auto 18px; display: grid; place-items: center;
+    background: var(--glass-2); border: 1px solid var(--line-strong); font-size: 20px; position: relative; z-index: 1;
+    backdrop-filter: blur(12px);
+  }
+  .step .num { font-size: 11px; color: var(--ink-dim); letter-spacing: 0.16em; margin-bottom: 6px; }
+  .step h4 { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .step p { font-size: 13px; color: var(--ink-soft); }
+
+  /* ---------- Feature set ---------- */
+  .feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .feat-col { padding: 28px; border-radius: var(--radius-xl); border: 1px solid var(--line); background: var(--glass); }
+  .feat-col .ftag {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 6px 12px; border-radius: 999px; margin-bottom: 8px;
+  }
+  .feat-col.mvp .ftag { background: rgba(94,231,211,0.12); color: #b6f1e7; border: 1px solid rgba(94,231,211,0.3); }
+  .feat-col.next .ftag { background: rgba(110,168,255,0.12); color: #bcd4ff; border: 1px solid rgba(110,168,255,0.3); }
+  .feat-col.future .ftag { background: rgba(169,139,255,0.12); color: #d2c4ff; border: 1px solid rgba(169,139,255,0.3); }
+  .feat-col h3 { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .feat-col .sub { font-size: 13px; color: var(--ink-dim); margin-bottom: 20px; }
+  .feat-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .feat-list li { display: flex; gap: 11px; font-size: 14px; color: var(--ink-soft); align-items: flex-start; }
+  .feat-list li .tick {
+    width: 19px; height: 19px; border-radius: 6px; flex-shrink: 0; margin-top: 1px; display: grid; place-items: center;
+    font-size: 11px; background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+  }
+  .feat-col.mvp .tick { color: var(--maintain); }
+  .feat-col.next .tick { color: var(--accent); }
+  .feat-col.future .tick { color: var(--recover); }
+
+  /* ---------- Key screens ---------- */
+  .screens-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .screen {
+    border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--glass); overflow: hidden;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+  .screen:hover { transform: translateY(-6px); border-color: var(--line-strong); }
+  .screen .viewport {
+    height: 168px; padding: 16px; position: relative; overflow: hidden;
+    background: linear-gradient(165deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border-bottom: 1px solid var(--line);
+  }
+  .screen .scaption { padding: 16px 18px; }
+  .screen .scaption .st { font-family: var(--font-display); font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .screen .scaption .sd { font-size: 12.5px; color: var(--ink-dim); }
+
+  /* tiny ui bits inside screen viewports */
+  .ui-line { height: 9px; border-radius: 999px; background: rgba(255,255,255,0.08); margin-bottom: 9px; }
+  .ui-line.w40 { width: 40%; } .ui-line.w60 { width: 60%; } .ui-line.w70 { width: 70%; } .ui-line.w30 { width: 30%; }
+  .ui-pill { display: inline-block; padding: 5px 11px; border-radius: 999px; font-size: 10.5px; border: 1px solid var(--line); background: rgba(255,255,255,0.04); margin: 0 5px 6px 0; color: var(--ink-soft); }
+  .ui-ring { width: 64px; height: 64px; border-radius: 50%; background: conic-gradient(from 210deg, var(--maintain), var(--maintain-2) 70%, rgba(255,255,255,0.07) 0); display: grid; place-items: center; position: relative; }
+  .ui-ring::after { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg-2); }
+  .ui-ring span { position: relative; z-index: 1; font-size: 15px; font-weight: 700; font-family: var(--font-display); }
+  .ui-row { display: flex; gap: 10px; align-items: center; }
+  .ui-bars { display: flex; align-items: flex-end; gap: 5px; height: 56px; }
+  .ui-bars i { flex: 1; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, var(--accent-2), rgba(155,140,255,0.15)); }
+  .ui-card-mini { padding: 11px 13px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--line); margin-bottom: 9px; }
+  .ui-toggle { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); margin-bottom: 8px; font-size: 11px; color: var(--ink-soft); }
+  .ui-toggle .sw { width: 30px; height: 17px; border-radius: 999px; background: linear-gradient(90deg, var(--maintain), var(--maintain-2)); position: relative; }
+  .ui-toggle .sw::after { content: ""; position: absolute; width: 13px; height: 13px; border-radius: 50%; background: #fff; top: 2px; right: 2px; }
+
+  /* ---------- Design system ---------- */
+  .ds-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; }
+  .ds-card { padding: 26px; border-radius: var(--radius-xl); border: 1px solid var(--line); background: var(--glass); }
+  .ds-card h4 { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin-bottom: 18px; display: flex; align-items: center; gap: 9px; }
+  .ds-card h4 .tagn { font-size: 11px; color: var(--ink-dim); font-weight: 500; }
+  .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .swatch { border-radius: 14px; height: 76px; border: 1px solid var(--line); position: relative; overflow: hidden; display: flex; align-items: flex-end; padding: 9px; }
+  .swatch span { font-size: 10px; color: rgba(255,255,255,0.85); font-weight: 500; position: relative; z-index: 1; }
+  .type-row { display: flex; flex-direction: column; gap: 14px; }
+  .type-sample .tn { font-size: 11px; color: var(--ink-dim); margin-bottom: 3px; }
+  .type-display { font-family: var(--font-display); font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+  .type-body { font-size: 15px; color: var(--ink-soft); }
+  .type-mono { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-dim); }
+
+  .chips-demo { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip-demo { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; border: 1px solid var(--line); background: var(--glass-2); }
+  .badge-demo { padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .bd-push { background: rgba(255,122,89,0.14); color: #ffb9a3; border: 1px solid rgba(255,122,89,0.3); }
+  .bd-maintain { background: rgba(94,231,211,0.12); color: #b6f1e7; border: 1px solid rgba(94,231,211,0.3); }
+  .bd-recover { background: rgba(169,139,255,0.14); color: #d2c4ff; border: 1px solid rgba(169,139,255,0.3); }
+  .btn-demo-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .gradient-demo { display: flex; gap: 12px; flex-wrap: wrap; }
+  .grad-tile { height: 56px; flex: 1; min-width: 90px; border-radius: 14px; border: 1px solid var(--line); }
+  .motion-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .motion-list li { font-size: 13.5px; color: var(--ink-soft); display: flex; gap: 10px; align-items: flex-start; }
+  .motion-list li .mi { color: var(--accent); flex-shrink: 0; }
+
+  /* ---------- Philosophy ---------- */
+  .phil-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .phil {
+    padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--glass);
+    transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+  .phil:hover { transform: translateY(-4px); border-color: var(--line-strong); }
+  .phil .pi { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 18px; margin-bottom: 14px; background: linear-gradient(135deg, rgba(110,168,255,0.2), rgba(155,140,255,0.2)); border: 1px solid var(--line); }
+  .phil h4 { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 7px; }
+  .phil p { font-size: 13.5px; color: var(--ink-soft); }
+  .disclaimer {
+    margin-top: 28px; padding: 20px 24px; border-radius: var(--radius-lg);
+    border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+    font-size: 13.5px; color: var(--ink-soft); display: flex; gap: 14px; align-items: flex-start;
+  }
+  .disclaimer .di { font-size: 18px; flex-shrink: 0; }
+
+  /* ---------- Tech stack ---------- */
+  .tech-wrap { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 30px; align-items: center; }
+  .tech-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .tech-item {
+    padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--glass);
+    display: flex; gap: 13px; align-items: center; transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+  .tech-item:hover { transform: translateY(-3px); border-color: var(--line-strong); }
+  .tech-item .ti { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 15px; font-weight: 700; font-family: var(--font-display); background: linear-gradient(135deg, rgba(110,168,255,0.18), rgba(155,140,255,0.18)); border: 1px solid var(--line); flex-shrink: 0; }
+  .tech-item .tt { font-weight: 600; font-size: 14.5px; }
+  .tech-item .td { font-size: 12px; color: var(--ink-dim); }
+  .tech-phase { display: flex; flex-direction: column; gap: 16px; }
+  .tech-phase .tp { display: flex; gap: 14px; align-items: flex-start; }
+  .tech-phase .tp .badge-n { font-size: 11px; font-weight: 700; color: var(--accent); font-family: var(--font-display); padding-top: 2px; flex-shrink: 0; width: 64px; }
+  .tech-phase .tp .ttxt b { font-size: 14.5px; font-weight: 600; }
+  .tech-phase .tp .ttxt p { font-size: 13px; color: var(--ink-soft); }
+
+  /* ---------- CTA / Footer ---------- */
+  .cta-final {
+    text-align: center; padding: 70px 40px; border-radius: var(--radius-xl); position: relative; overflow: hidden;
+    border: 1px solid var(--line-strong);
+    background: linear-gradient(160deg, rgba(110,168,255,0.12), rgba(155,140,255,0.1), rgba(94,231,211,0.08));
+  }
+  .cta-final::before { content: ""; position: absolute; inset: 0; background: radial-gradient(60% 80% at 50% 0%, rgba(110,168,255,0.25), transparent 60%); z-index: 0; }
+  .cta-final > * { position: relative; z-index: 1; }
+  .cta-final h2 { font-family: var(--font-display); font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 16px; }
+  .cta-final p { color: var(--ink-soft); font-size: 17px; max-width: 540px; margin: 0 auto 30px; }
+  .cta-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  footer { border-top: 1px solid var(--line); padding: 40px 0 60px; margin-top: 60px; }
+  .foot-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 18px; }
+  .foot-inner .fbrand { display: flex; align-items: center; gap: 11px; font-family: var(--font-display); font-weight: 700; }
+  .foot-meta { font-size: 13px; color: var(--ink-dim); }
+  .foot-links { display: flex; gap: 22px; font-size: 13.5px; color: var(--ink-soft); }
+
+  /* ---------- Reveal animation ---------- */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 980px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 56px; }
+    .decision-grid, .feat-grid, .screens-grid, .phil-grid { grid-template-columns: 1fr 1fr; }
+    .dash-layout { grid-template-columns: 1fr; }
+    .ds-grid, .tech-wrap { grid-template-columns: 1fr; }
+    .flow { grid-template-columns: 1fr 1fr; gap: 30px 16px; }
+    .flow::before { display: none; }
+    .nav-links { display: none; }
+    .metric-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 620px) {
+    .section { padding: 80px 0; }
+    .decision-grid, .feat-grid, .screens-grid, .phil-grid, .flow, .metric-grid, .tech-list, .swatches { grid-template-columns: 1fr; }
+    .swatches { grid-template-columns: repeat(2, 1fr); }
+    .hero-actions { flex-direction: column; align-items: stretch; }
+    .btn { justify-content: center; }
+    .float-chip { display: none; }
+    .nav-cta .btn-ghost { display: none; }
+    .ring-row { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+<div class="grain"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="wrap nav-inner">
+    <div class="brand">
+      <div class="mark"></div>
+      FitAI
+    </div>
+    <div class="nav-links">
+      <a href="#decisions">Decision System</a>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#features">Features</a>
+      <a href="#design">Design System</a>
+      <a href="#tech">Tech</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#design" class="btn btn-ghost">Design System</a>
+      <a href="#dashboard" class="btn btn-primary">View Today's Plan</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy reveal in">
+      <div class="hero-badge"><span class="dot"></span> Design proposal · Concept v1</div>
+      <h1>Know when to <span class="gradient-text">push, maintain,</span> or recover.</h1>
+      <p class="lead">FitAI turns sleep, stress, energy, workload, and recovery signals into clear daily decisions for study, workouts, and rest — so you spend your energy on the right thing, today.</p>
+      <div class="hero-actions">
+        <a href="#dashboard" class="btn btn-primary">View Today's Plan →</a>
+        <a href="#design" class="btn btn-ghost">Explore Design System</a>
+      </div>
+      <div class="trust">
+        <span class="pill">◆ Built for students, builders, and high-output people</span>
+      </div>
+    </div>
+
+    <div class="hero-preview reveal in">
+      <div class="glow"></div>
+      <div class="float-chip a">
+        <div class="ic" style="background:rgba(94,231,211,0.15);color:#8ff0e2;">↑</div>
+        <div><div style="font-weight:600;">Readiness +6%</div><div style="font-size:10.5px;color:var(--ink-dim);">vs. 7-day avg</div></div>
+      </div>
+      <div class="float-chip b">
+        <div class="ic" style="background:rgba(169,139,255,0.18);color:#cdbcff;">☾</div>
+        <div><div style="font-weight:600;">Sleep 7h 42m</div><div style="font-size:10.5px;color:var(--ink-dim);">Deep recovery</div></div>
+      </div>
+
+      <div class="preview-card glass">
+        <div class="preview-top">
+          <span class="label">Today · FitAI</span>
+          <span class="status-chip"><span style="width:7px;height:7px;border-radius:50%;background:var(--maintain);box-shadow:0 0 10px var(--maintain);"></span> Maintain Day</span>
+        </div>
+        <div class="ring-row">
+          <div class="ring" style="--val:74;">
+            <div style="text-align:center;">
+              <div class="ring-val">74</div>
+              <div class="ring-sub">Readiness</div>
+            </div>
+          </div>
+          <div class="ring-meta">
+            <div>
+              <div class="mini-metric"><span>Energy</span><span>Steady</span></div>
+              <div class="bar"><i style="width:68%"></i></div>
+            </div>
+            <div>
+              <div class="mini-metric"><span>Stress</span><span>Moderate</span></div>
+              <div class="bar"><i style="width:46%;background:linear-gradient(90deg,#ffb27a,#ff7a59)"></i></div>
+            </div>
+            <div>
+              <div class="mini-metric"><span>Workload</span><span>Elevated</span></div>
+              <div class="bar"><i style="width:72%;background:linear-gradient(90deg,#a98bff,#6a7bff)"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-foot">
+          <span>Suggested: <b>Focused study block + light mobility</b></span>
+          <span style="color:var(--accent);font-weight:600;">Learn more →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="wrap strip-inner">
+    <span>◇ Recovery-aware</span>
+    <span>◇ Decision-first, not data-first</span>
+    <span>◇ Lifestyle guidance, not diagnosis</span>
+    <span>◇ Local-first privacy</span>
+    <span>◇ Wearable-ready architecture</span>
+  </div>
+</div>
+
+<!-- DECISION SYSTEM -->
+<section class="section" id="decisions">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">The core model</div>
+      <h2>Every day resolves to one clear decision.</h2>
+      <p>FitAI reduces noisy signals into a single recovery-aware verdict — then translates it into how hard to study, how hard to train, and how to recover.</p>
+    </div>
+
+    <div class="decision-grid">
+      <!-- PUSH -->
+      <div class="dcard push reveal">
+        <span class="badge"><span style="width:7px;height:7px;border-radius:50%;background:var(--push);box-shadow:0 0 10px var(--push);"></span> Push Day</span>
+        <h3>Spend the surplus.</h3>
+        <p class="desc">High readiness, low residual stress, and good sleep. Capacity is available — this is the day to attack hard goals.</p>
+        <div class="rec">
+          <div class="rec-row"><span class="k">Study</span><span class="v">Deep work</span><span class="intensity"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+          <div class="rec-row"><span class="k">Workout</span><span class="v">High intensity</span><span class="intensity"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+          <div class="rec-row"><span class="k">Recovery</span><span class="v">Protect sleep tonight</span></div>
+        </div>
+      </div>
+
+      <!-- MAINTAIN -->
+      <div class="dcard maintain reveal">
+        <span class="badge"><span style="width:7px;height:7px;border-radius:50%;background:var(--maintain);box-shadow:0 0 10px var(--maintain);"></span> Maintain Day</span>
+        <h3>Hold the line.</h3>
+        <p class="desc">Balanced signals with some load. Make steady progress without digging into reserves you'll need later this week.</p>
+        <div class="rec">
+          <div class="rec-row"><span class="k">Study</span><span class="v">Focused blocks</span><span class="intensity"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+          <div class="rec-row"><span class="k">Workout</span><span class="v">Moderate / Zone 2</span><span class="intensity"><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+          <div class="rec-row"><span class="k">Recovery</span><span class="v">Light mobility + walk</span></div>
+        </div>
+      </div>
+
+      <!-- RECOVER -->
+      <div class="dcard recover reveal">
+        <span class="badge"><span style="width:7px;height:7px;border-radius:50%;background:var(--recover);box-shadow:0 0 10px var(--recover);"></span> Recover Day</span>
+        <h3>Refill the tank.</h3>
+        <p class="desc">Low readiness, high stress, or sleep debt. Pulling harder now costs more than it returns — recover deliberately, then reschedule.</p>
+        <div class="rec">
+          <div class="rec-row"><span class="k">Study</span><span class="v">Light review only</span><span class="intensity"><i class="on"></i><i></i><i></i><i></i></span></div>
+          <div class="rec-row"><span class="k">Workout</span><span class="v">Rest or gentle stretch</span><span class="intensity"><i class="on"></i><i></i><i></i><i></i></span></div>
+          <div class="rec-row"><span class="k">Recovery</span><span class="v">Reschedule peak tasks</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN DASHBOARD -->
+<section class="section" id="dashboard">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">The central experience</div>
+      <h2>Your day, decided at a glance.</h2>
+      <p>One screen answers the only question that matters in the morning: how hard should I go today — and where?</p>
+    </div>
+
+    <div class="dash glass reveal">
+      <div class="dash-head">
+        <div>
+          <div class="today">Tuesday · June 9 · Morning check-in complete</div>
+          <h3>Today is a <em>Maintain Day</em></h3>
+        </div>
+        <a href="#decisions" class="btn btn-ghost">Learn more →</a>
+      </div>
+
+      <div class="dash-layout">
+        <div class="readiness-card">
+          <div class="big-ring" style="--val:74;">
+            <div style="text-align:center;">
+              <div class="v">74</div>
+              <div class="l">Readiness</div>
+            </div>
+          </div>
+          <p class="verdict">Solid baseline. <b>Make steady progress</b> — avoid maxing out today to protect Thursday's deadline.</p>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="mhead"><span class="mlabel">Stress level</span><span class="mic">◔</span></div>
+            <div class="mval">Moderate</div>
+            <div class="mtrend trend-down">↓ Easing since yesterday</div>
+            <div class="bar" style="margin-top:12px;"><i style="width:46%;background:linear-gradient(90deg,#ffb27a,#ff7a59)"></i></div>
+          </div>
+          <div class="metric">
+            <div class="mhead"><span class="mlabel">Sleep duration</span><span class="mic">☾</span></div>
+            <div class="mval">7h 42m</div>
+            <div class="mtrend trend-up">↑ Above your 7d average</div>
+            <div class="bar" style="margin-top:12px;"><i style="width:82%;background:linear-gradient(90deg,#a98bff,#6a7bff)"></i></div>
+          </div>
+          <div class="metric">
+            <div class="mhead"><span class="mlabel">Energy score</span><span class="mic">⚡</span></div>
+            <div class="mval">68<small>/100</small></div>
+            <div class="mtrend trend-flat">→ Steady &amp; stable</div>
+            <div class="spark">
+              <i style="height:40%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:62%"></i><i style="height:58%"></i><i style="height:66%"></i><i style="height:64%"></i>
+            </div>
+          </div>
+          <div class="metric">
+            <div class="mhead"><span class="mlabel">Workload pressure</span><span class="mic">▤</span></div>
+            <div class="mval">Elevated</div>
+            <div class="mtrend trend-up">↑ 3 deadlines this week</div>
+            <div class="bar" style="margin-top:12px;"><i style="width:72%;background:linear-gradient(90deg,#6ea8ff,#9b8cff)"></i></div>
+          </div>
+          <div class="metric">
+            <div class="mhead"><span class="mlabel">Recovery trend</span><span class="mic">↗</span></div>
+            <div class="mval">Improving</div>
+            <div class="mtrend trend-up">↑ 3-day upward curve</div>
+            <div class="spark">
+              <i style="height:30%"></i><i style="height:38%"></i><i style="height:35%"></i><i style="height:50%"></i><i style="height:58%"></i><i style="height:70%"></i><i style="height:78%"></i>
+            </div>
+          </div>
+          <div class="metric">
+            <div class="mhead"><span class="mlabel">Suggested action</span><span class="mic">◎</span></div>
+            <div class="mval" style="font-size:18px;line-height:1.3;">Focused study + Zone 2</div>
+            <div class="mtrend trend-flat">2 deep blocks · light cardio</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-action">
+        <div class="txt">
+          <div class="t">Recommended plan for today</div>
+          <div class="d">Two 90-minute focus blocks before 3pm, a 30-minute Zone 2 session, and an early wind-down. Re-check at midday to adjust if stress climbs.</div>
+        </div>
+        <a href="#flow" class="btn btn-primary">See full reasoning →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DAILY FLOW -->
+<section class="section" id="flow">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">A day with FitAI</div>
+      <h2>One calm loop, every day.</h2>
+      <p>FitAI works in a light rhythm — check in, get a decision, act, re-check, reflect. Each cycle makes the next recommendation smarter.</p>
+    </div>
+
+    <div class="flow">
+      <div class="step reveal">
+        <div class="node">☀︎</div>
+        <div class="num">01</div>
+        <h4>Morning check-in</h4>
+        <p>A 20-second log of sleep, mood, energy, and what's on your plate.</p>
+      </div>
+      <div class="step reveal">
+        <div class="node">◎</div>
+        <div class="num">02</div>
+        <h4>FitAI computes</h4>
+        <p>Signals resolve into Push, Maintain, or Recover with a readiness score.</p>
+      </div>
+      <div class="step reveal">
+        <div class="node">◇</div>
+        <div class="num">03</div>
+        <h4>You get a plan</h4>
+        <p>Clear study, workout, and rest recommendations for the day ahead.</p>
+      </div>
+      <div class="step reveal">
+        <div class="node">↻</div>
+        <div class="num">04</div>
+        <h4>Midday re-check</h4>
+        <p>A quick pulse updates the plan if stress or workload shifts.</p>
+      </div>
+      <div class="step reveal">
+        <div class="node">☾</div>
+        <div class="num">05</div>
+        <h4>Night reflection</h4>
+        <p>A short review tunes tomorrow's suggestions to how today actually felt.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURE SET -->
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Proposed scope</div>
+      <h2>Start focused. Grow deliberately.</h2>
+      <p>A clear path from a usable first version to a fully recovery-aware coaching system — without overbuilding before the core proves itself.</p>
+    </div>
+
+    <div class="feat-grid">
+      <div class="feat-col mvp reveal">
+        <span class="ftag">● MVP</span>
+        <h3>The essential loop</h3>
+        <div class="sub">Prove the core decision is genuinely useful.</div>
+        <ul class="feat-list">
+          <li><span class="tick">✓</span> Manual daily check-in</li>
+          <li><span class="tick">✓</span> Mock health metrics</li>
+          <li><span class="tick">✓</span> Push / Maintain / Recover result</li>
+          <li><span class="tick">✓</span> Study recommendation</li>
+          <li><span class="tick">✓</span> Workout recommendation</li>
+          <li><span class="tick">✓</span> Rest / reschedule suggestion</li>
+          <li><span class="tick">✓</span> Explanation panel</li>
+          <li><span class="tick">✓</span> Night reflection</li>
+          <li><span class="tick">✓</span> Local history</li>
+        </ul>
+      </div>
+
+      <div class="feat-col next reveal">
+        <span class="ftag">● Next version</span>
+        <h3>Smarter &amp; connected</h3>
+        <div class="sub">Personalize and reduce manual input.</div>
+        <ul class="feat-list">
+          <li><span class="tick">+</span> Wearable integration prep</li>
+          <li><span class="tick">+</span> Calendar / task integration</li>
+          <li><span class="tick">+</span> Personalized baselines</li>
+          <li><span class="tick">+</span> Trend insights</li>
+          <li><span class="tick">+</span> Smart reminders</li>
+          <li><span class="tick">+</span> Improved recommendation logic</li>
+        </ul>
+      </div>
+
+      <div class="feat-col future reveal">
+        <span class="ftag">● Future advanced</span>
+        <h3>Fully recovery-aware</h3>
+        <div class="sub">Adaptive coaching that learns you.</div>
+        <ul class="feat-list">
+          <li><span class="tick">★</span> Fitbit / Apple Health / Google Fit</li>
+          <li><span class="tick">★</span> AI-generated daily coaching</li>
+          <li><span class="tick">★</span> Anomaly detection</li>
+          <li><span class="tick">★</span> Weekly pattern reports</li>
+          <li><span class="tick">★</span> Recovery-aware auto-scheduling</li>
+          <li><span class="tick">★</span> Personalized model from feedback</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KEY SCREENS -->
+<section class="section" id="screens">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Key screens</div>
+      <h2>Six surfaces, one coherent feel.</h2>
+      <p>A preview of the core moments — from the morning check-in to the trends that emerge over weeks.</p>
+    </div>
+
+    <div class="screens-grid">
+      <!-- Daily Check-In -->
+      <div class="screen reveal">
+        <div class="viewport">
+          <div class="ui-line w40"></div>
+          <div style="margin:14px 0 12px;">
+            <span class="ui-pill">Slept well</span><span class="ui-pill" style="border-color:var(--line-strong);background:rgba(110,168,255,0.12);">Energy 7/10</span><span class="ui-pill">Low stress</span><span class="ui-pill">Busy day</span>
+          </div>
+          <div class="ui-card-mini" style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:11px;color:var(--ink-soft);">How rested do you feel?</span>
+            <div class="bar" style="width:90px;"><i style="width:70%"></i></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <span class="ui-pill" style="background:linear-gradient(120deg,#cfe2ff,#c9bcff);color:#08111f;border:none;font-weight:600;">Submit →</span>
+          </div>
+        </div>
+        <div class="scaption"><div class="st">Daily Check-In</div><div class="sd">A 20-second morning log of how you actually feel.</div></div>
+      </div>
+
+      <!-- Today Dashboard -->
+      <div class="screen reveal">
+        <div class="viewport">
+          <div class="ui-row" style="justify-content:space-between;margin-bottom:14px;">
+            <span class="ui-pill" style="background:rgba(94,231,211,0.12);border-color:rgba(94,231,211,0.3);color:#b6f1e7;">Maintain Day</span>
+            <span style="font-size:10px;color:var(--ink-dim);">June 9</span>
+          </div>
+          <div class="ui-row" style="gap:16px;">
+            <div class="ui-ring"><span>74</span></div>
+            <div style="flex:1;">
+              <div class="ui-line w70"></div><div class="ui-line w40"></div>
+              <div class="bar" style="margin-top:8px;"><i style="width:62%"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="scaption"><div class="st">Today Dashboard</div><div class="sd">The verdict, readiness, and key signals at a glance.</div></div>
+      </div>
+
+      <!-- Learn More / Reasoning -->
+      <div class="screen reveal">
+        <div class="viewport">
+          <div class="ui-line w60"></div>
+          <div class="ui-card-mini"><div style="font-size:10.5px;color:var(--ink-soft);">Sleep 7h42m → +readiness</div><div class="bar" style="margin-top:6px;"><i style="width:82%;background:linear-gradient(90deg,#a98bff,#6a7bff)"></i></div></div>
+          <div class="ui-card-mini"><div style="font-size:10.5px;color:var(--ink-soft);">Workload elevated → -capacity</div><div class="bar" style="margin-top:6px;"><i style="width:72%;background:linear-gradient(90deg,#6ea8ff,#9b8cff)"></i></div></div>
+          <div class="ui-card-mini" style="margin-bottom:0;"><div style="font-size:10.5px;color:var(--ink-soft);">Stress easing → +stability</div><div class="bar" style="margin-top:6px;"><i style="width:46%;background:linear-gradient(90deg,#ffb27a,#ff7a59)"></i></div></div>
+        </div>
+        <div class="scaption"><div class="st">Learn More / Reasoning</div><div class="sd">Transparent breakdown of what drove today's call.</div></div>
+      </div>
+
+      <!-- Plan Adjustment -->
+      <div class="screen reveal">
+        <div class="viewport">
+          <div class="ui-line w40"></div>
+          <div class="ui-toggle"><span>Move deep work earlier</span><div class="sw"></div></div>
+          <div class="ui-toggle"><span>Swap HIIT → Zone 2</span><div class="sw"></div></div>
+          <div class="ui-toggle" style="margin-bottom:0;"><span>Reschedule peak task</span><div class="sw" style="background:rgba(255,255,255,0.12);"></div></div>
+        </div>
+        <div class="scaption"><div class="st">Plan Adjustment</div><div class="sd">Re-check midday and nudge the plan as the day shifts.</div></div>
+      </div>
+
+      <!-- Reflection -->
+      <div class="screen reveal">
+        <div class="viewport">
+          <div class="ui-line w60"></div>
+          <div style="margin:12px 0;">
+            <span class="ui-pill">Followed plan</span><span class="ui-pill">Felt focused</span><span class="ui-pill">Slept late</span>
+          </div>
+          <div class="ui-card-mini" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
+            <span style="font-size:10.5px;color:var(--ink-soft);">How did today go?</span>
+            <span style="font-size:13px;letter-spacing:2px;color:#ffd27a;">★★★★☆</span>
+          </div>
+        </div>
+        <div class="scaption"><div class="st">Reflection</div><div class="sd">A short nightly review that trains tomorrow's advice.</div></div>
+      </div>
+
+      <!-- Trends -->
+      <div class="screen reveal">
+        <div class="viewport">
+          <div class="ui-row" style="justify-content:space-between;margin-bottom:12px;">
+            <div class="ui-line w30" style="margin:0;"></div>
+            <span style="font-size:10px;color:var(--ink-dim);">Last 14 days</span>
+          </div>
+          <div class="ui-bars">
+            <i style="height:40%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:70%"></i><i style="height:62%"></i><i style="height:80%"></i><i style="height:58%"></i><i style="height:74%"></i><i style="height:66%"></i><i style="height:88%"></i>
+          </div>
+        </div>
+        <div class="scaption"><div class="st">Trends</div><div class="sd">Patterns in readiness, sleep, and output over time.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DESIGN SYSTEM -->
+<section class="section" id="design">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Design system</div>
+      <h2>A calm, glassy visual language.</h2>
+      <p>The building blocks that keep FitAI feeling premium and consistent across every screen.</p>
+    </div>
+
+    <div class="ds-grid">
+      <!-- Palette -->
+      <div class="ds-card reveal">
+        <h4>Color palette <span class="tagn">— sophisticated, low-saturation, glow-ready</span></h4>
+        <div class="swatches">
+          <div class="swatch" style="background:linear-gradient(160deg,#0e1422,#05070d);"><span>Base</span></div>
+          <div class="swatch" style="background:linear-gradient(160deg,#5ee7d3,#4f9cff);"><span>Maintain</span></div>
+          <div class="swatch" style="background:linear-gradient(160deg,#ff7a59,#ff4d6d);"><span>Push</span></div>
+          <div class="swatch" style="background:linear-gradient(160deg,#a98bff,#6a7bff);"><span>Recover</span></div>
+          <div class="swatch" style="background:linear-gradient(160deg,#6ea8ff,#9b8cff);"><span>Accent</span></div>
+        </div>
+      </div>
+
+      <!-- Typography -->
+      <div class="ds-card reveal">
+        <h4>Typography <span class="tagn">— Sora display · Inter body</span></h4>
+        <div class="type-row">
+          <div class="type-sample"><div class="tn">Display · Sora</div><div class="type-display">Push, maintain, recover</div></div>
+          <div class="type-sample"><div class="tn">Body · Inter</div><div class="type-body">Clear, quiet copy that explains decisions without overwhelming.</div></div>
+          <div class="type-sample"><div class="tn">Label · Sora caps</div><div class="type-mono">Readiness · Today</div></div>
+        </div>
+      </div>
+
+      <!-- Chips & Badges -->
+      <div class="ds-card reveal">
+        <h4>Metric chips &amp; status badges</h4>
+        <div class="chips-demo" style="margin-bottom:18px;">
+          <span class="chip-demo">☾ Sleep 7h 42m</span>
+          <span class="chip-demo">⚡ Energy 68</span>
+          <span class="chip-demo">◔ Stress Moderate</span>
+        </div>
+        <div class="chips-demo">
+          <span class="badge-demo bd-push">Push Day</span>
+          <span class="badge-demo bd-maintain">Maintain Day</span>
+          <span class="badge-demo bd-recover">Recover Day</span>
+        </div>
+      </div>
+
+      <!-- Buttons & Gradients -->
+      <div class="ds-card reveal">
+        <h4>Buttons &amp; gradients</h4>
+        <div class="btn-demo-row" style="margin-bottom:18px;">
+          <span class="btn btn-primary">Primary</span>
+          <span class="btn btn-ghost">Ghost</span>
+        </div>
+        <div class="gradient-demo">
+          <div class="grad-tile" style="background:linear-gradient(120deg,#5ee7d3,#4f9cff);"></div>
+          <div class="grad-tile" style="background:linear-gradient(120deg,#a98bff,#6a7bff);"></div>
+          <div class="grad-tile" style="background:linear-gradient(120deg,#ff7a59,#ff4d6d);"></div>
+          <div class="grad-tile" style="background:linear-gradient(120deg,#cfe2ff,#c9bcff);"></div>
+        </div>
+      </div>
+
+      <!-- Glass panels -->
+      <div class="ds-card reveal">
+        <h4>Glass panels &amp; cards</h4>
+        <div style="display:flex;gap:14px;">
+          <div class="glass" style="flex:1;height:96px;border-radius:18px;"></div>
+          <div style="flex:1;height:96px;border-radius:18px;background:var(--glass-2);border:1px solid var(--line-strong);"></div>
+        </div>
+        <p style="font-size:12.5px;color:var(--ink-dim);margin-top:14px;">Frosted blur, hairline borders, and large 16–30px radii. Layered glow behind, never harsh shadows.</p>
+      </div>
+
+      <!-- Motion -->
+      <div class="ds-card reveal">
+        <h4>Motion &amp; microinteractions</h4>
+        <ul class="motion-list">
+          <li><span class="mi">→</span> Cards lift 4–6px on hover with a soft border brighten.</li>
+          <li><span class="mi">→</span> Sections fade up gently on scroll into view.</li>
+          <li><span class="mi">→</span> Rings and bars animate in to their value, never looping distractingly.</li>
+          <li><span class="mi">→</span> Transitions stay 200–300ms with calm easing — nothing bouncy.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PHILOSOPHY -->
+<section class="section" id="philosophy">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Interaction philosophy</div>
+      <h2>How FitAI should feel.</h2>
+      <p>The product's personality matters as much as its logic. FitAI guides — it never lectures, alarms, or pretends to be a doctor.</p>
+    </div>
+
+    <div class="phil-grid">
+      <div class="phil reveal"><div class="pi">◐</div><h4>Calm but motivating</h4><p>Encourages momentum without pressure or guilt.</p></div>
+      <div class="phil reveal"><div class="pi">◎</div><h4>Decision-first, not data-first</h4><p>Leads with the call; the numbers support, not bury, it.</p></div>
+      <div class="phil reveal"><div class="pi">◇</div><h4>Clear, not overconfident</h4><p>Speaks in confident guidance, but never false certainty.</p></div>
+      <div class="phil reveal"><div class="pi">✚</div><h4>Helpful, not medical</h4><p>Frames everything as lifestyle and productivity guidance.</p></div>
+      <div class="phil reveal"><div class="pi">◆</div><h4>Premium, not complicated</h4><p>Depth on demand; the default view stays effortless.</p></div>
+      <div class="phil reveal"><div class="pi">♁</div><h4>Personal, not overwhelming</h4><p>Adapts to you without flooding you with signals.</p></div>
+    </div>
+
+    <div class="disclaimer reveal">
+      <span class="di">ⓘ</span>
+      <div><b>Not a medical product.</b> FitAI is designed to offer lifestyle and productivity guidance only. It does not diagnose, treat, or make medical claims, and its recommendations are framed as suggestions to help you plan your day — not clinical advice.</div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH DIRECTION -->
+<section class="section" id="tech">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Technical direction</div>
+      <h2>A proposed stack, built to grow.</h2>
+      <p>A modern, type-safe foundation that ships fast as a local-first app and scales toward real wearable data later. Not implemented yet — this is the intended direction.</p>
+    </div>
+
+    <div class="tech-wrap">
+      <div class="tech-list reveal">
+        <div class="tech-item"><div class="ti">N</div><div><div class="tt">Next.js</div><div class="td">App framework &amp; routing</div></div></div>
+        <div class="tech-item"><div class="ti">TS</div><div><div class="tt">TypeScript</div><div class="td">Type-safe everywhere</div></div></div>
+        <div class="tech-item"><div class="ti">TW</div><div><div class="tt">Tailwind CSS</div><div class="td">Design-system styling</div></div></div>
+        <div class="tech-item"><div class="ti">UI</div><div><div class="tt">shadcn/ui</div><div class="td">Composable primitives</div></div></div>
+        <div class="tech-item"><div class="ti">FM</div><div><div class="tt">Framer Motion</div><div class="td">Polished interaction</div></div></div>
+        <div class="tech-item"><div class="ti">DB</div><div><div class="tt">Supabase / Postgres</div><div class="td">Later persistence layer</div></div></div>
+      </div>
+
+      <div class="tech-phase reveal">
+        <div class="tp"><span class="badge-n">PHASE 1</span><div class="ttxt"><b>Local-first MVP</b><p>Everything runs in the browser with local storage — no accounts, fast iteration, full privacy while validating the core loop.</p></div></div>
+        <div class="tp"><span class="badge-n">PHASE 2</span><div class="ttxt"><b>Accounts &amp; sync</b><p>Upgrade to Supabase or PostgreSQL for cross-device history, baselines, and trend insights.</p></div></div>
+        <div class="tp"><span class="badge-n">PHASE 3</span><div class="ttxt"><b>Wearable data</b><p>Integrate Fitbit, Apple Health, and Google Fit so check-ins become mostly automatic.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="section" style="padding-top:20px;">
+  <div class="wrap">
+    <div class="cta-final reveal">
+      <div class="eyebrow" style="justify-content:center;display:flex;margin-bottom:14px;">Design proposal · FitAI</div>
+      <h2>A recovery-aware coach,<br/>built around one daily decision.</h2>
+      <p>This concept shows where FitAI could go. The next step is building the MVP loop and proving the core decision earns a place in your morning.</p>
+      <div class="cta-actions">
+        <a href="#dashboard" class="btn btn-primary">View Today's Plan →</a>
+        <a href="#design" class="btn btn-ghost">Explore Design System</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap foot-inner">
+    <div class="fbrand"><div class="mark" style="width:28px;height:28px;border-radius:9px;"></div> FitAI</div>
+    <div class="foot-meta">Design proposal · Concept v1 · Mock data only — no real health data connected.</div>
+    <div class="foot-links">
+      <a href="#decisions">Decision System</a>
+      <a href="#features">Features</a>
+      <a href="#tech">Tech</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Nav border on scroll
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+</script>
+</body>
+</html>

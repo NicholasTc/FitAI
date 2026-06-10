@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitAI — Today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #eef0f9;
+    --bg-alt: #f4f5fb;
+    --surface: #ffffff;
+    --glass: rgba(255,255,255,0.80);
+    --border: rgba(148,162,218,0.16);
+    --border-strong: rgba(148,162,218,0.28);
+    --text: #1b2040;
+    --text-soft: #63708f;
+    --text-dim: #9ea8c4;
+    --push: #e05f3c;
+    --push-bg: #fff3f0;
+    --push-border: rgba(224,95,60,0.22);
+    --maintain: #009e83;
+    --maintain-bg: #ecfaf6;
+    --maintain-border: rgba(0,158,131,0.22);
+    --recover: #7850e2;
+    --recover-bg: #f4f0ff;
+    --recover-border: rgba(120,80,226,0.22);
+    --accent: #4a7df6;
+    --accent-bg: #eef3ff;
+    --accent-border: rgba(74,125,246,0.24);
+    --sidebar-w: 236px;
+    --topbar-h: 62px;
+    --radius-xl: 22px;
+    --radius-lg: 17px;
+    --radius-md: 13px;
+    --shadow-sm: 0 2px 14px rgba(80,100,180,0.07);
+    --shadow-md: 0 8px 32px rgba(80,100,180,0.10);
+    --shadow-lg: 0 20px 60px rgba(80,100,180,0.14);
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: "Sora", "Inter", sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-sans);
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: -1;
+    background:
+      radial-gradient(70% 50% at 85% 10%, rgba(190,210,255,0.45), transparent 60%),
+      radial-gradient(60% 60% at 10% 90%, rgba(200,185,255,0.35), transparent 60%),
+      var(--bg);
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* ---- App shell ---- */
+  .app { display: flex; min-height: 100vh; }
+
+  /* ---- Sidebar ---- */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(28px) saturate(150%);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    border-right: 1px solid var(--border);
+    box-shadow: 2px 0 28px rgba(80,100,180,0.06);
+    display: flex;
+    flex-direction: column;
+    padding: 22px 14px;
+    z-index: 100;
+  }
+
+  .brand {
+    display: flex; align-items: center; gap: 11px;
+    padding: 6px 10px; margin-bottom: 28px;
+  }
+  .brand-mark {
+    width: 33px; height: 33px; border-radius: 10px;
+    background: linear-gradient(140deg, #4a7df6, #8065e8);
+    display: grid; place-items: center;
+    box-shadow: 0 4px 16px rgba(74,125,246,0.42);
+    position: relative; overflow: hidden; flex-shrink: 0;
+  }
+  .brand-mark svg { position: relative; z-index: 1; }
+  .brand-mark::after {
+    content: ""; position: absolute; inset: 4px; border-radius: 6px;
+    background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.55), transparent 60%);
+  }
+  .brand-name { font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+
+  .nav-section { font-size: 10.5px; font-weight: 700; color: var(--text-dim); letter-spacing: 0.14em; text-transform: uppercase; padding: 0 10px; margin-bottom: 6px; }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 22px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 12px; border-radius: 12px;
+    font-size: 14px; font-weight: 500; color: var(--text-soft);
+    cursor: pointer; transition: all 0.2s ease; user-select: none;
+    position: relative;
+  }
+  .nav-item:hover { background: rgba(74,125,246,0.06); color: var(--text); }
+  .nav-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  .nav-icon { width: 20px; height: 20px; display: grid; place-items: center; flex-shrink: 0; font-size: 15px; }
+  .nav-badge { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--maintain); box-shadow: 0 0 8px rgba(0,158,131,0.5); }
+
+  .sidebar-footer {
+    margin-top: auto; padding: 12px 10px;
+    border-radius: 14px; background: var(--bg);
+    display: flex; align-items: center; gap: 11px;
+    cursor: pointer; transition: background 0.2s ease;
+  }
+  .sidebar-footer:hover { background: var(--bg-alt); }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, #c5d8ff, #d8c8ff);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--accent);
+  }
+  .user-name { font-size: 13.5px; font-weight: 600; }
+  .user-sub { font-size: 11.5px; color: var(--text-dim); }
+
+  /* ---- Main ---- */
+  .main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* ---- Topbar ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    height: var(--topbar-h);
+    background: rgba(238,240,249,0.85);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 30px;
+  }
+  .topbar-left .tdate { font-size: 12px; color: var(--text-dim); margin-bottom: 1px; }
+  .topbar-left .tpage { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+  .status-chip-top {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    background: var(--maintain-bg); color: var(--maintain);
+    border: 1px solid var(--maintain-border);
+  }
+  .status-chip-top .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--maintain); }
+
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: white; border: 1px solid var(--border);
+    display: grid; place-items: center; cursor: pointer; font-size: 15px;
+    box-shadow: var(--shadow-sm); transition: all 0.2s ease; color: var(--text-soft);
+  }
+  .icon-btn:hover { border-color: var(--accent-border); box-shadow: 0 4px 16px rgba(74,125,246,0.12); color: var(--accent); }
+
+  /* ---- Content ---- */
+  .content { padding: 26px 30px 80px; flex: 1; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---- Buttons ---- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 999px;
+    font-size: 13.5px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s ease; border: none;
+    font-family: var(--font-sans);
+  }
+  .btn-primary {
+    background: linear-gradient(120deg, #4a7df6, #8065e8);
+    color: white;
+    box-shadow: 0 4px 20px rgba(74,125,246,0.36);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(74,125,246,0.46); }
+  .btn-soft { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-border); }
+  .btn-soft:hover { background: #e4ecff; }
+  .btn-outline { background: white; color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-outline:hover { border-color: var(--accent-border); box-shadow: var(--shadow-md); }
+
+  /* ---- Card ---- */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-xl); box-shadow: var(--shadow-sm);
+  }
+
+  /* ---- Section row header ---- */
+  .row-label {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11.5px; font-weight: 700; color: var(--text-dim);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 13px;
+  }
+  .row-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+
+  /* ====== TODAY VIEW ====== */
+
+  /* Status hero */
+  .today-hero {
+    padding: 26px 30px;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(145deg, rgba(255,255,255,0.98), rgba(236,250,246,0.95));
+    border: 1px solid var(--maintain-border);
+    box-shadow: 0 8px 40px rgba(0,158,131,0.09), var(--shadow-sm);
+    position: relative; overflow: hidden;
+    margin-bottom: 18px;
+  }
+  .today-hero::before {
+    content: ""; position: absolute; top: -80px; right: -80px;
+    width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,158,131,0.1), transparent 65%);
+  }
+  .today-hero::after {
+    content: ""; position: absolute; bottom: -40px; left: 50%;
+    width: 400px; height: 80px;
+    background: radial-gradient(ellipse, rgba(0,158,131,0.06), transparent 70%);
+  }
+  .hero-inner { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; position: relative; z-index: 1; flex-wrap: wrap; }
+  .hero-text { flex: 1; min-width: 280px; }
+  .hero-eyebrow {
+    font-size: 11.5px; font-weight: 700; color: var(--maintain);
+    letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--maintain); }
+  .hero-day {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 2.8vw, 36px);
+    font-weight: 700; letter-spacing: -0.025em;
+    line-height: 1.05; margin-bottom: 10px;
+  }
+  .hero-day em { font-style: normal; color: var(--maintain); }
+  .hero-rec { font-size: 15px; color: var(--text-soft); line-height: 1.65; max-width: 500px; margin-bottom: 20px; }
+  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Readiness ring (SVG) */
+  .readiness-wrap { text-align: center; flex-shrink: 0; }
+  .r-ring-outer { position: relative; width: 126px; height: 126px; }
+  .r-ring-outer svg { position: absolute; inset: 0; }
+  .r-ring-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .r-val { font-family: var(--font-display); font-size: 33px; font-weight: 800; color: var(--text); line-height: 1; }
+  .r-label { font-size: 10.5px; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 3px; }
+  .r-sub { font-size: 12px; color: var(--maintain); font-weight: 600; margin-top: 8px; }
+
+  /* Metrics row */
+  .metrics-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 13px; margin-bottom: 18px; }
+  .mc {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.22s ease; cursor: default;
+  }
+  .mc:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+  .mc-icon {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: grid; place-items: center; font-size: 14px;
+    margin-bottom: 11px; border: 1px solid transparent;
+  }
+  .mc-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 0.03em; }
+  .mc-val { font-family: var(--font-display); font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .mc-val small { font-size: 12.5px; font-weight: 500; color: var(--text-dim); }
+  .mc-bar { height: 4px; border-radius: 999px; background: #eef0f9; overflow: hidden; }
+  .mc-bar i { display: block; height: 100%; border-radius: 999px; }
+  .mc-trend { font-size: 11px; color: var(--text-dim); margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+  .up { color: #00a87a; } .down { color: #e05f3c; } .flat { color: var(--text-dim); }
+
+  /* Spark */
+  .spark { display: flex; align-items: flex-end; gap: 3px; height: 26px; margin-top: 7px; }
+  .spark i { flex: 1; border-radius: 2px 2px 0 0; background: linear-gradient(180deg, #c2d4ff, rgba(194,212,255,0.2)); }
+
+  /* Learn Why */
+  .learn-why {
+    padding: 22px 26px;
+    background: linear-gradient(150deg, #fafbff, #f6f7ff);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 18px;
+  }
+  .lw-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .lw-head h3 { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+  .reasons { display: flex; flex-direction: column; gap: 9px; }
+  .reason {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px; background: white; border-radius: 12px;
+    border: 1px solid var(--border); font-size: 13.5px; transition: all 0.18s ease;
+  }
+  .reason:hover { border-color: var(--border-strong); box-shadow: 0 3px 12px rgba(80,100,180,0.07); }
+  .ricon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; flex-shrink: 0; }
+  .rtxt { flex: 1; line-height: 1.4; }
+  .rtxt b { font-weight: 600; }
+  .rtxt span { color: var(--text-soft); }
+  .rtag { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+
+  /* Two col layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+
+  /* Night reflection */
+  .reflect-card {
+    padding: 24px 26px;
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius-xl); box-shadow: var(--shadow-sm);
+  }
+  .reflect-card h3 { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .reflect-card .rc-sub { font-size: 13px; color: var(--text-soft); margin-bottom: 18px; }
+  .reflect-q { font-size: 14.5px; font-weight: 500; margin-bottom: 14px; }
+  .rating-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .rating-btn {
+    flex: 1; padding: 12px 8px; border-radius: 12px;
+    border: 1.5px solid var(--border); background: white;
+    font-size: 20px; text-align: center; cursor: pointer;
+    transition: all 0.2s ease; line-height: 1;
+  }
+  .rating-btn:hover, .rating-btn.active {
+    border-color: var(--accent); background: var(--accent-bg);
+    transform: scale(1.06); box-shadow: 0 4px 16px rgba(74,125,246,0.14);
+  }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 7px; }
+  .tag-btn {
+    padding: 7px 14px; border-radius: 999px;
+    border: 1px solid var(--border); background: white;
+    font-size: 13px; color: var(--text-soft); cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  .tag-btn:hover, .tag-btn.active {
+    border-color: var(--accent); color: var(--accent); background: var(--accent-bg);
+  }
+
+  /* Recheck */
+  .recheck-card {
+    padding: 18px 22px;
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius-xl); box-shadow: var(--shadow-sm);
+    display: flex; align-items: center; gap: 16px; justify-content: space-between; flex-wrap: wrap;
+  }
+  .recheck-card .rc-icon { font-size: 22px; }
+  .recheck-card .rc-txt .rct { font-weight: 600; font-size: 14.5px; margin-bottom: 2px; }
+  .recheck-card .rc-txt .rcs { font-size: 12.5px; color: var(--text-soft); }
+
+
+  /* ====== CHECK-IN VIEW ====== */
+  .checkin-wrap { max-width: 580px; }
+  .view-header { margin-bottom: 24px; }
+  .view-header h2 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .view-header p { font-size: 14px; color: var(--text-soft); }
+
+  .ci-card {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius-xl); padding: 24px 26px;
+    box-shadow: var(--shadow-sm); margin-bottom: 14px;
+  }
+  .ci-section-label {
+    font-size: 11px; font-weight: 700; color: var(--text-dim);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 16px;
+  }
+  .ci-row { margin-bottom: 20px; }
+  .ci-row:last-child { margin-bottom: 0; }
+  .ci-label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 14px; font-weight: 500; margin-bottom: 10px;
+  }
+  .ci-label .lv { font-size: 13.5px; font-weight: 700; color: var(--accent); background: var(--accent-bg); padding: 3px 10px; border-radius: 999px; }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; border-radius: 999px;
+    background: #eef0f8; outline: none; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: white; border: 2.5px solid var(--accent);
+    box-shadow: 0 2px 10px rgba(74,125,246,0.3);
+    cursor: grab; transition: box-shadow 0.15s ease;
+  }
+  input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; box-shadow: 0 3px 14px rgba(74,125,246,0.44); }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: white; border: 2.5px solid var(--accent);
+    box-shadow: 0 2px 10px rgba(74,125,246,0.3); cursor: grab;
+  }
+
+  .sleep-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sleep-btn {
+    padding: 10px 14px; border-radius: 12px;
+    border: 1px solid var(--border); background: white;
+    font-size: 13.5px; font-weight: 500; cursor: pointer; color: var(--text-soft);
+    transition: all 0.18s ease;
+  }
+  .sleep-btn:hover { border-color: var(--border-strong); color: var(--text); }
+  .sleep-btn.active {
+    background: var(--accent-bg); border-color: var(--accent-border);
+    color: var(--accent); font-weight: 600;
+  }
+
+  .toggles { display: flex; flex-direction: column; }
+  .toggle-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .toggle-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .toggle-label .tl { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+  .toggle-label .ts { font-size: 12px; color: var(--text-dim); }
+  .toggle {
+    width: 44px; height: 26px; border-radius: 999px;
+    background: #e2e6f0; cursor: pointer; position: relative;
+    transition: background 0.22s ease; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: ""; position: absolute;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: white; top: 3px; left: 3px;
+    transition: transform 0.22s ease;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.16);
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  .ci-submit { text-align: right; margin-top: 4px; }
+
+
+  /* ====== PLAN VIEW ====== */
+  .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 18px; }
+  .plan-card {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius-xl); padding: 22px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.22s ease; position: relative; overflow: hidden;
+  }
+  .plan-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+  .plan-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+  .plan-card.study::before { background: linear-gradient(90deg, #4a7df6, #8065e8); }
+  .plan-card.workout::before { background: linear-gradient(90deg, #00c9a7, #4a7df6); }
+  .plan-card.recovery::before { background: linear-gradient(90deg, #c084fc, #8065e8); }
+
+  .plan-icon {
+    width: 44px; height: 44px; border-radius: 13px;
+    display: grid; place-items: center; font-size: 20px;
+    margin-bottom: 14px; border: 1px solid transparent; margin-top: 6px;
+  }
+  .plan-card h3 { font-family: var(--font-display); font-size: 17px; font-weight: 700; margin-bottom: 5px; }
+  .plan-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 600; padding: 5px 11px;
+    border-radius: 999px; margin-bottom: 13px;
+  }
+  .plan-desc { font-size: 13.5px; color: var(--text-soft); line-height: 1.6; margin-bottom: 14px; }
+  .plan-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .plan-list li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text-soft); }
+  .plan-list li .bk { width: 18px; height: 18px; border-radius: 6px; background: #f0f2fa; display: grid; place-items: center; font-size: 10px; flex-shrink: 0; margin-top: 1px; color: var(--text-dim); }
+  .intensity { display: flex; gap: 5px; margin-top: 14px; }
+  .intensity i { width: 26px; height: 6px; border-radius: 999px; background: #eef0f8; }
+
+  /* Adjustment */
+  .adj-list { display: flex; flex-direction: column; gap: 11px; }
+  .adj-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 15px 18px; border-radius: var(--radius-lg);
+    border: 1px solid var(--border); background: white;
+    box-shadow: var(--shadow-sm); transition: all 0.2s ease;
+  }
+  .adj-item:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+  .adj-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 16px; flex-shrink: 0; }
+  .adj-body { flex: 1; }
+  .adj-title { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .adj-sub { font-size: 12.5px; color: var(--text-soft); }
+  .adj-tag { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+
+
+  /* ====== TRENDS VIEW ====== */
+  .history-row { display: flex; gap: 6px; margin-bottom: 18px; }
+  .hday { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .hday .hd-dot { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+  .hday .hd-lbl { font-size: 11px; color: var(--text-dim); text-align: center; }
+
+  .chart-card {
+    background: white; border: 1px solid var(--border);
+    border-radius: var(--radius-xl); padding: 22px 24px;
+    box-shadow: var(--shadow-sm); margin-bottom: 18px;
+  }
+  .chart-head {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;
+  }
+  .chart-head h4 { font-family: var(--font-display); font-size: 14.5px; font-weight: 700; }
+  .legend { display: flex; gap: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-soft); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .chart-container { position: relative; }
+  .chart-labels { display: flex; justify-content: space-between; padding-top: 8px; padding-left: 28px; }
+  .chart-labels span { font-size: 10.5px; color: var(--text-dim); }
+
+  /* Stress trend bars */
+  .stress-bars { display: flex; align-items: flex-end; gap: 8px; height: 90px; margin-top: 6px; }
+  .sbar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .sbar { width: 100%; border-radius: 6px 6px 0 0; min-height: 6px; }
+  .sbar-label { font-size: 10.5px; color: var(--text-dim); }
+
+
+  /* ====== SETTINGS VIEW ====== */
+  .settings-section { margin-bottom: 24px; }
+  .settings-section h3 { font-family: var(--font-display); font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .setting-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; background: white; border: 1px solid var(--border);
+    border-radius: 13px; margin-bottom: 8px; box-shadow: var(--shadow-sm);
+  }
+  .setting-row .sl { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+  .setting-row .ss { font-size: 12px; color: var(--text-dim); }
+  .setting-row .sv { font-size: 13.5px; font-weight: 600; color: var(--accent); }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 960px) {
+    .sidebar {
+      width: 100%; height: 62px; bottom: 0; top: auto;
+      flex-direction: row; padding: 0 8px;
+      border-right: none; border-top: 1px solid var(--border);
+      box-shadow: 0 -2px 20px rgba(80,100,180,0.08);
+      justify-content: center; align-items: center;
+    }
+    .brand, .nav-section, .sidebar-footer { display: none; }
+    .nav-group { flex-direction: row; gap: 0; margin: 0; }
+    .nav-item { flex-direction: column; font-size: 10.5px; padding: 8px 16px; gap: 3px; border-radius: 10px; }
+    .main { margin-left: 0; margin-bottom: 62px; }
+    .topbar { padding: 0 18px; }
+    .content { padding: 18px 18px 40px; }
+    .metrics-row { grid-template-columns: repeat(3, 1fr); }
+    .plan-grid { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .metrics-row { grid-template-columns: 1fr 1fr; }
+    .hero-inner { flex-direction: column; }
+    .readiness-wrap { margin: 0 auto; }
+    .history-row { flex-wrap: wrap; }
+    .hday { min-width: calc(25% - 6px); }
+    .rating-row { gap: 5px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ========== SIDEBAR ========== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 2L11.5 7H16L12.5 10.5L14 15.5L9 12.5L4 15.5L5.5 10.5L2 7H6.5L9 2Z" fill="white" opacity="0.9"/>
+        </svg>
+      </div>
+      <span class="brand-name">FitAI</span>
+    </div>
+
+    <div class="nav-section">Main</div>
+    <div class="nav-group">
+      <div class="nav-item active" data-view="today">
+        <span class="nav-icon">◎</span> Today
+        <span class="nav-badge"></span>
+      </div>
+      <div class="nav-item" data-view="checkin">
+        <span class="nav-icon">✎</span> Check-In
+      </div>
+      <div class="nav-item" data-view="plan">
+        <span class="nav-icon">◇</span> Plan
+      </div>
+    </div>
+
+    <div class="nav-section">Insights</div>
+    <div class="nav-group">
+      <div class="nav-item" data-view="trends">
+        <span class="nav-icon">↗</span> Trends
+      </div>
+      <div class="nav-item" data-view="settings">
+        <span class="nav-icon">⚙</span> Settings
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="avatar">N</div>
+      <div>
+        <div class="user-name">Nicholas</div>
+        <div class="user-sub">Day 14 streak</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========== MAIN ========== -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="tdate">Tuesday, June 9</div>
+        <div class="tpage" id="topbar-title">Today</div>
+      </div>
+      <div class="topbar-right">
+        <div class="status-chip-top">
+          <span class="dot"></span> Maintain Day
+        </div>
+        <div class="icon-btn" title="Notifications">🔔</div>
+        <div class="icon-btn" title="Profile">◉</div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="content">
+
+      <!-- ========== TODAY ========== -->
+      <section class="view active" id="view-today">
+
+        <!-- Status hero -->
+        <div class="today-hero">
+          <div class="hero-inner">
+            <div class="hero-text">
+              <div class="hero-eyebrow"><span class="dot"></span> Morning check-in complete</div>
+              <div class="hero-day">Today is a <em>Maintain Day.</em></div>
+              <div class="hero-rec">Do one focused study block, keep your workout light, and move one non-urgent task. Readiness is solid but your workload is elevated — protect tomorrow.</div>
+              <div class="hero-actions">
+                <button class="btn btn-outline" onclick="switchView('plan')">View full plan →</button>
+                <button class="btn btn-soft" onclick="document.getElementById('lw').scrollIntoView({behavior:'smooth'})">Learn why</button>
+              </div>
+            </div>
+            <div class="readiness-wrap">
+              <div class="r-ring-outer">
+                <!-- SVG ring: r=50, cx=63, cy=63, circumference=314, 74%=232 -->
+                <svg viewBox="0 0 126 126" fill="none" xmlns="http://www.w3.org/2000/svg" width="126" height="126">
+                  <defs>
+                    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#00c9a7"/>
+                      <stop offset="100%" stop-color="#4a7df6"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="63" cy="63" r="52" stroke="#eef0f8" stroke-width="9" fill="none"/>
+                  <circle cx="63" cy="63" r="52" stroke="url(#ringGrad)" stroke-width="9" fill="none"
+                    stroke-linecap="round"
+                    stroke-dasharray="242 327"
+                    stroke-dashoffset="0"
+                    transform="rotate(-90 63 63)"/>
+                </svg>
+                <div class="r-ring-center">
+                  <div class="r-val">74</div>
+                  <div class="r-label">Readiness</div>
+                </div>
+              </div>
+              <div class="r-sub">Good baseline</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics row -->
+        <div class="row-label">Key signals</div>
+        <div class="metrics-row" style="margin-bottom:18px;">
+          <div class="mc">
+            <div class="mc-icon" style="background:#edf9f6;border-color:rgba(0,158,131,0.18);color:#00a07e;">☾</div>
+            <div class="mc-label">Sleep</div>
+            <div class="mc-val">7h <small>42m</small></div>
+            <div class="mc-bar"><i style="width:82%;background:linear-gradient(90deg,#9fefdf,#4a7df6)"></i></div>
+            <div class="mc-trend up">↑ Above average</div>
+          </div>
+          <div class="mc">
+            <div class="mc-icon" style="background:#fff5f2;border-color:rgba(224,95,60,0.18);color:#d9622c;">◔</div>
+            <div class="mc-label">Stress</div>
+            <div class="mc-val">Moderate</div>
+            <div class="mc-bar"><i style="width:48%;background:linear-gradient(90deg,#ffc6a8,#e05f3c)"></i></div>
+            <div class="mc-trend down">↓ Easing from yesterday</div>
+          </div>
+          <div class="mc">
+            <div class="mc-icon" style="background:#eef3ff;border-color:rgba(74,125,246,0.18);color:#4a7df6;">⚡</div>
+            <div class="mc-label">Energy</div>
+            <div class="mc-val">68<small>/100</small></div>
+            <div class="spark">
+              <i style="height:38%"></i><i style="height:52%"></i><i style="height:44%"></i><i style="height:60%"></i><i style="height:56%"></i><i style="height:64%"></i><i style="height:62%"></i>
+            </div>
+          </div>
+          <div class="mc">
+            <div class="mc-icon" style="background:#f4f0ff;border-color:rgba(120,80,226,0.18);color:#7850e2;">▤</div>
+            <div class="mc-label">Workload</div>
+            <div class="mc-val">Elevated</div>
+            <div class="mc-bar"><i style="width:70%;background:linear-gradient(90deg,#c4b2ff,#7850e2)"></i></div>
+            <div class="mc-trend down">3 deadlines this week</div>
+          </div>
+          <div class="mc">
+            <div class="mc-icon" style="background:#edfaf6;border-color:rgba(0,158,131,0.18);color:#009e83;">↗</div>
+            <div class="mc-label">Recovery</div>
+            <div class="mc-val">Improving</div>
+            <div class="spark">
+              <i style="height:28%"></i><i style="height:35%"></i><i style="height:32%"></i><i style="height:46%"></i><i style="height:55%"></i><i style="height:66%"></i><i style="height:72%"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Learn Why -->
+        <div class="learn-why" id="lw">
+          <div class="lw-head">
+            <h3>Why Maintain Day?</h3>
+            <span style="font-size:12.5px;color:var(--text-dim);">Based on this morning's check-in</span>
+          </div>
+          <div class="reasons">
+            <div class="reason">
+              <div class="ricon" style="background:#edf9f6;color:#009e83;">☾</div>
+              <div class="rtxt"><b>Sleep quality was good.</b> <span>7h 42m with restful deep sleep — above your 7-day average of 7h 04m. +Readiness</span></div>
+              <span class="rtag" style="background:#edf9f6;color:#009e83;border:1px solid rgba(0,158,131,0.22);">+Positive</span>
+            </div>
+            <div class="reason">
+              <div class="ricon" style="background:#fff5f2;color:#d9622c;">◔</div>
+              <div class="rtxt"><b>Stress is moderate, not resolved.</b> <span>Still above your baseline — this caps today's available capacity. -Moderate load</span></div>
+              <span class="rtag" style="background:#fff5f2;color:#d9622c;border:1px solid rgba(224,95,60,0.22);">-Caution</span>
+            </div>
+            <div class="reason">
+              <div class="ricon" style="background:#f4f0ff;color:#7850e2;">▤</div>
+              <div class="rtxt"><b>Workload pressure is elevated.</b> <span>Three deadlines in 4 days. Burning full capacity now creates risk for Thursday and Friday. -Capacity</span></div>
+              <span class="rtag" style="background:#f4f0ff;color:#7850e2;border:1px solid rgba(120,80,226,0.22);">-Limit</span>
+            </div>
+            <div class="reason">
+              <div class="ricon" style="background:#eef3ff;color:#4a7df6;">↗</div>
+              <div class="rtxt"><b>Recovery trend is improving.</b> <span>3-day upward pattern. Maintain momentum — a Push Day is achievable by Thursday if trend holds.</span></div>
+              <span class="rtag" style="background:#eef3ff;color:#4a7df6;border:1px solid rgba(74,125,246,0.22);">+Trending</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-col" style="margin-bottom:18px;">
+          <!-- Night reflection -->
+          <div class="reflect-card">
+            <h3>Night Reflection</h3>
+            <div class="rc-sub">Available after 8pm · Takes about 30 seconds</div>
+            <div class="reflect-q">Was today's Maintain recommendation accurate?</div>
+            <div class="rating-row">
+              <div class="rating-btn" onclick="selectRating(this)">😞</div>
+              <div class="rating-btn" onclick="selectRating(this)">😐</div>
+              <div class="rating-btn active" onclick="selectRating(this)">🙂</div>
+              <div class="rating-btn" onclick="selectRating(this)">😊</div>
+              <div class="rating-btn" onclick="selectRating(this)">🤩</div>
+            </div>
+            <div class="tag-row">
+              <div class="tag-btn active" onclick="toggleTag(this)">Felt focused</div>
+              <div class="tag-btn" onclick="toggleTag(this)">Still tired</div>
+              <div class="tag-btn" onclick="toggleTag(this)">Pushed too hard</div>
+              <div class="tag-btn active" onclick="toggleTag(this)">Good energy</div>
+              <div class="tag-btn" onclick="toggleTag(this)">Anxious</div>
+            </div>
+          </div>
+
+          <!-- Re-check -->
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div class="recheck-card">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div class="rc-icon">↻</div>
+                <div class="rc-txt">
+                  <div class="rct">Midday re-check</div>
+                  <div class="rcs">Update the plan if stress or workload shifts</div>
+                </div>
+              </div>
+              <button class="btn btn-outline">Re-check</button>
+            </div>
+            <div class="recheck-card" style="flex-direction:column;align-items:flex-start;gap:12px;padding:18px 22px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:0.1em;text-transform:uppercase;">Upcoming</div>
+              <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;">
+                  <span>Database final review</span>
+                  <span style="color:var(--maintain);font-weight:600;font-size:12.5px;">2:00pm</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;">
+                  <span>Light mobility session</span>
+                  <span style="color:var(--accent);font-weight:600;font-size:12.5px;">5:30pm</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;color:var(--text-soft);">
+                  <span>Wind down</span>
+                  <span style="font-weight:600;font-size:12.5px;">9:30pm</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ========== CHECK-IN ========== -->
+      <section class="view" id="view-checkin">
+        <div class="checkin-wrap">
+          <div class="view-header">
+            <h2>Morning Check-In</h2>
+            <p>Tuesday, June 9 · Takes about 20 seconds</p>
+          </div>
+
+          <div class="ci-card">
+            <div class="ci-section-label">Sleep</div>
+            <div class="ci-row">
+              <div class="ci-label"><span>How long did you sleep?</span></div>
+              <div class="sleep-btns">
+                <div class="sleep-btn" onclick="setSleep(this)">Under 5h</div>
+                <div class="sleep-btn" onclick="setSleep(this)">5–6h</div>
+                <div class="sleep-btn" onclick="setSleep(this)">6–7h</div>
+                <div class="sleep-btn active" onclick="setSleep(this)">7–8h ✓</div>
+                <div class="sleep-btn" onclick="setSleep(this)">8–9h</div>
+                <div class="sleep-btn" onclick="setSleep(this)">9h+</div>
+              </div>
+            </div>
+            <div class="ci-row">
+              <div class="ci-label">
+                <span>Sleep quality</span>
+                <span class="lv" id="sleepq-val">7 / 10</span>
+              </div>
+              <input type="range" min="1" max="10" value="7" oninput="updateSlider('sleepq-val', this.value, '/10')" />
+            </div>
+          </div>
+
+          <div class="ci-card">
+            <div class="ci-section-label">How you feel right now</div>
+            <div class="ci-row">
+              <div class="ci-label">
+                <span>Energy level</span>
+                <span class="lv" id="energy-val">7 / 10</span>
+              </div>
+              <input type="range" min="1" max="10" value="7" oninput="updateSlider('energy-val', this.value, '/10')" />
+            </div>
+            <div class="ci-row">
+              <div class="ci-label">
+                <span>Stress level</span>
+                <span class="lv" id="stress-val">5 / 10</span>
+              </div>
+              <input type="range" min="1" max="10" value="5" oninput="updateSlider('stress-val', this.value, '/10')" />
+            </div>
+            <div class="ci-row">
+              <div class="ci-label">
+                <span>Physical soreness / fatigue</span>
+                <span class="lv" id="sore-val">3 / 10</span>
+              </div>
+              <input type="range" min="1" max="10" value="3" oninput="updateSlider('sore-val', this.value, '/10')" />
+            </div>
+            <div class="ci-row" style="margin-bottom:0;">
+              <div class="ci-label">
+                <span>Workload pressure today</span>
+                <span class="lv" id="work-val">7 / 10</span>
+              </div>
+              <input type="range" min="1" max="10" value="7" oninput="updateSlider('work-val', this.value, '/10')" />
+            </div>
+          </div>
+
+          <div class="ci-card">
+            <div class="ci-section-label">Context</div>
+            <div class="toggles">
+              <div class="toggle-row">
+                <div class="toggle-label"><div class="tl">Big deadline or exam coming up?</div><div class="ts">Within the next 2 days</div></div>
+                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+              </div>
+              <div class="toggle-row">
+                <div class="toggle-label"><div class="tl">Did you train hard yesterday?</div><div class="ts">Gym, run, sport, or intense practice</div></div>
+                <div class="toggle" onclick="this.classList.toggle('on')"></div>
+              </div>
+              <div class="toggle-row">
+                <div class="toggle-label"><div class="tl">Something stressful happening today?</div><div class="ts">Presentation, conflict, difficult meeting</div></div>
+                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+              </div>
+              <div class="toggle-row">
+                <div class="toggle-label"><div class="tl">Did you feel rested waking up?</div><div class="ts">Overall subjective feel</div></div>
+                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ci-submit">
+            <button class="btn btn-primary" onclick="switchView('today')">Compute today's plan →</button>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ========== PLAN ========== -->
+      <section class="view" id="view-plan">
+        <div class="view-header">
+          <h2>Today's Plan</h2>
+          <p>Maintain Day · Based on readiness 74 · June 9</p>
+        </div>
+
+        <div class="plan-grid">
+          <!-- Study -->
+          <div class="plan-card study">
+            <div class="plan-icon" style="background:#eef3ff;border-color:rgba(74,125,246,0.2);">📚</div>
+            <h3>Study</h3>
+            <div class="plan-badge" style="background:#eef3ff;color:#4a7df6;border:1px solid rgba(74,125,246,0.24);">Focused blocks</div>
+            <p class="plan-desc">Two 90-minute deep work blocks with a proper break between them. Pomodoro works well — protect those windows from distraction.</p>
+            <ul class="plan-list">
+              <li><span class="bk">→</span> 9:00–10:30am — core review session</li>
+              <li><span class="bk">→</span> 20-min break, walk outside</li>
+              <li><span class="bk">→</span> 11:00am–12:30pm — second block</li>
+              <li><span class="bk">→</span> Avoid rescheduling these windows</li>
+            </ul>
+            <div class="intensity">
+              <i style="background:linear-gradient(90deg,#4a7df6,#8065e8)"></i>
+              <i style="background:linear-gradient(90deg,#4a7df6,#8065e8)"></i>
+              <i style="background:linear-gradient(90deg,#4a7df6,#8065e8)"></i>
+              <i></i>
+            </div>
+          </div>
+
+          <!-- Workout -->
+          <div class="plan-card workout">
+            <div class="plan-icon" style="background:#ecfaf6;border-color:rgba(0,158,131,0.2);">🏃</div>
+            <h3>Workout</h3>
+            <div class="plan-badge" style="background:#ecfaf6;color:#009e83;border:1px solid rgba(0,158,131,0.24);">Light / Zone 2</div>
+            <p class="plan-desc">Skip the heavy lifting today. A 30-minute Zone 2 cardio session or light mobility work keeps blood flow and energy up without adding fatigue.</p>
+            <ul class="plan-list">
+              <li><span class="bk">→</span> 30-min easy run or cycle</li>
+              <li><span class="bk">→</span> Keep heart rate under 140bpm</li>
+              <li><span class="bk">→</span> No maximal efforts or PR attempts</li>
+              <li><span class="bk">→</span> Light stretching post-session</li>
+            </ul>
+            <div class="intensity">
+              <i style="background:linear-gradient(90deg,#00c9a7,#4a7df6)"></i>
+              <i style="background:linear-gradient(90deg,#00c9a7,#4a7df6)"></i>
+              <i></i>
+              <i></i>
+            </div>
+          </div>
+
+          <!-- Recovery -->
+          <div class="plan-card recovery">
+            <div class="plan-icon" style="background:#f4f0ff;border-color:rgba(120,80,226,0.2);">🌙</div>
+            <h3>Recovery</h3>
+            <div class="plan-badge" style="background:#f4f0ff;color:#7850e2;border:1px solid rgba(120,80,226,0.24);">Protect tonight</div>
+            <p class="plan-desc">Recovery is trending upward — don't break that streak. Wind down early, protect sleep, and reduce screen time after 9pm.</p>
+            <ul class="plan-list">
+              <li><span class="bk">→</span> 10-min morning stretch done ✓</li>
+              <li><span class="bk">→</span> 20-min afternoon walk (5pm)</li>
+              <li><span class="bk">→</span> Wind-down starts at 9:30pm</li>
+              <li><span class="bk">→</span> Target sleep: 10:30–10:45pm</li>
+            </ul>
+            <div class="intensity">
+              <i style="background:linear-gradient(90deg,#c084fc,#8065e8)"></i>
+              <i style="background:linear-gradient(90deg,#c084fc,#8065e8)"></i>
+              <i style="background:linear-gradient(90deg,#c084fc,#8065e8)"></i>
+              <i></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Plan Adjustment -->
+        <div class="row-label" style="margin-top:4px;">Schedule adjustments</div>
+        <div class="adj-list">
+          <div class="adj-item">
+            <div class="adj-icon" style="background:#ecfaf6;color:#009e83;border:1px solid var(--maintain-border);">✓</div>
+            <div class="adj-body">
+              <div class="adj-title">Database final review</div>
+              <div class="adj-sub">Scheduled 2:00pm · Your focus window is sufficient for this</div>
+            </div>
+            <div class="adj-tag" style="background:#ecfaf6;color:#009e83;border:1px solid var(--maintain-border);">Keep</div>
+          </div>
+          <div class="adj-item">
+            <div class="adj-icon" style="background:#fff5f2;color:#d9622c;border:1px solid var(--push-border);">↗</div>
+            <div class="adj-body">
+              <div class="adj-title">Heavy gym session</div>
+              <div class="adj-sub">Move to Thursday — recovery is trending up, Thursday looks like a Push Day</div>
+            </div>
+            <div class="adj-tag" style="background:#fff5f2;color:#d9622c;border:1px solid var(--push-border);">Move to Thu</div>
+          </div>
+          <div class="adj-item">
+            <div class="adj-icon" style="background:#f4f0ff;color:#7850e2;border:1px solid var(--recover-border);">↔</div>
+            <div class="adj-body">
+              <div class="adj-title">Hard coding sprint → Light code review</div>
+              <div class="adj-sub">Swap the intensive sprint for documentation and light review — preserve deep capacity for tomorrow's session</div>
+            </div>
+            <div class="adj-tag" style="background:#f4f0ff;color:#7850e2;border:1px solid var(--recover-border);">Replace</div>
+          </div>
+          <div class="adj-item">
+            <div class="adj-icon" style="background:#eef3ff;color:#4a7df6;border:1px solid var(--accent-border);">☑</div>
+            <div class="adj-body">
+              <div class="adj-title">Morning stretch routine</div>
+              <div class="adj-sub">Completed at 7:12am · Counts toward recovery score today</div>
+            </div>
+            <div class="adj-tag" style="background:#eef3ff;color:#4a7df6;border:1px solid var(--accent-border);">Done ✓</div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ========== TRENDS ========== -->
+      <section class="view" id="view-trends">
+        <div class="view-header">
+          <h2>Trends</h2>
+          <p>Last 14 days · Updated daily</p>
+        </div>
+
+        <!-- 7-day history -->
+        <div class="row-label">7-day status history</div>
+        <div class="card" style="padding:20px 22px;margin-bottom:18px;">
+          <div class="history-row">
+            <div class="hday">
+              <div class="hd-dot" style="background:#fff5f2;color:#d9622c;border:1.5px solid var(--push-border);">P</div>
+              <div class="hd-lbl">Tue<br/>Jun 3</div>
+            </div>
+            <div class="hday">
+              <div class="hd-dot" style="background:#ecfaf6;color:#009e83;border:1.5px solid var(--maintain-border);">M</div>
+              <div class="hd-lbl">Wed<br/>Jun 4</div>
+            </div>
+            <div class="hday">
+              <div class="hd-dot" style="background:#f4f0ff;color:#7850e2;border:1.5px solid var(--recover-border);">R</div>
+              <div class="hd-lbl">Thu<br/>Jun 5</div>
+            </div>
+            <div class="hday">
+              <div class="hd-dot" style="background:#ecfaf6;color:#009e83;border:1.5px solid var(--maintain-border);">M</div>
+              <div class="hd-lbl">Fri<br/>Jun 6</div>
+            </div>
+            <div class="hday">
+              <div class="hd-dot" style="background:#f4f0ff;color:#7850e2;border:1.5px solid var(--recover-border);">R</div>
+              <div class="hd-lbl">Sat<br/>Jun 7</div>
+            </div>
+            <div class="hday">
+              <div class="hd-dot" style="background:#fff5f2;color:#d9622c;border:1.5px solid var(--push-border);">P</div>
+              <div class="hd-lbl">Sun<br/>Jun 8</div>
+            </div>
+            <div class="hday">
+              <div class="hd-dot" style="background:#ecfaf6;color:#009e83;border:2px solid var(--maintain);box-shadow:0 0 14px rgba(0,158,131,0.25);">M</div>
+              <div class="hd-lbl" style="color:var(--maintain);font-weight:600;">Today<br/>Jun 9</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-soft);">
+              <div style="width:12px;height:12px;border-radius:4px;background:#fff5f2;border:1.5px solid var(--push-border);"></div> Push
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-soft);">
+              <div style="width:12px;height:12px;border-radius:4px;background:#ecfaf6;border:1.5px solid var(--maintain-border);"></div> Maintain
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-soft);">
+              <div style="width:12px;height:12px;border-radius:4px;background:#f4f0ff;border:1.5px solid var(--recover-border);"></div> Recover
+            </div>
+          </div>
+        </div>
+
+        <!-- Sleep vs Readiness chart -->
+        <div class="chart-card">
+          <div class="chart-head">
+            <h4>Sleep &amp; Readiness</h4>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#4a7df6;"></div> Readiness</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#a98bff;"></div> Sleep (h)</div>
+            </div>
+          </div>
+          <div class="chart-container">
+            <svg viewBox="0 0 520 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;overflow:visible;">
+              <defs>
+                <linearGradient id="readGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#4a7df6" stop-opacity="0.2"/>
+                  <stop offset="100%" stop-color="#4a7df6" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="sleepGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#a98bff" stop-opacity="0.15"/>
+                  <stop offset="100%" stop-color="#a98bff" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <!-- Grid lines -->
+              <line x1="30" y1="10" x2="510" y2="10" stroke="#eef0f8" stroke-width="1"/>
+              <line x1="30" y1="40" x2="510" y2="40" stroke="#eef0f8" stroke-width="1"/>
+              <line x1="30" y1="70" x2="510" y2="70" stroke="#eef0f8" stroke-width="1"/>
+              <line x1="30" y1="100" x2="510" y2="100" stroke="#eef0f8" stroke-width="1"/>
+              <line x1="30" y1="130" x2="510" y2="130" stroke="#eef0f8" stroke-width="1"/>
+              <!-- Y labels -->
+              <text x="22" y="14" font-size="9" fill="#9ea8c4" text-anchor="end">95</text>
+              <text x="22" y="44" font-size="9" fill="#9ea8c4" text-anchor="end">80</text>
+              <text x="22" y="74" font-size="9" fill="#9ea8c4" text-anchor="end">65</text>
+              <text x="22" y="104" font-size="9" fill="#9ea8c4" text-anchor="end">50</text>
+              <!-- Readiness area -->
+              <polygon points="30,84 107,84 183,36 260,42 337,90 413,52 510,48 510,130 30,130" fill="url(#readGrad)"/>
+              <!-- Readiness line: values [71,58,82,79,55,74,76] mapped to y -->
+              <polyline points="30,84 107,84 183,36 260,42 337,90 413,52 510,48" stroke="#4a7df6" stroke-width="2.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- Sleep area -->
+              <polygon points="30,67 107,89 183,38 260,48 337,98 413,57 510,51 510,130 30,130" fill="url(#sleepGrad)"/>
+              <!-- Sleep line: values [7.2,6.5,8.1,7.8,6.2,7.5,7.7] mapped to y -->
+              <polyline points="30,67 107,89 183,38 260,48 337,98 413,57 510,51" stroke="#a98bff" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 3"/>
+              <!-- Dots for readiness -->
+              <circle cx="30" cy="84" r="4" fill="white" stroke="#4a7df6" stroke-width="2"/>
+              <circle cx="107" cy="84" r="4" fill="white" stroke="#4a7df6" stroke-width="2"/>
+              <circle cx="183" cy="36" r="4" fill="white" stroke="#4a7df6" stroke-width="2"/>
+              <circle cx="260" cy="42" r="4" fill="white" stroke="#4a7df6" stroke-width="2"/>
+              <circle cx="337" cy="90" r="4" fill="white" stroke="#4a7df6" stroke-width="2"/>
+              <circle cx="413" cy="52" r="4" fill="white" stroke="#4a7df6" stroke-width="2"/>
+              <circle cx="510" cy="48" r="5" fill="#4a7df6" stroke="white" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="chart-labels">
+            <span>Jun 3</span><span>Jun 4</span><span>Jun 5</span><span>Jun 6</span><span>Jun 7</span><span>Jun 8</span><span>Today</span>
+          </div>
+        </div>
+
+        <!-- Stress trend -->
+        <div class="chart-card" style="margin-bottom:0;">
+          <div class="chart-head">
+            <h4>Stress trend</h4>
+            <span style="font-size:12px;color:var(--text-soft);">Scale 0–100</span>
+          </div>
+          <div class="stress-bars">
+            <div class="sbar-wrap"><div class="sbar" style="height:41%;background:linear-gradient(180deg,#e0a08a,#ffeee8);border-radius:6px 6px 0 0;"></div><div class="sbar-label">T</div></div>
+            <div class="sbar-wrap"><div class="sbar" style="height:58%;background:linear-gradient(180deg,#e05f3c,#ffd6c9);border-radius:6px 6px 0 0;"></div><div class="sbar-label">W</div></div>
+            <div class="sbar-wrap"><div class="sbar" style="height:34%;background:linear-gradient(180deg,#e0a08a,#ffeee8);border-radius:6px 6px 0 0;"></div><div class="sbar-label">Th</div></div>
+            <div class="sbar-wrap"><div class="sbar" style="height:38%;background:linear-gradient(180deg,#e0a08a,#ffeee8);border-radius:6px 6px 0 0;"></div><div class="sbar-label">F</div></div>
+            <div class="sbar-wrap"><div class="sbar" style="height:62%;background:linear-gradient(180deg,#e05f3c,#ffd6c9);border-radius:6px 6px 0 0;"></div><div class="sbar-label">Sa</div></div>
+            <div class="sbar-wrap"><div class="sbar" style="height:46%;background:linear-gradient(180deg,#e0a08a,#ffeee8);border-radius:6px 6px 0 0;"></div><div class="sbar-label">Su</div></div>
+            <div class="sbar-wrap"><div class="sbar" style="height:44%;background:linear-gradient(180deg,#e05f3c,#ffd6c9);border-radius:6px 6px 0 0;border:2px solid rgba(224,95,60,0.3);"></div><div class="sbar-label" style="color:var(--push);font-weight:600;">Now</div></div>
+          </div>
+
+          <!-- Summary row -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+            <div style="text-align:center;padding:12px;background:var(--bg-alt);border-radius:12px;border:1px solid var(--border);">
+              <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--maintain);">74</div>
+              <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">Avg readiness</div>
+            </div>
+            <div style="text-align:center;padding:12px;background:var(--bg-alt);border-radius:12px;border:1px solid var(--border);">
+              <div style="font-family:var(--font-display);font-size:22px;font-weight:700;">7h12m</div>
+              <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">Avg sleep</div>
+            </div>
+            <div style="text-align:center;padding:12px;background:var(--bg-alt);border-radius:12px;border:1px solid var(--border);">
+              <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:#e05f3c;">48</div>
+              <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">Avg stress</div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ========== SETTINGS ========== -->
+      <section class="view" id="view-settings">
+        <div class="view-header">
+          <h2>Settings</h2>
+          <p>Preferences and personalization</p>
+        </div>
+
+        <div class="settings-section">
+          <h3>Profile</h3>
+          <div class="setting-row"><div><div class="sl">Name</div><div class="ss">Your display name</div></div><div class="sv">Nicholas</div></div>
+          <div class="setting-row"><div><div class="sl">Goal orientation</div><div class="ss">What FitAI optimizes for</div></div><div class="sv">Study + Performance</div></div>
+          <div class="setting-row"><div><div class="sl">Activity level baseline</div><div class="ss">Your typical weekly activity</div></div><div class="sv">Moderately active</div></div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Notifications</h3>
+          <div class="setting-row"><div><div class="sl">Morning check-in reminder</div><div class="ss">Notify at 7:30am</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="setting-row"><div><div class="sl">Midday re-check</div><div class="ss">Notify at 12:30pm if no update</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="setting-row"><div><div class="sl">Night reflection reminder</div><div class="ss">Notify at 9:00pm</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Data</h3>
+          <div class="setting-row"><div><div class="sl">Data storage</div><div class="ss">Where your check-ins are saved</div></div><div class="sv">Local only</div></div>
+          <div class="setting-row"><div><div class="sl">History retention</div><div class="ss">How long to keep daily logs</div></div><div class="sv">90 days</div></div>
+          <div class="setting-row" style="cursor:pointer;"><div><div class="sl">Export data</div><div class="ss">Download all check-ins as CSV</div></div><div class="sv" style="color:var(--accent);">Export →</div></div>
+        </div>
+
+        <div class="settings-section">
+          <h3>About</h3>
+          <div class="setting-row"><div><div class="sl">FitAI</div><div class="ss">Recovery-aware productivity assistant</div></div><div class="sv">v0.1 · MVP</div></div>
+          <div class="setting-row"><div><div class="sl">Health disclaimer</div><div class="ss">Lifestyle guidance only — not medical advice</div></div><div class="sv" style="font-size:11px;color:var(--text-dim);">Read →</div></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  const views = { today: "Today", checkin: "Check-In", plan: "Plan", trends: "Trends", settings: "Settings" };
+
+  function switchView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const target = document.getElementById('view-' + id);
+    if (target) { target.classList.add('active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    const navTarget = document.querySelector('[data-view="' + id + '"]');
+    if (navTarget) navTarget.classList.add('active');
+    document.getElementById('topbar-title').textContent = views[id] || id;
+  }
+
+  document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+    item.addEventListener('click', () => switchView(item.dataset.view));
+  });
+
+  function updateSlider(id, val, suffix) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val + (suffix || '');
+  }
+
+  function setSleep(btn) {
+    document.querySelectorAll('.sleep-btn').forEach(b => {
+      b.classList.remove('active');
+      b.textContent = b.textContent.replace(' ✓', '');
+    });
+    btn.classList.add('active');
+    if (!btn.textContent.includes('✓')) btn.textContent += ' ✓';
+  }
+
+  function selectRating(btn) {
+    btn.closest('.rating-row').querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function toggleTag(btn) {
+    btn.classList.toggle('active');
+  }
+
+  // Nav scroll border (topbar)
+  window.addEventListener('scroll', () => {
+    const tb = document.querySelector('.topbar');
+    if (tb) tb.style.boxShadow = window.scrollY > 4 ? '0 4px 24px rgba(80,100,180,0.08)' : 'none';
+  }, { passive: true });
+</script>
+</body>
+</html>

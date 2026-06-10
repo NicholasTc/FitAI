@@ -105,7 +105,7 @@ On each dashboard load the app:
 ### Database tables
 
 **`DailyHealthSnapshot`** — one row per user per date  
-**`CheckIn`** — morning check-in (Phase 2B, schema defined, UI not yet built)
+**`CheckIn`** — morning check-in responses (energy, stress, sleep quality, motivation)
 
 ---
 
@@ -119,23 +119,25 @@ On each dashboard load the app:
 ### ✅ Phase 2A — Data foundation (complete)
 - Narrowed to 5 core metrics (sleep, RHR, HRV, steps, active minutes)
 - SQLite database with Prisma 7
-- 7-day history fetch and upsert on every load
+- 7-day history fetch and null-safe upsert on every load
 - Rolling baselines with "forming" state for new devices
 - Today vs baseline deltas per metric
-- Sparklines in dashboard UI
+- Automatic Google OAuth token refresh
 
-### 🔜 Phase 2B — Core product loop
-- Morning check-in (4 sliders: energy, stress feel, sleep quality, motivation)
-- Readiness score (0–100): 40% subjective, 40% sleep + HRV/RHR, 20% activity
-- Push / Maintain / Recover day type
-- Rest day recommendation for training
-- "Why today?" explanation panel
-- Proposal2 UI skin (Today view + Check-in + Trends)
+### ✅ Phase 2B — Core product loop (complete)
+- **Morning check-in** (4 sliders: energy, sleep quality, stress, motivation)
+- **Readiness score** (0–100): 40 pts subjective, 40 pts objective (sleep + HRV/RHR), 20 pts activity
+- **Day type**: Push (≥75) / Maintain (50–74) / Recover (<50)
+- **"Why today?" panel**: 3–4 bullet reasons from real inputs with sentiment tags
+- **Proposal2 UI skin**: sidebar nav, readiness ring, hero card, key signals grid, trends sparklines
+- **Trends view**: 7-day status history dots, sleep/RHR/HRV/steps sparkline charts
+- **`/api/today`** endpoint: sync + snapshot + check-in + readiness in one call
+- **`/api/checkin`** POST/GET for saving and retrieving morning check-ins
 
 ### Phase 2C — Trends & night reflection
-- 7-day sparkline charts
 - Night reflection ("Was today's recommendation accurate?")
 - Feedback loop to tune weights over time
+- More days in trends view (14-day history)
 
 ### Phase 3 — Intelligence (later)
 - LLM-generated daily plan text
@@ -150,8 +152,12 @@ On each dashboard load the app:
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/sync` | POST | Sync 7 days, return baseline data |
+| `/api/today` | GET | Sync + load snapshot + check-in + compute readiness |
+| `/api/checkin` | POST | Save morning check-in to DB |
+| `/api/checkin` | GET | Retrieve today's check-in |
+| `/api/sync` | POST | Sync 7 days, return raw baseline data |
 | `/api/auth/[...nextauth]` | GET/POST | NextAuth OAuth handlers |
+| `/api/debug` | GET | Inspect session, raw API, DB state |
 
 ---
 

@@ -3,7 +3,9 @@
  * and stored DB snapshots. Only use during development.
  */
 import { auth } from "@/lib/auth";
+import { computeBaseline } from "@/lib/baseline";
 import { fetchDaySnapshot } from "@/lib/health";
+import { loadSnapshots } from "@/lib/sync";
 import { db } from "@/lib/db";
 
 export async function GET() {
@@ -17,8 +19,10 @@ export async function GET() {
   const expiresAt = (session as { expiresAt?: number }).expiresAt;
   const tokenAge = expiresAt ? expiresAt - now : null;
 
-  // Fetch today's snapshot raw from the API (bypasses DB).
   const localDate = new Date().toLocaleDateString("en-CA");
+  const userId = session.user?.id;
+
+  // Fetch today's snapshot raw from the API (bypasses DB).
   let rawSnapshot = null;
   let rawError = null;
   try {
@@ -28,7 +32,6 @@ export async function GET() {
   }
 
   // Load stored snapshots from DB.
-  const userId = session.user?.id;
   const storedRows = userId
     ? await db.dailyHealthSnapshot.findMany({
         where: { userId },
@@ -36,6 +39,19 @@ export async function GET() {
         take: 7,
       })
     : [];
+
+  // Compute what the dashboard would show from stored data.
+  let computedBaseline = null;
+  if (userId) {
+    const history = await loadSnapshots(userId, localDate);
+    const today = history.find((s) => s.date === localDate) ?? {
+      date: localDate,
+      sleepMinutes: null, sleepEfficiency: null, sleepDeepMin: null,
+      sleepRemMin: null, sleepLightMin: null,
+      restingHr: null, hrv: null, steps: null, activeMinutes: null,
+    };
+    computedBaseline = computeBaseline(history, today);
+  }
 
   return Response.json({
     session: {
@@ -50,5 +66,6 @@ export async function GET() {
     rawSnapshot,
     rawError,
     storedRows,
+    computedBaseline,
   });
 }

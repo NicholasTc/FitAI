@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// One row per user per calendar day — wearable metrics only.
+// All metric fields are nullable; they fill in as the watch calibrates.
+model DailyHealthSnapshot {
+  id String @id @default(cuid())
+
+  userId String // Google sub (session.user.id)
+  date   String // YYYY-MM-DD local date
+
+  // Sleep
+  sleepMinutes    Int?   // total sleep duration
+  sleepEfficiency Float? // 0–100 %
+  sleepDeepMin    Int?   // deep stage minutes
+  sleepRemMin     Int?   // REM stage minutes
+  sleepLightMin   Int?   // light stage minutes
+
+  // Cardiac
+  restingHr Float? // resting HR bpm
+  hrv       Float? // daily HRV ms
+
+  // Activity
+  steps         Int? // step count
+  activeMinutes Int? // active minutes
+
+  syncedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// Phase 2B: morning check-in — defined now so DB is ready.
+model CheckIn {
+  id     String @id @default(cuid())
+  userId String
+  date   String // YYYY-MM-DD
+
+  energyLevel  Int // 1–10
+  stressLevel  Int // 1–10 (higher = more stressed)
+  sleepQuality Int // 1–10 (subjective)
+  motivation   Int // 1–10
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+}

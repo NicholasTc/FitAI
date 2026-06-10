@@ -1,37 +1,186 @@
 "use client";
 
-import MetricGrid from "@/components/MetricGrid";
-import type { HealthDashboardData } from "@/types/health";
+import type { DailyBaseline, DailySnapshot, MetricDelta } from "@/types/snapshot";
 import { useEffect, useState } from "react";
 
+// ─── Formatting helpers ────────────────────────────────────────────────────────
+
+function fmtSleep(minutes: number | null): string {
+  if (minutes === null) return "—";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}h ${m}m`;
+}
+
+function fmtNum(value: number | null, decimals = 0, suffix = ""): string {
+  if (value === null) return "—";
+  return `${value.toFixed(decimals)}${suffix}`;
+}
+
+function deltaLabel(
+  delta: MetricDelta,
+  positiveIsGood = true,
+  unit = "",
+): string | null {
+  if (delta.direction === null || delta.value === null) return null;
+  if (delta.direction === "flat") return "At baseline";
+  const sign = delta.value > 0 ? "+" : "";
+  const good = positiveIsGood
+    ? delta.direction === "up"
+    : delta.direction === "down";
+  const prefix = good ? "↑" : "↓";
+  return `${prefix} ${sign}${Math.abs(delta.value).toFixed(1)}${unit} vs avg`;
+}
+
+// ─── Metric card ───────────────────────────────────────────────────────────────
+
+interface CardProps {
+  title: string;
+  subtitle: string;
+  value: string;
+  delta?: string | null;
+  deltaGood?: boolean; // true = green, false = amber
+  accentColor: string; // Tailwind bg class for icon
+  icon: string;
+  note?: string; // small footnote when data is null
+}
+
+function MetricCard({
+  title,
+  subtitle,
+  value,
+  delta,
+  deltaGood,
+  accentColor,
+  icon,
+  note,
+}: CardProps) {
+  return (
+    <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
+      <div className="mb-3 flex items-center gap-3">
+        <span
+          className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg ${accentColor}`}
+        >
+          {icon}
+        </span>
+        <div>
+          <p className="text-[13px] font-semibold text-[#1b2040]">{title}</p>
+          <p className="text-[11px] text-[#9ea8c4]">{subtitle}</p>
+        </div>
+      </div>
+
+      <p
+        className={`font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${value === "—" ? "text-[#c4cad8]" : "text-[#1b2040]"}`}
+      >
+        {value}
+      </p>
+
+      {delta && (
+        <p
+          className={`mt-1 text-[11.5px] font-medium ${deltaGood ? "text-[#009e83]" : "text-[#e05f3c]"}`}
+        >
+          {delta}
+        </p>
+      )}
+
+      {!delta && note && (
+        <p className="mt-1 text-[11.5px] text-[#9ea8c4]">{note}</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Baseline status banner ────────────────────────────────────────────────────
+
+function BaselineBanner({
+  daysWithData,
+}: {
+  daysWithData: number;
+}) {
+  if (daysWithData >= 5) return null;
+  return (
+    <div className="mb-6 flex items-center gap-3 rounded-2xl border border-[rgba(74,125,246,0.18)] bg-[#eef3ff] px-4 py-3 text-sm text-[#4a7df6]">
+      <span className="text-base">📡</span>
+      <div>
+        <span className="font-semibold">Baseline forming</span>
+        <span className="ml-1 text-[#7fa0f8]">
+          {daysWithData}/7 days of data — trends improve daily as your Fitbit
+          calibrates.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── History sparkline ─────────────────────────────────────────────────────────
+
+function Sparkline({
+  history,
+  field,
+}: {
+  history: DailySnapshot[];
+  field: keyof DailySnapshot;
+}) {
+  const values = history
+    .map((s) => s[field] as number | null)
+    .filter((v): v is number => v !== null);
+  if (values.length < 2) return null;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const heights = values.map((v) => Math.round(((v - min) / range) * 100));
+
+  return (
+    <div className="mt-3 flex h-8 items-end gap-[3px]">
+      {heights.map((h, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-sm bg-[#c7d4fb] transition-all"
+          style={{ height: `${Math.max(h, 6)}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Main dashboard ────────────────────────────────────────────────────────────
+
 export default function DashboardContent() {
-  const [data, setData] = useState<HealthDashboardData | null>(null);
+  const [data, setData] = useState<DailyBaseline | null>(null);
+  const [syncing, setSyncing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Use the browser's local date (en-CA locale gives YYYY-MM-DD format).
     const localDate = new Date().toLocaleDateString("en-CA");
 
-    fetch(`/api/health/data?date=${localDate}`)
-      .then((res) => res.json())
-      .then((json: HealthDashboardData) => setData(json))
-      .catch(() => setError("Failed to fetch health data."));
+    fetch(`/api/sync?date=${localDate}`, { method: "POST" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Sync failed (${res.status})`);
+        return res.json() as Promise<DailyBaseline>;
+      })
+      .then((json) => {
+        setData(json);
+        setSyncing(false);
+      })
+      .catch((err: Error) => {
+        setError(err.message);
+        setSyncing(false);
+      });
   }, []);
 
   if (error) {
     return (
-      <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600">{error}</p>
+      <div className="rounded-2xl bg-red-50 p-5 text-sm text-red-600">
+        {error}
+      </div>
     );
   }
 
-  if (!data) {
+  if (syncing || !data) {
     return (
       <div className="flex items-center justify-center py-24 text-[#9ea8c4]">
-        <svg
-          className="mr-2 h-5 w-5 animate-spin"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
+        <svg className="mr-2 h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
           <circle
             className="opacity-25"
             cx="12"
@@ -46,67 +195,245 @@ export default function DashboardContent() {
             d="M4 12a8 8 0 018-8v8H4z"
           />
         </svg>
-        Loading your health data…
+        Syncing your health data…
       </div>
     );
   }
 
-  const endpoints = [
-    data.profile,
-    data.steps,
-    data.sleep,
-    data.restingHeartRate,
-    data.heartRate,
-    data.heartRateVariability,
-    data.oxygenSaturation,
-    data.respiratoryRate,
-    data.activeMinutes,
-    data.totalCalories,
-    data.distance,
-    data.sleepTemperature,
-  ];
-  const successfulEndpoints = endpoints.filter((e) => e.ok).length;
+  const { baseline, today, deltas, history } = data;
+  const nullNote = "Not available yet";
 
   return (
     <>
-      <section className="mb-8 rounded-[22px] border border-[rgba(148,162,218,0.16)] bg-white p-6 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
+      {/* Header summary */}
+      <section className="mb-6 rounded-[22px] border border-[rgba(148,162,218,0.16)] bg-white p-6 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm text-[#63708f]">Today&apos;s health sync</p>
+            <p className="text-sm text-[#63708f]">Today&apos;s health snapshot</p>
             <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight">
-              All available metrics
+              Key signals
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-[#63708f]">
-              Data is pulled from the Google Health API (Fitbit data synced to
-              your Google account). Some cards may show unavailable if your
-              device does not track that metric yet.
+            <p className="mt-1.5 text-sm text-[#63708f]">
+              {today.date} · Synced from Google Health API
             </p>
           </div>
           <div className="rounded-2xl bg-[#f4f5fb] px-4 py-3 text-sm">
-            <p className="text-[#9ea8c4]">Endpoints connected</p>
+            <p className="text-[#9ea8c4]">Baseline</p>
             <p className="font-[family-name:var(--font-display)] text-2xl font-bold">
-              {successfulEndpoints}/12
+              {baseline.daysWithData}/7
+              <span className="ml-1 text-xs font-normal text-[#9ea8c4]">days</span>
             </p>
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-3 text-xs text-[#63708f]">
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#63708f]">
           <span className="rounded-full bg-[#f4f5fb] px-3 py-1.5">
-            Date: {data.date}
+            Date: {today.date}
           </span>
-          <span className="rounded-full bg-[#f4f5fb] px-3 py-1.5">
-            Fetched: {new Date(data.fetchedAt).toLocaleString()}
-          </span>
-          <a
-            href={`/api/health/data?date=${data.date}`}
-            className="rounded-full bg-[#eef3ff] px-3 py-1.5 font-medium text-[#4a7df6]"
+          <span
+            className={`rounded-full px-3 py-1.5 ${baseline.status === "ready" ? "bg-[#ecfaf6] text-[#009e83]" : "bg-[#eef3ff] text-[#4a7df6]"}`}
           >
-            Raw API JSON
-          </a>
+            Baseline: {baseline.status === "ready" ? "Ready" : "Forming"}
+          </span>
         </div>
       </section>
 
-      <MetricGrid data={data} />
+      {/* Baseline forming notice */}
+      <BaselineBanner daysWithData={baseline.daysWithData} />
+
+      {/* Metric grid */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {/* Sleep */}
+        <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#edf9f6] text-lg">
+              🌙
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-[#1b2040]">Sleep</p>
+              <p className="text-[11px] text-[#9ea8c4]">Duration & efficiency</p>
+            </div>
+          </div>
+          <p
+            className={`font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${today.sleepMinutes === null ? "text-[#c4cad8]" : "text-[#1b2040]"}`}
+          >
+            {fmtSleep(today.sleepMinutes)}
+          </p>
+          {today.sleepEfficiency !== null && (
+            <p className="mt-0.5 text-[12px] text-[#63708f]">
+              {fmtNum(today.sleepEfficiency, 0, "% efficiency")}
+            </p>
+          )}
+          {deltaLabel(deltas.sleepMinutes, true, "m") && (
+            <p
+              className={`mt-1 text-[11.5px] font-medium ${deltas.sleepMinutes.direction === "up" ? "text-[#009e83]" : "text-[#e05f3c]"}`}
+            >
+              {deltaLabel(deltas.sleepMinutes, true, "m")}
+            </p>
+          )}
+          {today.sleepMinutes === null && (
+            <p className="mt-1 text-[11.5px] text-[#9ea8c4]">{nullNote}</p>
+          )}
+          {today.sleepDeepMin !== null && (
+            <p className="mt-2 text-[11px] text-[#9ea8c4]">
+              Deep {today.sleepDeepMin}m · REM {today.sleepRemMin ?? "—"}m ·
+              Light {today.sleepLightMin ?? "—"}m
+            </p>
+          )}
+          <Sparkline history={history} field="sleepMinutes" />
+        </div>
+
+        {/* Resting HR */}
+        <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff5f2] text-lg">
+              ❤️
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-[#1b2040]">Resting HR</p>
+              <p className="text-[11px] text-[#9ea8c4]">Beats per minute</p>
+            </div>
+          </div>
+          <p
+            className={`font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${today.restingHr === null ? "text-[#c4cad8]" : "text-[#1b2040]"}`}
+          >
+            {fmtNum(today.restingHr, 0, " bpm")}
+          </p>
+          {deltaLabel(deltas.restingHr, false, " bpm") && (
+            <p
+              className={`mt-1 text-[11.5px] font-medium ${deltas.restingHr.direction === "down" ? "text-[#009e83]" : "text-[#e05f3c]"}`}
+            >
+              {deltaLabel(deltas.restingHr, false, " bpm")}
+            </p>
+          )}
+          {today.restingHr === null && (
+            <p className="mt-1 text-[11.5px] text-[#9ea8c4]">{nullNote}</p>
+          )}
+          <Sparkline history={history} field="restingHr" />
+        </div>
+
+        {/* HRV */}
+        <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef3ff] text-lg">
+              📈
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-[#1b2040]">HRV</p>
+              <p className="text-[11px] text-[#9ea8c4]">Heart rate variability</p>
+            </div>
+          </div>
+          <p
+            className={`font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${today.hrv === null ? "text-[#c4cad8]" : "text-[#1b2040]"}`}
+          >
+            {fmtNum(today.hrv, 1, " ms")}
+          </p>
+          {deltaLabel(deltas.hrv, true, " ms") && (
+            <p
+              className={`mt-1 text-[11.5px] font-medium ${deltas.hrv.direction === "up" ? "text-[#009e83]" : "text-[#e05f3c]"}`}
+            >
+              {deltaLabel(deltas.hrv, true, " ms")}
+            </p>
+          )}
+          {today.hrv === null && (
+            <p className="mt-1 text-[11.5px] text-[#9ea8c4]">{nullNote}</p>
+          )}
+          <Sparkline history={history} field="hrv" />
+        </div>
+
+        {/* Steps */}
+        <MetricCard
+          title="Steps"
+          subtitle="Daily step count"
+          value={fmtNum(today.steps, 0)}
+          delta={deltaLabel(deltas.steps, true)}
+          deltaGood={deltas.steps.direction === "up"}
+          accentColor="bg-[#ecfaf6]"
+          icon="👣"
+          note={nullNote}
+        />
+
+        {/* Active Minutes */}
+        <MetricCard
+          title="Active Minutes"
+          subtitle="Daily active time"
+          value={fmtNum(today.activeMinutes, 0, " min")}
+          delta={deltaLabel(deltas.activeMinutes, true, " min")}
+          deltaGood={deltas.activeMinutes.direction === "up"}
+          accentColor="bg-[#f4f0ff]"
+          icon="⚡"
+          note={nullNote}
+        />
+
+        {/* 7-day baseline summary */}
+        <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-[#f4f5fb] p-5">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-lg">
+              📊
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-[#1b2040]">
+                7-day averages
+              </p>
+              <p className="text-[11px] text-[#9ea8c4]">
+                {baseline.daysWithData} day
+                {baseline.daysWithData !== 1 ? "s" : ""} of data
+              </p>
+            </div>
+          </div>
+          <ul className="space-y-1.5 text-[12px] text-[#63708f]">
+            <li className="flex justify-between">
+              <span>Avg sleep</span>
+              <span className="font-medium text-[#1b2040]">
+                {fmtSleep(
+                  baseline.sleepMinutes !== null
+                    ? Math.round(baseline.sleepMinutes)
+                    : null,
+                )}
+              </span>
+            </li>
+            <li className="flex justify-between">
+              <span>Avg resting HR</span>
+              <span className="font-medium text-[#1b2040]">
+                {fmtNum(
+                  baseline.restingHr !== null
+                    ? Math.round(baseline.restingHr)
+                    : null,
+                  0,
+                  " bpm",
+                )}
+              </span>
+            </li>
+            <li className="flex justify-between">
+              <span>Avg HRV</span>
+              <span className="font-medium text-[#1b2040]">
+                {fmtNum(baseline.hrv, 1, " ms")}
+              </span>
+            </li>
+            <li className="flex justify-between">
+              <span>Avg steps</span>
+              <span className="font-medium text-[#1b2040]">
+                {fmtNum(
+                  baseline.steps !== null ? Math.round(baseline.steps) : null,
+                  0,
+                )}
+              </span>
+            </li>
+            <li className="flex justify-between">
+              <span>Avg active min</span>
+              <span className="font-medium text-[#1b2040]">
+                {fmtNum(
+                  baseline.activeMinutes !== null
+                    ? Math.round(baseline.activeMinutes)
+                    : null,
+                  0,
+                  " min",
+                )}
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
     </>
   );
 }

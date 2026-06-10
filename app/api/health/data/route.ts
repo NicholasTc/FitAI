@@ -1,26 +1,11 @@
-import { auth } from "@/lib/auth";
-import { getAllHealthData } from "@/lib/health";
-import { type NextRequest } from "next/server";
+/**
+ * Legacy endpoint — kept for backward compatibility.
+ * Redirects callers to the new /api/sync route.
+ */
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
-  const session = await auth();
-
-  if (!session?.accessToken) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  if (session.error) {
-    return Response.json(
-      {
-        error: "Google session expired. Please sign in again.",
-        code: session.error,
-      },
-      { status: 401 },
-    );
-  }
-
-  const date = request.nextUrl.searchParams.get("date") ?? undefined;
-  const data = await getAllHealthData(session.accessToken, date);
-
-  return Response.json(data);
+export function GET() {
+  return NextResponse.redirect(new URL("/api/sync", "http://localhost:3000"), {
+    status: 308,
+  });
 }

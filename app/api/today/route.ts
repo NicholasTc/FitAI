@@ -102,13 +102,38 @@ export async function GET(request: NextRequest) {
       daysWithData: baseline.daysWithData,
       status: baseline.status,
     },
-    history: history.map((s) => ({
-      date: s.date,
-      sleepMinutes: s.sleepMinutes,
-      restingHr: s.restingHr,
-      hrv: s.hrv,
-      steps: s.steps,
-    })),
+    history: history.map((s, i) => {
+      let dayType: import("@/types/today").DayType | null = null;
+
+      if (s.date === date) {
+        // Today — use the full readiness result (already computed with check-in)
+        dayType = readiness.dayType;
+      } else {
+        // Past day — compute objective-only readiness using all OTHER days as prior
+        const prior = history.filter((_, j) => j !== i);
+        const { baseline: dayBaseline } = computeBaseline(prior, s);
+        // Only compute if there's at least one prior data point so the
+        // baseline isn't completely blind.
+        const hasAnyData =
+          s.sleepMinutes !== null ||
+          s.restingHr !== null ||
+          s.hrv !== null ||
+          s.steps !== null;
+        if (hasAnyData) {
+          const { dayType: dt } = computeReadiness(s, dayBaseline, null);
+          dayType = dt;
+        }
+      }
+
+      return {
+        date: s.date,
+        dayType,
+        sleepMinutes: s.sleepMinutes,
+        restingHr: s.restingHr,
+        hrv: s.hrv,
+        steps: s.steps,
+      };
+    }),
   };
 
   return NextResponse.json(state);

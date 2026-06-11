@@ -56,14 +56,14 @@ function scoreSubjective(
   score += energyPts;
   if (checkIn.energyLevel >= 7) {
     reasons.push({
-      icon: "⚡",
+      icon: "energy",
       title: "Energy is high.",
       detail: `You rated energy ${checkIn.energyLevel}/10 — ready to perform.`,
       sentiment: "positive",
     });
   } else if (checkIn.energyLevel <= 4) {
     reasons.push({
-      icon: "⚡",
+      icon: "energy",
       title: "Energy is low.",
       detail: `You rated energy ${checkIn.energyLevel}/10 — conserve capacity today.`,
       sentiment: "negative",
@@ -75,14 +75,14 @@ function scoreSubjective(
   score += sleepQPts;
   if (checkIn.sleepQuality >= 7) {
     reasons.push({
-      icon: "🌙",
+      icon: "sleep",
       title: "Sleep felt restorative.",
       detail: `You rated sleep quality ${checkIn.sleepQuality}/10.`,
       sentiment: "positive",
     });
   } else if (checkIn.sleepQuality <= 4) {
     reasons.push({
-      icon: "🌙",
+      icon: "sleep",
       title: "Sleep felt poor.",
       detail: `You rated sleep quality ${checkIn.sleepQuality}/10 — recovery may be incomplete.`,
       sentiment: "negative",
@@ -94,14 +94,14 @@ function scoreSubjective(
   score += clamp(stressPts, 0, 10);
   if (checkIn.stressLevel >= 7) {
     reasons.push({
-      icon: "🔴",
+      icon: "stress",
       title: "Stress is elevated.",
       detail: `You rated stress ${checkIn.stressLevel}/10 — this caps available capacity.`,
       sentiment: "caution",
     });
   } else if (checkIn.stressLevel <= 3) {
     reasons.push({
-      icon: "🟢",
+      icon: "stress-low",
       title: "Stress is low.",
       detail: `You rated stress ${checkIn.stressLevel}/10 — good mental headroom.`,
       sentiment: "positive",
@@ -113,14 +113,14 @@ function scoreSubjective(
   score += motivationPts;
   if (checkIn.motivation >= 7) {
     reasons.push({
-      icon: "🎯",
+      icon: "motivation",
       title: "Motivation is strong.",
       detail: `You rated motivation ${checkIn.motivation}/10.`,
       sentiment: "positive",
     });
   } else if (checkIn.motivation <= 4) {
     reasons.push({
-      icon: "🎯",
+      icon: "motivation",
       title: "Motivation is low.",
       detail: `You rated motivation ${checkIn.motivation}/10 — keep expectations realistic.`,
       sentiment: "caution",
@@ -158,14 +158,14 @@ function scoreObjective(
 
       if (ratio >= 1.1) {
         reasons.push({
-          icon: "🌙",
+          icon: "sleep",
           title: "Sleep was above average.",
           detail: `${sleepLabel}. Extra rest boosts readiness.`,
           sentiment: "positive",
         });
       } else if (ratio < 0.85) {
         reasons.push({
-          icon: "🌙",
+          icon: "sleep",
           title: "Sleep was below average.",
           detail: `${sleepLabel}. Reduced sleep limits recovery.`,
           sentiment: "negative",
@@ -182,14 +182,14 @@ function scoreObjective(
       sleepLabel = `${h}h ${m}m`;
       if (snapshot.sleepMinutes >= 420) {
         reasons.push({
-          icon: "🌙",
+          icon: "sleep",
           title: "Good sleep duration.",
           detail: `${sleepLabel} — solid recovery foundation.`,
           sentiment: "positive",
         });
       } else if (snapshot.sleepMinutes < 360) {
         reasons.push({
-          icon: "🌙",
+          icon: "sleep",
           title: "Sleep was short.",
           detail: `${sleepLabel} — aim for 7h+ for full recovery.`,
           sentiment: "caution",
@@ -212,14 +212,14 @@ function scoreObjective(
       hrvPts = clamp(ratio * 11, 0, 15);
       if (ratio >= 1.1) {
         reasons.push({
-          icon: "📈",
+          icon: "hrv",
           title: "HRV is above baseline.",
           detail: `${snapshot.hrv.toFixed(1)}ms vs avg ${avgHrv.toFixed(1)}ms — nervous system well recovered.`,
           sentiment: "positive",
         });
       } else if (ratio < 0.9) {
         reasons.push({
-          icon: "📈",
+          icon: "hrv",
           title: "HRV is below baseline.",
           detail: `${snapshot.hrv.toFixed(1)}ms vs avg ${avgHrv.toFixed(1)}ms — body is still recovering.`,
           sentiment: "caution",
@@ -247,14 +247,14 @@ function scoreObjective(
       rhrPts = clamp(ratio * 8, 0, 10);
       if (snapshot.restingHr < avgRhr - 3) {
         reasons.push({
-          icon: "❤️",
+          icon: "heart",
           title: "Resting HR is lower than usual.",
           detail: `${Math.round(snapshot.restingHr)}bpm vs avg ${Math.round(avgRhr)}bpm — good cardiovascular recovery.`,
           sentiment: "positive",
         });
       } else if (snapshot.restingHr > avgRhr + 5) {
         reasons.push({
-          icon: "❤️",
+          icon: "heart",
           title: "Resting HR is elevated.",
           detail: `${Math.round(snapshot.restingHr)}bpm vs avg ${Math.round(avgRhr)}bpm — may indicate incomplete recovery.`,
           sentiment: "caution",

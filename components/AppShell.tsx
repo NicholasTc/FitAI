@@ -1,5 +1,6 @@
 "use client";
 
+import { AppIcon, type FitAIIconName } from "@/components/AppIcon";
 import { useEffect, useState } from "react";
 import type { TodayState } from "@/types/today";
 import TodayView from "@/components/views/TodayView";
@@ -105,10 +106,10 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
           : "Syncing…";
 
   // Nav items
-  const navItems: { id: ViewId; icon: string; label: string }[] = [
-    { id: "today", icon: "◎", label: "Today" },
-    { id: "checkin", icon: "✎", label: "Check-In" },
-    { id: "trends", icon: "↗", label: "Trends" },
+  const navItems: { id: ViewId; icon: FitAIIconName; label: string }[] = [
+    { id: "today", icon: "today", label: "Today" },
+    { id: "checkin", icon: "checkin", label: "Check-In" },
+    { id: "trends", icon: "trends", label: "Trends" },
   ];
 
   function NavContent() {
@@ -149,7 +150,11 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
                     : "text-[#63708f] hover:bg-[rgba(0,0,0,0.04)] hover:text-[#1b2040]"
                 }`}
               >
-                <span className="w-4 text-center text-[15px]">{item.icon}</span>
+                <AppIcon
+                  name={item.icon}
+                  size={16}
+                  className={view === item.id ? "text-[#4a7df6]" : "text-current"}
+                />
                 {item.label}
                 {item.id === "checkin" && !data?.checkIn && (
                   <span className="ml-auto h-2 w-2 rounded-full bg-[#4a7df6]" />

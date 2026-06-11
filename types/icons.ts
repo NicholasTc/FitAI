@@ -1,0 +1,16 @@
+export type FitAIIconName =
+  | "sleep"
+  | "heart"
+  | "hrv"
+  | "energy"
+  | "stress"
+  | "stress-low"
+  | "motivation"
+  | "steps"
+  | "checkin"
+  | "today"
+  | "trends"
+  | "baseline"
+  | "info"
+  | "check"
+  | "chart";

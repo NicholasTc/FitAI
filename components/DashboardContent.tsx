@@ -1,5 +1,6 @@
 "use client";
 
+import { AppIcon, type FitAIIconName } from "@/components/AppIcon";
 import type { DailyBaseline, DailySnapshot, MetricDelta } from "@/types/snapshot";
 import { useEffect, useState } from "react";
 
@@ -41,7 +42,8 @@ interface CardProps {
   delta?: string | null;
   deltaGood?: boolean; // true = green, false = amber
   accentColor: string; // Tailwind bg class for icon
-  icon: string;
+  icon: FitAIIconName;
+  iconClassName?: string;
   note?: string; // small footnote when data is null
 }
 
@@ -53,15 +55,16 @@ function MetricCard({
   deltaGood,
   accentColor,
   icon,
+  iconClassName,
   note,
 }: CardProps) {
   return (
     <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
       <div className="mb-3 flex items-center gap-3">
         <span
-          className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg ${accentColor}`}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl ${accentColor}`}
         >
-          {icon}
+          <AppIcon name={icon} size={18} className={iconClassName ?? "text-[#63708f]"} />
         </span>
         <div>
           <p className="text-[13px] font-semibold text-[#1b2040]">{title}</p>
@@ -100,7 +103,7 @@ function BaselineBanner({
   if (daysWithData >= 5) return null;
   return (
     <div className="mb-6 flex items-center gap-3 rounded-2xl border border-[rgba(74,125,246,0.18)] bg-[#eef3ff] px-4 py-3 text-sm text-[#4a7df6]">
-      <span className="text-base">📡</span>
+      <AppIcon name="baseline" size={18} className="shrink-0" />
       <div>
         <span className="font-semibold">Baseline forming</span>
         <span className="ml-1 text-[#7fa0f8]">
@@ -246,8 +249,8 @@ export default function DashboardContent() {
         {/* Sleep */}
         <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
           <div className="mb-3 flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#edf9f6] text-lg">
-              🌙
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#edf9f6] text-[#4a7df6]">
+              <AppIcon name="sleep" size={18} />
             </span>
             <div>
               <p className="text-[13px] font-semibold text-[#1b2040]">Sleep</p>
@@ -286,8 +289,8 @@ export default function DashboardContent() {
         {/* Resting HR */}
         <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
           <div className="mb-3 flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff5f2] text-lg">
-              ❤️
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fff5f2] text-[#e05f3c]">
+              <AppIcon name="heart" size={18} />
             </span>
             <div>
               <p className="text-[13px] font-semibold text-[#1b2040]">Resting HR</p>
@@ -315,8 +318,8 @@ export default function DashboardContent() {
         {/* HRV */}
         <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.07)]">
           <div className="mb-3 flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef3ff] text-lg">
-              📈
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef3ff] text-[#7850e2]">
+              <AppIcon name="hrv" size={18} />
             </span>
             <div>
               <p className="text-[13px] font-semibold text-[#1b2040]">HRV</p>
@@ -349,7 +352,8 @@ export default function DashboardContent() {
           delta={deltaLabel(deltas.steps, true)}
           deltaGood={deltas.steps.direction === "up"}
           accentColor="bg-[#ecfaf6]"
-          icon="👣"
+          icon="steps"
+          iconClassName="text-[#009e83]"
           note={nullNote}
         />
 
@@ -361,15 +365,16 @@ export default function DashboardContent() {
           delta={deltaLabel(deltas.activeMinutes, true, " min")}
           deltaGood={deltas.activeMinutes.direction === "up"}
           accentColor="bg-[#f4f0ff]"
-          icon="⚡"
+          icon="energy"
+          iconClassName="text-[#7850e2]"
           note={nullNote}
         />
 
         {/* 7-day baseline summary */}
         <div className="rounded-[18px] border border-[rgba(148,162,218,0.16)] bg-[#f4f5fb] p-5">
           <div className="mb-3 flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-lg">
-              📊
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-[#63708f]">
+              <AppIcon name="chart" size={18} />
             </span>
             <div>
               <p className="text-[13px] font-semibold text-[#1b2040]">

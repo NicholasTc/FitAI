@@ -1,5 +1,7 @@
 "use client";
 
+import { AppIcon, type FitAIIconName } from "@/components/AppIcon";
+import { hrvStatus, rhrStatus, sleepStatus, stepsStatus } from "@/lib/metricStatus";
 import type { TodayState } from "@/types/today";
 
 interface TrendsViewProps {
@@ -85,21 +87,25 @@ function SparkChart({
 // ─── Metric trend card ────────────────────────────────────────────────────────
 
 interface TrendCardProps {
-  icon: string;
+  icon: FitAIIconName;
+  iconClassName?: string;
   label: string;
   current: string;
+  currentIsPending?: boolean;
   avg: string;
   values: (number | null)[];
   dates: string[];
   color: string;
   fillColor: string;
-  note?: string;
+  note?: { label: string; sub: string };
 }
 
 function TrendCard({
   icon,
+  iconClassName,
   label,
   current,
+  currentIsPending,
   avg,
   values,
   dates,
@@ -114,7 +120,11 @@ function TrendCard({
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center gap-2.5">
-          <span className="text-[20px]">{icon}</span>
+          <AppIcon
+            name={icon}
+            size={20}
+            className={iconClassName ?? "text-[#63708f]"}
+          />
           <div>
             <p className="text-[13.5px] font-semibold text-[#1b2040]">{label}</p>
             <p className="text-[11.5px] text-[#9ea8c4]">7-day trend</p>
@@ -123,7 +133,7 @@ function TrendCard({
         <div className="text-right">
           <p
             className="font-[family-name:var(--font-display)] text-[22px] font-bold leading-none"
-            style={{ color }}
+            style={{ color: currentIsPending ? "#c87a36" : color }}
           >
             {current}
           </p>
@@ -148,9 +158,14 @@ function TrendCard({
             ))}
           </div>
         </>
+      ) : note ? (
+        <div className="flex h-[80px] flex-col items-center justify-center gap-1 text-center">
+          <p className="text-[12px] font-medium text-[#c87a36]">{note.label}</p>
+          <p className="text-[11px] text-[#9ea8c4]">{note.sub}</p>
+        </div>
       ) : (
         <div className="flex h-[80px] items-center justify-center text-[12px] text-[#9ea8c4]">
-          {note ?? "No data yet"}
+          No data yet
         </div>
       )}
     </div>
@@ -204,10 +219,26 @@ export default function TrendsView({ data }: TrendsViewProps) {
     return ns.reduce((a, b) => a + b, 0) / ns.length;
   };
 
-  const currentSleep = history.at(-1)?.sleepMinutes ?? null;
-  const currentRhr = history.at(-1)?.restingHr ?? null;
-  const currentHrv = history.at(-1)?.hrv ?? null;
-  const currentSteps = history.at(-1)?.steps ?? null;
+  const todaySnap = history.at(-1);
+  const todayDate = todaySnap?.date ?? data.date;
+  const currentSleep = todaySnap?.sleepMinutes ?? null;
+  const currentRhr = todaySnap?.restingHr ?? null;
+  const currentHrv = todaySnap?.hrv ?? null;
+  const currentSteps = todaySnap?.steps ?? null;
+
+  // Status for today's metrics (used as empty state copy in trend cards)
+  const todaySnapFull = {
+    sleepMinutes: currentSleep,
+    sleepDeepMin: null as number | null, // not in history shape; use null → triggers "Stages" path
+    sleepRemMin: null as number | null,
+    restingHr: currentRhr,
+    hrv: currentHrv,
+    steps: currentSteps,
+  };
+  const sleepSt = sleepStatus(todaySnapFull, todayDate);
+  const rhrSt = rhrStatus(todaySnapFull, todayDate);
+  const hrvSt = hrvStatus(todaySnapFull, todayDate);
+  const stepsSt = stepsStatus(todaySnapFull, todayDate);
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -258,7 +289,7 @@ export default function TrendsView({ data }: TrendsViewProps) {
         <div className="flex items-end justify-between gap-2">
           {history.map((day, i) => {
             const isToday = i === history.length - 1;
-            const dt = isToday ? readiness.dayType : null;
+            const dt = day.dayType;
             const style = dt ? DT_STYLES[dt] : null;
             const dayName = new Date(day.date + "T12:00:00").toLocaleDateString(
               "en-US",
@@ -290,7 +321,12 @@ export default function TrendsView({ data }: TrendsViewProps) {
                   {style ? style.letter : "·"}
                 </div>
                 <div className="text-center">
-                  <p className="text-[10px] font-medium text-[#63708f]">{dayName}</p>
+                  <p
+                    className="text-[10px] font-medium"
+                    style={{ color: isToday && style ? style.color : "#63708f" }}
+                  >
+                    {isToday ? "Today" : dayName}
+                  </p>
                   <p className="text-[10px] text-[#9ea8c4]">{dayDate}</p>
                 </div>
               </div>
@@ -318,42 +354,50 @@ export default function TrendsView({ data }: TrendsViewProps) {
       {/* Metric trend charts */}
       <div className="grid gap-4 sm:grid-cols-2">
         <TrendCard
-          icon="🌙"
+          icon="sleep"
+          iconClassName="text-[#4a7df6]"
           label="Sleep"
-          current={currentSleep !== null ? `${(currentSleep / 60).toFixed(1)}h` : "—"}
+          current={currentSleep !== null ? `${(currentSleep / 60).toFixed(1)}h` : (sleepSt?.label ?? "—")}
+          currentIsPending={currentSleep === null && sleepSt?.isPending}
           avg={fmtSleepAvg(baseline.sleepMinutes)}
           values={sleepVals}
           dates={dates}
           color="#4a7df6"
           fillColor="#4a7df6"
-          note="Sleep data will appear once Fitbit syncs"
+          note={!sleepVals.some((v) => v !== null) ? sleepSt ?? undefined : undefined}
         />
         <TrendCard
-          icon="❤️"
+          icon="heart"
+          iconClassName="text-[#e05f3c]"
           label="Resting HR"
-          current={currentRhr !== null ? `${Math.round(currentRhr)} bpm` : "—"}
+          current={currentRhr !== null ? `${Math.round(currentRhr)} bpm` : (rhrSt?.label ?? "—")}
+          currentIsPending={currentRhr === null && rhrSt?.isPending}
           avg={baseline.restingHr !== null ? `${Math.round(baseline.restingHr)} bpm` : "—"}
           values={rhrVals}
           dates={dates}
           color="#e05f3c"
           fillColor="#e05f3c"
-          note="Resting HR appears after a full night's sync"
+          note={!rhrVals.some((v) => v !== null) ? rhrSt ?? undefined : undefined}
         />
         <TrendCard
-          icon="📈"
+          icon="hrv"
+          iconClassName="text-[#7850e2]"
           label="HRV"
-          current={currentHrv !== null ? `${currentHrv.toFixed(1)} ms` : "—"}
+          current={currentHrv !== null ? `${currentHrv.toFixed(1)} ms` : (hrvSt?.label ?? "—")}
+          currentIsPending={currentHrv === null && hrvSt?.isPending}
           avg={baseline.hrv !== null ? `${baseline.hrv.toFixed(1)} ms` : "—"}
           values={hrvVals}
           dates={dates}
           color="#7850e2"
           fillColor="#a98bff"
-          note="HRV calibrates after a few days of Fitbit use"
+          note={!hrvVals.some((v) => v !== null) ? hrvSt ?? undefined : undefined}
         />
         <TrendCard
-          icon="👣"
+          icon="steps"
+          iconClassName="text-[#009e83]"
           label="Steps"
-          current={currentSteps !== null ? `${(currentSteps / 1000).toFixed(1)}k` : "—"}
+          current={currentSteps !== null ? `${(currentSteps / 1000).toFixed(1)}k` : (stepsSt?.label ?? "—")}
+          currentIsPending={currentSteps === null && stepsSt?.isPending}
           avg={
             avg(stepsVals) !== null ? `${(avg(stepsVals)!).toFixed(1)}k steps` : "—"
           }
@@ -361,6 +405,7 @@ export default function TrendsView({ data }: TrendsViewProps) {
           dates={dates}
           color="#009e83"
           fillColor="#00c9a7"
+          note={!stepsVals.some((v) => v !== null) ? stepsSt ?? undefined : undefined}
         />
       </div>
 

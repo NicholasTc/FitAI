@@ -1,5 +1,13 @@
 "use client";
 
+import { AppIcon, type FitAIIconName } from "@/components/AppIcon";
+import {
+  hrvStatus,
+  rhrStatus,
+  sleepStatus,
+  stepsStatus,
+  type MetricText,
+} from "@/lib/metricStatus";
 import type { TodayState } from "@/types/today";
 import {
   dayTypeColor,
@@ -89,21 +97,66 @@ function ReadinessRing({
 // ─── Signal metric card ───────────────────────────────────────────────────────
 
 interface SignalProps {
-  icon: string;
+  icon: FitAIIconName;
+  iconClassName?: string;
   label: string;
   value: string;
   sub?: string;
-  barPct?: number; // 0–100, optional
+  barPct?: number;
   barColor?: string;
   trend?: string;
   trendUp?: boolean;
+  /** When set, replaces the value+bar with a status explanation */
+  status?: MetricText | null;
 }
 
-function SignalCard({ icon, label, value, sub, barPct, barColor, trend, trendUp }: SignalProps) {
+function SignalCard({
+  icon,
+  iconClassName,
+  label,
+  value,
+  sub,
+  barPct,
+  barColor,
+  trend,
+  trendUp,
+  status,
+}: SignalProps) {
+  // When status text is provided, render an explanatory empty state
+  if (status) {
+    return (
+      <div className="rounded-[16px] border border-[rgba(148,162,218,0.14)] bg-white p-4 shadow-[0_2px_14px_rgba(80,100,180,0.06)]">
+        <div className="mb-2 flex items-center gap-2">
+          <AppIcon
+            name={icon}
+            size={18}
+            className={iconClassName ?? "text-[#63708f]"}
+          />
+          <span className="text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
+            {label}
+          </span>
+        </div>
+        <p
+          className="font-[family-name:var(--font-display)] text-[17px] font-semibold leading-tight"
+          style={{ color: status.isPending ? "#c87a36" : "#9ea8c4" }}
+        >
+          {status.label}
+        </p>
+        <p className="mt-1 text-[11.5px] leading-snug text-[#9ea8c4]">
+          {status.sub}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-[16px] border border-[rgba(148,162,218,0.14)] bg-white p-4 shadow-[0_2px_14px_rgba(80,100,180,0.06)]">
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-[18px]">{icon}</span>
+        <AppIcon
+          name={icon}
+          size={18}
+          className={iconClassName ?? "text-[#63708f]"}
+        />
         <span className="text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
           {label}
         </span>
@@ -173,10 +226,30 @@ export default function TodayView({
   onGoToCheckIn,
   onGoToTrends,
 }: TodayViewProps) {
-  const { readiness, snapshot, baseline, checkIn } = data;
+  const { readiness, snapshot, baseline, checkIn, date } = data;
   const dt = readiness.dayType;
   const colors = dayTypeColor(dt);
   const label = dayTypeLabel(dt);
+
+  // ─── Metric status (explains null values)
+  const sleepSt = sleepStatus(
+    { sleepMinutes: snapshot.sleepMinutes, sleepDeepMin: snapshot.sleepDeepMin, sleepRemMin: snapshot.sleepRemMin },
+    date,
+  );
+  const hrvSt = hrvStatus(
+    { hrv: snapshot.hrv, sleepMinutes: snapshot.sleepMinutes, sleepDeepMin: snapshot.sleepDeepMin },
+    date,
+  );
+  const rhrSt = rhrStatus(
+    { restingHr: snapshot.restingHr, sleepMinutes: snapshot.sleepMinutes },
+    date,
+  );
+  const stepsSt = stepsStatus({ steps: snapshot.steps }, date);
+
+  // Hero chip: show when today has incomplete wearable data (missing HRV but baseline has it)
+  const missingHrvToday = snapshot.hrv === null && baseline.hrv !== null;
+  const missingRhrToday = snapshot.restingHr === null && baseline.restingHr !== null;
+  const incompleteTodayData = missingHrvToday || missingRhrToday;
 
   // ─── Hero description per day type
   const heroDesc =
@@ -234,7 +307,7 @@ export default function TodayView({
       {/* Baseline forming banner */}
       {baseline.status === "forming" && (
         <div className="flex items-center gap-3 rounded-2xl border border-[rgba(74,125,246,0.18)] bg-[#eef3ff] px-4 py-3 text-sm text-[#4a7df6]">
-          <span className="text-base">📡</span>
+          <AppIcon name="baseline" size={18} className="shrink-0" />
           <div>
             <span className="font-semibold">Baseline forming</span>
             <span className="ml-1 text-[#7fa0f8]">
@@ -250,8 +323,8 @@ export default function TodayView({
           onClick={onGoToCheckIn}
           className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-[rgba(74,125,246,0.35)] bg-[rgba(74,125,246,0.04)] px-5 py-4 text-left transition hover:bg-[rgba(74,125,246,0.08)]"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#eef3ff] text-[18px]">
-            ✎
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#eef3ff] text-[#4a7df6]">
+            <AppIcon name="checkin" size={18} />
           </span>
           <div className="flex-1">
             <p className="text-[13.5px] font-semibold text-[#4a7df6]">
@@ -297,6 +370,14 @@ export default function TodayView({
             <p className="max-w-md text-[14px] leading-relaxed text-[#63708f]">
               {heroDesc}
             </p>
+            {incompleteTodayData && (
+              <p className="flex items-center gap-1.5 text-[12px] text-[#c87a36]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#c87a36]" />
+                {missingHrvToday
+                  ? "HRV not in yet — readiness uses sleep + resting HR for now."
+                  : "Some metrics still pending — score will update after sync."}
+              </p>
+            )}
             <div className="flex flex-wrap gap-2 pt-1">
               {!checkIn && (
                 <button
@@ -335,19 +416,22 @@ export default function TodayView({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {/* Sleep */}
           <SignalCard
-            icon="🌙"
+            icon="sleep"
+            iconClassName="text-[#4a7df6]"
             label="Sleep"
             value={sleep ? `${sleep.h}h` : "—"}
-            sub={sleep ? `${sleep.min}m` : undefined}
-            barPct={sleepPct}
+            sub={sleep && !sleepSt?.sub.includes("Stages") ? `${sleep.min}m` : undefined}
+            barPct={!sleepSt ? sleepPct : undefined}
             barColor="linear-gradient(90deg,#9fefdf,#4a7df6)"
-            trend={sleepTrend}
+            trend={!sleepSt ? sleepTrend : undefined}
             trendUp={sleepTrendUp}
+            status={sleepSt?.sub.includes("Stages") ? sleepSt : (snapshot.sleepMinutes === null ? sleepSt : null)}
           />
 
           {/* RHR */}
           <SignalCard
-            icon="❤️"
+            icon="heart"
+            iconClassName="text-[#e05f3c]"
             label="Resting HR"
             value={fmt(snapshot.restingHr, 0)}
             sub={snapshot.restingHr !== null ? " bpm" : undefined}
@@ -355,11 +439,13 @@ export default function TodayView({
             barColor="linear-gradient(90deg,#ffc6a8,#e05f3c)"
             trend={rhrTrend}
             trendUp={rhrTrendUp}
+            status={rhrSt}
           />
 
           {/* HRV */}
           <SignalCard
-            icon="📈"
+            icon="hrv"
+            iconClassName="text-[#7850e2]"
             label="HRV"
             value={fmt(snapshot.hrv, 1)}
             sub={snapshot.hrv !== null ? " ms" : undefined}
@@ -367,12 +453,14 @@ export default function TodayView({
             barColor="linear-gradient(90deg,#a0d8ff,#4a7df6)"
             trend={hrvTrend}
             trendUp={hrvTrendUp}
+            status={hrvSt}
           />
 
-          {/* Check-in composite */}
+          {/* Check-in composite or Steps fallback */}
           {checkIn ? (
             <SignalCard
-              icon="⚡"
+              icon="energy"
+              iconClassName="text-[#f6a235]"
               label="Energy"
               value={`${checkIn.energyLevel}`}
               sub="/10"
@@ -382,12 +470,16 @@ export default function TodayView({
               trendUp={false}
             />
           ) : (
-            <div className="flex items-center justify-center rounded-[16px] border border-dashed border-[rgba(148,162,218,0.25)] bg-[#f9faff] p-4 text-center">
-              <div>
-                <span className="text-2xl">✎</span>
-                <p className="mt-1 text-[11px] text-[#9ea8c4]">No check-in yet</p>
-              </div>
-            </div>
+            <SignalCard
+              icon="steps"
+              iconClassName="text-[#009e83]"
+              label="Steps"
+              value={snapshot.steps !== null ? snapshot.steps.toLocaleString() : "—"}
+              sub={snapshot.steps !== null && date === new Date().toLocaleDateString("en-CA") ? " so far" : undefined}
+              barPct={snapshot.steps !== null ? Math.min((snapshot.steps / 10000) * 100, 100) : undefined}
+              barColor="linear-gradient(90deg,#9fefdf,#009e83)"
+              status={stepsSt}
+            />
           )}
         </div>
       </div>
@@ -413,9 +505,9 @@ export default function TodayView({
                   className="flex items-start gap-3 rounded-[13px] border border-[rgba(148,162,218,0.1)] p-3.5"
                 >
                   <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[15px] ${s.icon}`}
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${s.icon}`}
                   >
-                    {reason.icon}
+                    <AppIcon name={reason.icon} size={16} />
                   </div>
                   <div className="flex-1 text-[13px] leading-relaxed">
                     <span className="font-semibold text-[#1b2040]">{reason.title} </span>
@@ -436,7 +528,7 @@ export default function TodayView({
       {/* No data fallback */}
       {readiness.reasons.length === 0 && (
         <div className="rounded-[18px] border border-[rgba(148,162,218,0.14)] bg-[#f9faff] p-5 text-center text-[13px] text-[#9ea8c4]">
-          <p className="mb-1 text-[18px]">📡</p>
+          <AppIcon name="baseline" size={24} className="mx-auto mb-1 text-[#9ea8c4]" />
           <p>Complete your morning check-in and sync health data for personalised insights.</p>
         </div>
       )}

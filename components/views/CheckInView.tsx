@@ -1,5 +1,6 @@
 "use client";
 
+import { AppIcon } from "@/components/AppIcon";
 import { useState } from "react";
 import type { CheckInData } from "@/types/today";
 
@@ -121,8 +122,8 @@ export default function CheckInView({
   if (done) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ecfaf6] text-2xl">
-          ✓
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ecfaf6] text-[#009e83]">
+          <AppIcon name="check" size={28} />
         </div>
         <h2 className="font-[family-name:var(--font-display)] text-xl font-bold text-[#1b2040]">
           Check-in saved!
@@ -146,7 +147,7 @@ export default function CheckInView({
 
       {existing && (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-[rgba(74,125,246,0.18)] bg-[#eef3ff] px-4 py-2.5 text-[12.5px] text-[#4a7df6]">
-          <span>ℹ️</span>
+          <AppIcon name="info" size={16} className="shrink-0" />
           You already checked in today — you can update your responses.
         </div>
       )}

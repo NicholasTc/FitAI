@@ -68,19 +68,21 @@ export async function syncUserSnapshots(
 }
 
 /**
- * Load the last N days of stored snapshots for a user from the DB.
- * Returns oldest → newest.
+ * Load the most recent N days of stored snapshots for a user from the DB.
+ * Returns oldest → newest (ascending), capped at `today`.
  */
 export async function loadSnapshots(
   userId: string,
   today: string,
   days = SYNC_DAYS,
 ): Promise<DailySnapshot[]> {
+  // Fetch desc to get the *most recent* rows, then reverse to oldest→newest.
   const rows = await db.dailyHealthSnapshot.findMany({
-    where: { userId },
-    orderBy: { date: "asc" },
+    where: { userId, date: { lte: today } },
+    orderBy: { date: "desc" },
     take: days,
   });
+  rows.reverse();
 
   return rows.map((r: DailyHealthSnapshotModel) => ({
     date: r.date,

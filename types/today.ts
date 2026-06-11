@@ -1,3 +1,5 @@
+import type { FitAIIconName } from "@/types/icons";
+
 export type DayType = "push" | "maintain" | "recover";
 
 export interface CheckInData {
@@ -19,7 +21,7 @@ export interface ReadinessResult {
 }
 
 export interface ReadinessReason {
-  icon: string;
+  icon: FitAIIconName;
   title: string;
   detail: string;
   sentiment: "positive" | "caution" | "negative" | "neutral";
@@ -49,6 +51,8 @@ export interface TodayState {
   };
   history: Array<{
     date: string;
+    /** Computed objective-only readiness day type. null when insufficient data. */
+    dayType: DayType | null;
     sleepMinutes: number | null;
     restingHr: number | null;
     hrv: number | null;

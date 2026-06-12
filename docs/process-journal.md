@@ -3,6 +3,10 @@ Integrate AI as per the plan
 Test the feature 
 Reiiterate
 
+Task 2:
+Plan if this is good enough or should i pull in more data or how 
+(NEXT IMMEDIATE THING: SUMMARIZE THE FEATURES AND THEN WORK ON DEPLOYMENT)
+
 Need improvement: 
 Include more metrics on the sleep
 

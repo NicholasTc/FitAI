@@ -1,30 +1,34 @@
 -- CreateTable
 CREATE TABLE "DailyHealthSnapshot" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "date" TEXT NOT NULL,
     "sleepMinutes" INTEGER,
-    "sleepEfficiency" REAL,
+    "sleepEfficiency" DOUBLE PRECISION,
     "sleepDeepMin" INTEGER,
     "sleepRemMin" INTEGER,
     "sleepLightMin" INTEGER,
-    "restingHr" REAL,
-    "hrv" REAL,
+    "restingHr" DOUBLE PRECISION,
+    "hrv" DOUBLE PRECISION,
     "steps" INTEGER,
     "activeMinutes" INTEGER,
-    "syncedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "syncedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DailyHealthSnapshot_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "CheckIn" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "date" TEXT NOT NULL,
     "energyLevel" INTEGER NOT NULL,
     "stressLevel" INTEGER NOT NULL,
     "sleepQuality" INTEGER NOT NULL,
     "motivation" INTEGER NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CheckIn_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex

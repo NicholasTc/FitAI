@@ -6,13 +6,17 @@ import type { TodayState } from "@/types/today";
 import TodayView from "@/components/views/TodayView";
 import CheckInView from "@/components/views/CheckInView";
 import TrendsView from "@/components/views/TrendsView";
+import ReflectionView from "@/components/views/ReflectionView";
+import WeeklyView from "@/components/views/WeeklyView";
 
-type ViewId = "today" | "checkin" | "trends";
+type ViewId = "today" | "checkin" | "trends" | "reflect" | "week";
 
 const VIEW_LABELS: Record<ViewId, string> = {
   today: "Today",
   checkin: "Check-In",
   trends: "Trends",
+  reflect: "Reflect",
+  week: "This Week",
 };
 
 function Spinner() {
@@ -110,6 +114,8 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
     { id: "today", icon: "today", label: "Today" },
     { id: "checkin", icon: "checkin", label: "Check-In" },
     { id: "trends", icon: "trends", label: "Trends" },
+    { id: "reflect", icon: "reflect", label: "Reflect" },
+    { id: "week", icon: "week", label: "This Week" },
   ];
 
   function NavContent() {
@@ -158,6 +164,9 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
                 {item.label}
                 {item.id === "checkin" && !data?.checkIn && (
                   <span className="ml-auto h-2 w-2 rounded-full bg-[#4a7df6]" />
+                )}
+                {item.id === "reflect" && (
+                  <span className="ml-auto h-2 w-2 rounded-full bg-[#7850e2]" />
                 )}
               </button>
             ))}
@@ -256,6 +265,7 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
                   data={data}
                   onGoToCheckIn={() => setView("checkin")}
                   onGoToTrends={() => setView("trends")}
+                  onGoToReflect={() => setView("reflect")}
                 />
               )}
               {view === "checkin" && (
@@ -267,6 +277,14 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
                 />
               )}
               {view === "trends" && <TrendsView data={data} />}
+              {view === "reflect" && (
+                <ReflectionView
+                  date={dateKey}
+                  dateLabel={dateLabel}
+                  dayTypeLabel={dayTypeLabel}
+                />
+              )}
+              {view === "week" && <WeeklyView />}
             </>
           )}
         </main>

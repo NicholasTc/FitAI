@@ -36,6 +36,25 @@ model DailyHealthSnapshot {
   @@index([userId])
 }
 
+// Phase 2C: night reflection — was today's recommendation accurate?
+model Reflection {
+  id     String @id @default(cuid())
+  userId String
+  date   String // YYYY-MM-DD
+
+  // Was the day type recommendation accurate?
+  accuracy String // "yes" | "somewhat" | "no"
+  // How did training/work actually go?
+  outcome  String // "great" | "good" | "skipped" | "rest"
+  // Optional free-text note
+  note     String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
 // Phase 2B: morning check-in — defined now so DB is ready.
 model CheckIn {
   id     String @id @default(cuid())

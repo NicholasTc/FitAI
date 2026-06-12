@@ -79,19 +79,6 @@ Concise inventory of what is built today.
 
 ---
 
-## API
-
-| Route | Purpose |
-|---|---|
-| `GET /api/today` | Sync + snapshot + check-in + readiness |
-| `POST/GET /api/checkin` | Save / retrieve check-in |
-| `POST /api/strategy` | AI coaching (SSE stream) |
-| `POST /api/sync` | Manual sync |
-| `GET /api/debug` | Session, raw API, DB inspection |
-| `/api/auth/[...nextauth]` | OAuth |
-
----
-
 ## UI
 
 - Proposal2 design — light, glassy, minimal dashboard
@@ -99,11 +86,46 @@ Concise inventory of what is built today.
 
 ---
 
+## Dashboard — Reflect (Night Reflection)
+
+- Evening nudge appears on Today page after 5pm
+- Two questions: was today's recommendation accurate? + how did training/day go?
+- Four accuracy options: Yes / Somewhat / No
+- Four outcome options: Great / Good / Skipped / Rest
+- Optional free-text note
+- Saved to DB (`Reflection` table) with upsert — editable after submission
+- Summary card shown after submission
+
+---
+
+## Dashboard — This Week
+
+- 7-day day type breakdown (Push / Maintain / Recover counts + % of week)
+- Weekly averages: sleep, HRV, resting HR, steps
+- Recommendation accuracy panel — based on submitted reflections
+- Day-by-day table: date, day type, sleep, HRV, steps, reflection result
+
+---
+
+## API
+
+| Route | Purpose |
+|---|---|
+| `GET /api/today` | Sync + snapshot + check-in + readiness |
+| `POST/GET /api/checkin` | Save / retrieve check-in |
+| `POST /api/strategy` | AI coaching (SSE stream) |
+| `POST/GET /api/reflection` | Save / retrieve night reflection |
+| `GET /api/weekly` | Aggregated 7-day weekly summary |
+| `POST /api/sync` | Manual sync |
+| `GET /api/debug` | Session, raw API, DB inspection |
+| `/api/auth/[...nextauth]` | OAuth |
+
+---
+
 ## Not built yet
 
-- Night reflection / feedback loop
-- 14-day trends
-- Stress score integration
+- 14-day / 28-day trends
+- Stress score integration (Fitbit calibrating)
 - Calendar / deadlines
 - Push notifications
-- Production deployment
+- Feedback loop to tune readiness weights from reflection data

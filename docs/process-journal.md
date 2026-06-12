@@ -14,3 +14,9 @@ we dont need to store data technically, we only need to keep pulling from google
 Future feature:
 Auto fetch data
 Fetch data regarding past exercise to incorporate into account when AI generating feedback
+
+
+Next plan to implement:
+1) night reflection
+2) weekly summary view 
+

@@ -14,4 +14,8 @@ export type FitAIIconName =
   | "info"
   | "check"
   | "chart"
-  | "ai";
+  | "ai"
+  | "reflect"
+  | "week"
+  | "star"
+  | "skip";

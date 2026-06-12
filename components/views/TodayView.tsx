@@ -220,12 +220,14 @@ interface TodayViewProps {
   data: TodayState;
   onGoToCheckIn: () => void;
   onGoToTrends: () => void;
+  onGoToReflect?: () => void;
 }
 
 export default function TodayView({
   data,
   onGoToCheckIn,
   onGoToTrends,
+  onGoToReflect,
 }: TodayViewProps) {
   const { readiness, snapshot, baseline, checkIn, date } = data;
   const dt = readiness.dayType;
@@ -540,6 +542,30 @@ export default function TodayView({
         dayType={readiness.dayType}
         hasCheckIn={readiness.hasCheckIn}
       />
+
+      {/* Evening reflection nudge — show after 5pm */}
+      {onGoToReflect && (() => {
+        const hour = new Date().getHours();
+        return hour >= 17;
+      })() && (
+        <button
+          onClick={onGoToReflect}
+          className="flex w-full items-start gap-3 rounded-[18px] border border-[rgba(120,80,226,0.2)] bg-[#f8f5ff] p-5 text-left transition hover:border-[rgba(120,80,226,0.35)] hover:bg-[#f4f0ff]"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#f4f0ff]">
+            <AppIcon name="reflect" size={18} className="text-[#7850e2]" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[13.5px] font-semibold text-[#1b2040]">
+              How did today actually go?
+            </p>
+            <p className="mt-0.5 text-[12.5px] text-[#63708f]">
+              Take 30 seconds to reflect — it helps FitAI learn your patterns.
+            </p>
+          </div>
+          <AppIcon name="trends" size={14} className="mt-1 shrink-0 text-[#9ea8c4]" />
+        </button>
+      )}
 
       {/* Check-in summary (if done) */}
       {checkIn && (

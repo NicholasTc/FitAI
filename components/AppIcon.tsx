@@ -17,6 +17,10 @@ import {
   IoTrendingUpOutline,
   IoWarningOutline,
   IoFlagOutline,
+  IoJournalOutline,
+  IoCalendarOutline,
+  IoStarOutline,
+  IoRemoveCircleOutline,
 } from "react-icons/io5";
 
 export type { FitAIIconName } from "@/types/icons";
@@ -41,6 +45,10 @@ const ICONS: Record<
   check: IoCheckmarkCircle,
   chart: IoStatsChartOutline,
   ai: IoSparklesOutline,
+  reflect: IoJournalOutline,
+  week: IoCalendarOutline,
+  star: IoStarOutline,
+  skip: IoRemoveCircleOutline,
 };
 
 interface AppIconProps {

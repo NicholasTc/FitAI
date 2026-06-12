@@ -15,6 +15,7 @@ import {
   readinessLabel,
   ringGradient,
 } from "@/lib/readiness";
+import StrategyPanel from "@/components/views/StrategyPanel";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -532,6 +533,13 @@ export default function TodayView({
           <p>Complete your morning check-in and sync health data for personalised insights.</p>
         </div>
       )}
+
+      {/* AI Strategy panel */}
+      <StrategyPanel
+        date={date}
+        dayType={readiness.dayType}
+        hasCheckIn={readiness.hasCheckIn}
+      />
 
       {/* Check-in summary (if done) */}
       {checkIn && (

@@ -11,6 +11,7 @@ import {
   IoMoonOutline,
   IoPulseOutline,
   IoShieldCheckmarkOutline,
+  IoSparklesOutline,
   IoStatsChartOutline,
   IoTodayOutline,
   IoTrendingUpOutline,
@@ -39,6 +40,7 @@ const ICONS: Record<
   info: IoInformationCircleOutline,
   check: IoCheckmarkCircle,
   chart: IoStatsChartOutline,
+  ai: IoSparklesOutline,
 };
 
 interface AppIconProps {

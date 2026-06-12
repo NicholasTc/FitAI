@@ -9,7 +9,7 @@ Plan if this is good enough or should i pull in more data or how
 
 Need improvement: 
 Include more metrics on the sleep
-
+we dont need to store data technically, we only need to keep pulling from google 
 
 Future feature:
 Auto fetch data

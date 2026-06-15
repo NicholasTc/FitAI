@@ -97,6 +97,54 @@ function ReadinessRing({
   );
 }
 
+// ─── Explain sections renderer ───────────────────────────────────────────────
+
+const EXPLAIN_LABELS = [
+  "What it means",
+  "Decision impact",
+  "Recommended action",
+  "Confidence",
+] as const;
+
+function ExplainSections({ text }: { text: string }) {
+  // Parse the four sections from the AI output.
+  // Each section starts with "Label:\n" or "Label: ".
+  const sections: { label: string; body: string }[] = [];
+
+  for (const label of EXPLAIN_LABELS) {
+    const pattern = new RegExp(`${label}:\\s*([\\s\\S]*?)(?=(?:${EXPLAIN_LABELS.join("|")}):|\s*$)`, "i");
+    const match = text.match(pattern);
+    if (match?.[1]?.trim()) {
+      sections.push({ label, body: match[1].trim() });
+    }
+  }
+
+  // Fallback: if parsing fails entirely, show raw text
+  if (sections.length === 0) {
+    return <p className="text-[11.5px] leading-relaxed text-[#63708f]">{text}</p>;
+  }
+
+  const LABEL_COLORS: Record<string, string> = {
+    "What it means": "text-[#4a7df6]",
+    "Decision impact": "text-[#c87a36]",
+    "Recommended action": "text-[#009e83]",
+    "Confidence": "text-[#7850e2]",
+  };
+
+  return (
+    <div className="space-y-2.5">
+      {sections.map(({ label, body }) => (
+        <div key={label}>
+          <p className={`mb-0.5 text-[10px] font-bold uppercase tracking-[0.1em] ${LABEL_COLORS[label] ?? "text-[#9ea8c4]"}`}>
+            {label}
+          </p>
+          <p className="text-[11.5px] leading-relaxed text-[#3a4260]">{body}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Signal metric card ───────────────────────────────────────────────────────
 
 interface SleepStagesBar {
@@ -120,11 +168,9 @@ interface SignalProps {
   status?: MetricText | null;
   /** When set, replaces the single bar with a segmented sleep-stages bar */
   stagesBar?: SleepStagesBar | null;
-  /** Inline AI explanation state */
-  explanation?: string | null;
-  explaining?: boolean;
+  /** Whether this card's explanation is currently active */
+  active?: boolean;
   onExplain?: () => void;
-  onDismiss?: () => void;
 }
 
 function SignalCard({
@@ -139,10 +185,8 @@ function SignalCard({
   trendUp,
   status,
   stagesBar,
-  explanation,
-  explaining,
+  active,
   onExplain,
-  onDismiss,
 }: SignalProps) {
   // When status text is provided, render an explanatory empty state
   if (status) {
@@ -177,15 +221,15 @@ function SignalCard({
         </span>
         {onExplain && (
           <button
-            onClick={explanation ? onDismiss : onExplain}
-            title={explanation ? "Dismiss" : "Explain this metric"}
+            onClick={onExplain}
+            title="Explain this metric"
             className={`flex h-5 w-5 items-center justify-center rounded-full text-[10.5px] font-bold transition
-              ${explanation
+              ${active
                 ? "bg-[#4a7df6] text-white"
                 : "bg-[#eef0f8] text-[#9ea8c4] hover:bg-[#e2e6f4] hover:text-[#4a7df6]"
               }`}
           >
-            {explanation ? "×" : "?"}
+            ?
           </button>
         )}
       </div>
@@ -255,22 +299,6 @@ function SignalCard({
           {trend}
         </p>
       )}
-
-      {/* Inline AI explanation */}
-      {(explaining || explanation) && (
-        <div className="mt-3 border-t border-[rgba(148,162,218,0.12)] pt-3">
-          {explaining ? (
-            <div className="flex items-center gap-2 text-[11.5px] text-[#9ea8c4]">
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[#9ea8c4] border-t-transparent" />
-              Explaining…
-            </div>
-          ) : (
-            <p className="text-[12px] leading-relaxed text-[#63708f]">
-              {explanation}
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -326,17 +354,14 @@ export default function TodayView({
   const [explaining, setExplaining] = useState(false);
 
   const handleExplain = useCallback(async (metric: MetricKey, values: Record<string, number | string | null>) => {
-    // Toggle off if already showing this metric
-    if (activeMetric === metric) {
+    // Toggle off if tapping the same active metric
+    if (activeMetric === metric && !explaining) {
       setActiveMetric(null);
       return;
     }
-    // If already cached, just show it
-    if (explanations[metric]) {
-      setActiveMetric(metric);
-      return;
-    }
     setActiveMetric(metric);
+    // If already cached, just show it — no new API call
+    if (explanations[metric]) return;
     setExplaining(true);
     try {
       const res = await fetch("/api/explain-metric", {
@@ -353,7 +378,7 @@ export default function TodayView({
     } finally {
       setExplaining(false);
     }
-  }, [activeMetric, explanations]);
+  }, [activeMetric, explaining, explanations]);
 
   const handleDismiss = useCallback(() => {
     setActiveMetric(null);
@@ -570,8 +595,7 @@ export default function TodayView({
                 trendUp={sleepTrendUp}
                 status={snapshot.sleepMinutes === null ? sleepSt : null}
                 stagesBar={stages}
-                explanation={activeMetric === "sleep" ? (explanations.sleep ?? null) : null}
-                explaining={activeMetric === "sleep" && explaining}
+                active={activeMetric === "sleep"}
                 onExplain={() => handleExplain("sleep", {
                   sleepMinutes: snapshot.sleepMinutes,
                   sleepHours: sleep?.h ?? null,
@@ -584,7 +608,6 @@ export default function TodayView({
                   deltaMinutes: snapshot.sleepMinutes !== null && baseline.sleepMinutes !== null
                     ? Math.round(snapshot.sleepMinutes - baseline.sleepMinutes) : null,
                 })}
-                onDismiss={handleDismiss}
               />
             );
           })()}
@@ -601,15 +624,13 @@ export default function TodayView({
             trend={rhrTrend}
             trendUp={rhrTrendUp}
             status={rhrSt}
-            explanation={activeMetric === "rhr" ? (explanations.rhr ?? null) : null}
-            explaining={activeMetric === "rhr" && explaining}
+            active={activeMetric === "rhr"}
             onExplain={() => handleExplain("rhr", {
               rhr: snapshot.restingHr,
               avgRhr: baseline.restingHr !== null ? Math.round(baseline.restingHr) : null,
               deltaRhr: snapshot.restingHr !== null && baseline.restingHr !== null
                 ? Math.round(snapshot.restingHr - baseline.restingHr) : null,
             })}
-            onDismiss={handleDismiss}
           />
 
           {/* HRV */}
@@ -624,15 +645,13 @@ export default function TodayView({
             trend={hrvTrend}
             trendUp={hrvTrendUp}
             status={hrvSt}
-            explanation={activeMetric === "hrv" ? (explanations.hrv ?? null) : null}
-            explaining={activeMetric === "hrv" && explaining}
+            active={activeMetric === "hrv"}
             onExplain={() => handleExplain("hrv", {
               hrv: snapshot.hrv !== null ? snapshot.hrv.toFixed(1) : null,
               avgHrv: baseline.hrv !== null ? baseline.hrv.toFixed(1) : null,
               deltaHrv: snapshot.hrv !== null && baseline.hrv !== null
                 ? (snapshot.hrv - baseline.hrv).toFixed(1) : null,
             })}
-            onDismiss={handleDismiss}
           />
 
           {/* Check-in composite or Steps fallback */}
@@ -647,15 +666,13 @@ export default function TodayView({
               barColor="linear-gradient(90deg,#ffd580,#f6a235)"
               trend={checkIn.stressLevel >= 7 ? "↑ High stress today" : undefined}
               trendUp={false}
-              explanation={activeMetric === "energy" ? (explanations.energy ?? null) : null}
-              explaining={activeMetric === "energy" && explaining}
+              active={activeMetric === "energy"}
               onExplain={() => handleExplain("energy", {
                 energy: checkIn.energyLevel,
                 stress: checkIn.stressLevel,
                 sleepQuality: checkIn.sleepQuality,
                 motivation: checkIn.motivation,
               })}
-              onDismiss={handleDismiss}
             />
           ) : (
             <SignalCard
@@ -667,19 +684,52 @@ export default function TodayView({
               barPct={snapshot.steps !== null ? Math.min((snapshot.steps / 10000) * 100, 100) : undefined}
               barColor="linear-gradient(90deg,#9fefdf,#009e83)"
               status={stepsSt}
-              explanation={activeMetric === "steps" ? (explanations.steps ?? null) : null}
-              explaining={activeMetric === "steps" && explaining}
+              active={activeMetric === "steps"}
               onExplain={() => handleExplain("steps", {
                 steps: snapshot.steps,
                 avgSteps: baseline.steps !== null ? Math.round(baseline.steps) : null,
                 timeOfDay: `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}`,
               })}
-              onDismiss={handleDismiss}
             />
           )}
 
         </div>
       </div>
+
+      {/* Metric explanation panel */}
+      {activeMetric && (
+        <div className="rounded-[18px] border border-[rgba(148,162,218,0.14)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.06)]">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AppIcon name="ai" size={16} className="text-[#4a7df6]" />
+              <h3 className="font-[family-name:var(--font-display)] text-[15px] font-bold text-[#1b2040]">
+                {{
+                  sleep: "Sleep Explanation",
+                  rhr: "Resting HR Explanation",
+                  hrv: "HRV Explanation",
+                  steps: "Steps Explanation",
+                  energy: "Energy & Check-in Explanation",
+                }[activeMetric]}
+              </h3>
+            </div>
+            <button
+              onClick={handleDismiss}
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-[#eef0f8] text-[11px] font-bold text-[#9ea8c4] transition hover:bg-[#e2e6f4] hover:text-[#63708f]"
+            >
+              ×
+            </button>
+          </div>
+
+          {explaining ? (
+            <div className="flex items-center gap-2.5 text-[13px] text-[#9ea8c4]">
+              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#9ea8c4] border-t-transparent" />
+              Analysing your {activeMetric === "rhr" ? "resting HR" : activeMetric}…
+            </div>
+          ) : explanations[activeMetric] ? (
+            <ExplainSections text={explanations[activeMetric]!} />
+          ) : null}
+        </div>
+      )}
 
       {/* Why panel */}
       {readiness.reasons.length > 0 && (

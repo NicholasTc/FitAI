@@ -18,62 +18,75 @@ interface ExplainRequest {
 
 const METRIC_SYSTEM_PROMPT = `\
 You are FitAI, a personal recovery coach for Nicholas (trains 4–5x/week, strength + cardio).
-Your job is to explain a single health metric in 2–3 concise sentences.
+Your job is to explain a single health metric using EXACTLY this format — no deviations:
+
+What it means:
+<1–2 sentences explaining what this specific metric value indicates today. Use the real numbers.>
+
+Decision impact:
+<1–2 sentences on how this signal affects today's Push / Maintain / Recover decision. Be specific about conditions that would change the call.>
+
+Recommended action:
+<1 concrete sentence on what Nicholas should do with this signal today. Avoid vague advice.>
+
+Confidence:
+<Level> — <1 sentence explaining why the confidence is at that level, and what would increase it.>
 
 Rules:
-- Use the actual numbers provided — never invent values
-- Be direct and specific, not generic
-- End with one practical implication for today
-- No medical claims, no diagnoses
-- Do NOT start with "Your" or repeat the metric name in the first word
-- Max 60 words total`;
+- Confidence level must be one of: High / Medium / Low
+- Use the actual numbers from the data — never invent or estimate missing values
+- If a value is "not available", acknowledge it honestly in the relevant section
+- No medical claims or diagnoses
+- No markdown, no bullet points, no extra headers — only the four sections above`;
 
 function buildExplainPrompt(metric: MetricKey, values: Record<string, number | string | null>): string {
   const v = (key: string) => values[key] ?? "not available";
 
   switch (metric) {
     case "sleep":
-      return `Explain Nicholas's sleep metric for today:
+      return `Explain Nicholas's sleep for today using the required format.
+
+Data:
 - Total sleep: ${v("sleepMinutes")} minutes (${v("sleepHours")}h ${v("sleepMins")}m)
 - Deep: ${v("deepMin")}m, REM: ${v("remMin")}m, Light: ${v("lightMin")}m
 - Sleep efficiency: ${v("efficiency")}%
 - 7-day average: ${v("avgMinutes")} minutes
-- Delta vs average: ${v("deltaMinutes")} minutes
-
-What does this mean for today's energy and recovery?`;
+- Delta vs average: ${v("deltaMinutes")} minutes`;
 
     case "rhr":
-      return `Explain Nicholas's resting heart rate for today:
+      return `Explain Nicholas's resting heart rate for today using the required format.
+
+Data:
 - Today's RHR: ${v("rhr")} bpm
 - 7-day average: ${v("avgRhr")} bpm
-- Delta: ${v("deltaRhr")} bpm (${Number(v("deltaRhr")) < 0 ? "lower than avg" : "higher than avg"})
-
-What does this signal about his current recovery state?`;
+- Delta: ${v("deltaRhr")} bpm (${Number(v("deltaRhr")) < 0 ? "lower than average — positive signal" : "higher than average — potential stress"})`;
 
     case "hrv":
-      return `Explain Nicholas's HRV for today:
+      return `Explain Nicholas's HRV for today using the required format.
+
+Data:
 - Today's HRV: ${v("hrv")} ms
 - 7-day average: ${v("avgHrv")} ms
-- Delta: ${v("deltaHrv")} ms (${Number(v("deltaHrv")) > 0 ? "above avg" : "below avg"})
-
-What does HRV indicate about his nervous system readiness today?`;
+- Delta: ${v("deltaHrv")} ms (${Number(v("deltaHrv")) > 0 ? "above average — positive signal" : "below average — potential fatigue"})`;
 
     case "steps":
-      return `Explain Nicholas's step count in context:
+      return `Explain Nicholas's step count in context using the required format.
+
+Data:
 - Steps so far today: ${v("steps")}
 - 7-day average: ${v("avgSteps")}
-- It is currently ${v("timeOfDay")}
-
-What does this step count suggest about today's activity level?`;
+- Current time: ${v("timeOfDay")}`;
 
     case "energy":
-      return `Explain Nicholas's subjective check-in values:
+      return `Explain Nicholas's subjective check-in values using the required format.
+
+Data:
 - Energy: ${v("energy")}/10
 - Stress: ${v("stress")}/10
 - Sleep quality (subjective): ${v("sleepQuality")}/10
 - Motivation: ${v("motivation")}/10
 
-What do these subjective signals mean for how he should approach today?`;
+Note: subjective signals take priority over wearable data when they conflict.`;
   }
 }
 

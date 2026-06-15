@@ -244,8 +244,8 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
           )}
         </header>
 
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {/* Content — extra bottom padding on mobile so island doesn't cover content */}
+        <main className="flex-1 overflow-y-auto p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8">
           {loading && <Spinner />}
           {error && !loading && (
             <div className="rounded-2xl bg-red-50 p-5 text-sm text-red-600">
@@ -289,6 +289,43 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
           )}
         </main>
       </div>
+
+      {/* Floating island nav — mobile / tablet only (lg+ uses sidebar) */}
+      <nav className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 lg:hidden">
+        <div className="flex items-center gap-1 rounded-full border border-[rgba(148,162,218,0.18)] bg-white/90 px-3 py-2.5 shadow-[0_8px_32px_rgba(27,32,64,0.14),0_2px_8px_rgba(27,32,64,0.08)] backdrop-blur-xl">
+          {navItems.map((item) => {
+            const isActive = view === item.id;
+            const hasDot =
+              (item.id === "checkin" && !data?.checkIn) ||
+              item.id === "reflect";
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setView(item.id);
+                  setMobileNavOpen(false);
+                }}
+                title={item.label}
+                className={`relative flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
+                  isActive
+                    ? "bg-[#4a7df6] shadow-[0_2px_10px_rgba(74,125,246,0.35)]"
+                    : "hover:bg-[rgba(74,125,246,0.07)]"
+                }`}
+              >
+                <AppIcon
+                  name={item.icon}
+                  size={19}
+                  className={isActive ? "text-white" : "text-[#63708f]"}
+                />
+                {hasDot && !isActive && (
+                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-[#4a7df6]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

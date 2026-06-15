@@ -14,6 +14,9 @@ interface SliderRowProps {
   color?: string;
 }
 
+// Thumb diameter in px — large enough for comfortable touch
+const THUMB = 28;
+
 function SliderRow({
   label,
   sublabel,
@@ -24,29 +27,53 @@ function SliderRow({
   color = "#4a7df6",
 }: SliderRowProps) {
   const pct = ((value - 1) / 9) * 100;
+  // Position thumb center at pct% of the track.
+  // Formula: left = pct% - (pct/100 * thumbWidth) keeps the thumb fully inside at 0 and 100.
+  const thumbLeft = `calc(${pct}% - ${(pct / 100) * THUMB}px)`;
 
   return (
     <div className="py-4 [&+&]:border-t [&+&]:border-[rgba(148,162,218,0.1)]">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <p className="text-[13.5px] font-medium text-[#1b2040]">{label}</p>
-          {sublabel && <p className="text-[12px] text-[#9ea8c4]">{sublabel}</p>}
+          <p className="text-[14px] font-semibold text-[#1b2040]">{label}</p>
+          {sublabel && <p className="mt-0.5 text-[12px] text-[#9ea8c4]">{sublabel}</p>}
         </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full text-[13.5px] font-bold text-[#1b2040]"
-          style={{ background: `${color}18` }}>
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[15px] font-bold"
+          style={{ background: `${color}18`, color }}
+        >
           {value}
         </div>
       </div>
 
-      {/* Slider */}
-      <div className="relative">
-        {/* Track fill */}
-        <div className="relative h-2 overflow-hidden rounded-full bg-[#eef0f8]">
+      {/* Slider — fixed height container so track and thumb stack correctly */}
+      <div className="relative" style={{ height: THUMB }}>
+        {/* Track sits vertically centred */}
+        <div
+          className="absolute inset-x-0 rounded-full bg-[#eef0f8]"
+          style={{ top: "50%", height: 6, transform: "translateY(-50%)" }}
+        >
+          {/* Filled portion */}
           <div
-            className="absolute inset-y-0 left-0 rounded-full transition-all duration-150"
+            className="h-full rounded-full transition-[width] duration-100"
             style={{ width: `${pct}%`, background: color }}
           />
         </div>
+
+        {/* Visible thumb — centred on the fill position */}
+        <div
+          className="pointer-events-none absolute rounded-full border-[3px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.06)] transition-[left] duration-100"
+          style={{
+            width: THUMB,
+            height: THUMB,
+            top: "50%",
+            transform: "translateY(-50%)",
+            left: thumbLeft,
+            background: color,
+          }}
+        />
+
+        {/* Native range — fills the entire hit area, transparent */}
         <input
           type="range"
           min={1}
@@ -54,12 +81,11 @@ function SliderRow({
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          style={{ margin: 0 }}
         />
       </div>
 
       {/* Labels */}
-      <div className="mt-1.5 flex justify-between text-[11px] text-[#9ea8c4]">
+      <div className="mt-1 flex justify-between text-[11px] text-[#9ea8c4]">
         <span>{lowLabel}</span>
         <span>{highLabel}</span>
       </div>

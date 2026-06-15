@@ -21,6 +21,7 @@ import {
   IoCalendarOutline,
   IoStarOutline,
   IoRemoveCircleOutline,
+  IoBarbell,
 } from "react-icons/io5";
 
 export type { FitAIIconName } from "@/types/icons";
@@ -49,6 +50,7 @@ const ICONS: Record<
   week: IoCalendarOutline,
   star: IoStarOutline,
   skip: IoRemoveCircleOutline,
+  workout: IoBarbell,
 };
 
 interface AppIconProps {

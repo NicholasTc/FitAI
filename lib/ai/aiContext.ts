@@ -7,7 +7,7 @@
 
 import { hrvStatus, rhrStatus, sleepStatus } from "@/lib/metricStatus";
 import type { DailySnapshot } from "@/types/snapshot";
-import type { CheckInData, DayType } from "@/types/today";
+import type { CheckInData, DayType, WorkoutSession } from "@/types/today";
 import type { WeeklyBaseline } from "@/types/snapshot";
 
 function fmtSleep(minutes: number | null): string | null {
@@ -31,6 +31,7 @@ export function buildAiContext(
   readinessScore: number,
   date: string,
   tasks?: string[],
+  lastWorkout?: WorkoutSession | null,
 ): string {
   // Metric statuses — same as UI
   const sleepSt = sleepStatus(
@@ -156,6 +157,20 @@ export function buildAiContext(
         },
 
     baselineStatus: `${baseline.status} (${baseline.daysWithData}/6 prior days with data)`,
+
+    lastWorkout: lastWorkout
+      ? {
+          date: lastWorkout.date,
+          type: lastWorkout.typeLabel,
+          durationMinutes: lastWorkout.durationMinutes,
+          daysAgo: Math.round(
+            (new Date(date).getTime() - new Date(lastWorkout.date).getTime()) /
+              86400000,
+          ),
+          note:
+            "Factor in accumulated fatigue from this session when advising on today's capacity.",
+        }
+      : { note: "No exercise sessions recorded in the past 7 days." },
 
     todaysPlannedTasks:
       tasks && tasks.length > 0 ? tasks : "No tasks provided",

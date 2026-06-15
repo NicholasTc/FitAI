@@ -36,6 +36,26 @@ model DailyHealthSnapshot {
   @@index([userId])
 }
 
+// Phase 3B: workout sessions synced from Google Health API exercise endpoint.
+model WorkoutSession {
+  id     String @id @default(cuid())
+  userId String
+
+  startTime String // ISO datetime string
+  endTime   String // ISO datetime string
+  date      String // YYYY-MM-DD of startTime
+
+  typeLabel       String  // human-readable, e.g. "Strength training"
+  typeRaw         String  // raw API value, e.g. "STRENGTH_TRAINING"
+  durationMinutes Int
+  source          String? // e.g. "FITBIT"
+
+  syncedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, startTime])
+  @@index([userId, date])
+}
+
 // Phase 2C: night reflection — was today's recommendation accurate?
 model Reflection {
   id     String @id @default(cuid())

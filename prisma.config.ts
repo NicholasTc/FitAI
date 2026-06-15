@@ -1,5 +1,9 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
 import { defineConfig } from "prisma/config";
+
+// Match Next.js env precedence: .env.local overrides .env
+loadEnv();
+loadEnv({ path: ".env.local", override: true });
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

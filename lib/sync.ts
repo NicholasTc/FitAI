@@ -7,8 +7,10 @@
  */
 
 import { db } from "@/lib/db";
-import { fetchRecentSnapshots } from "@/lib/health";
+import { fetchRecentSnapshots, fetchRecentWorkouts } from "@/lib/health";
+import type { WorkoutSession } from "@/lib/health";
 import type { DailyHealthSnapshotModel } from "@/lib/generated/prisma/models/DailyHealthSnapshot";
+import type { WorkoutSessionModel } from "@/lib/generated/prisma/models/WorkoutSession";
 import type { DailySnapshot } from "@/types/snapshot";
 
 const SYNC_DAYS = 7;
@@ -65,6 +67,72 @@ export async function syncUserSnapshots(
 ): Promise<void> {
   const snapshots = await fetchRecentSnapshots(accessToken, today, SYNC_DAYS);
   await Promise.all(snapshots.map((s) => upsertSnapshot(userId, s)));
+}
+
+/**
+ * Upsert a single workout session for a user.
+ * Uses [userId, startTime] as the unique key to avoid duplicates.
+ */
+async function upsertWorkout(userId: string, w: WorkoutSession): Promise<void> {
+  await db.workoutSession.upsert({
+    where: { userId_startTime: { userId, startTime: w.startTime } },
+    create: {
+      userId,
+      startTime: w.startTime,
+      endTime: w.endTime,
+      date: w.date,
+      typeLabel: w.typeLabel,
+      typeRaw: w.typeRaw,
+      durationMinutes: w.durationMinutes,
+      source: w.source,
+    },
+    update: {
+      endTime: w.endTime,
+      typeLabel: w.typeLabel,
+      typeRaw: w.typeRaw,
+      durationMinutes: w.durationMinutes,
+      source: w.source,
+    },
+  });
+}
+
+/**
+ * Sync workout sessions from the last 7 days.
+ */
+export async function syncUserWorkouts(
+  userId: string,
+  accessToken: string,
+  startDate: string,
+  endDate: string,
+): Promise<void> {
+  const workouts = await fetchRecentWorkouts(accessToken, startDate, endDate);
+  await Promise.all(workouts.map((w) => upsertWorkout(userId, w)));
+}
+
+/**
+ * Load the most recent workout for a user within the last N days.
+ * Returns null if none found.
+ */
+export async function loadLastWorkout(
+  userId: string,
+  sinceDate: string,
+): Promise<WorkoutSession | null> {
+  const row = await db.workoutSession.findFirst({
+    where: { userId, date: { gte: sinceDate } },
+    orderBy: { startTime: "desc" },
+  }) as WorkoutSessionModel | null;
+
+  if (!row) return null;
+
+  return {
+    startTime: row.startTime,
+    endTime: row.endTime,
+    date: row.date,
+    typeLabel: row.typeLabel,
+    typeRaw: row.typeRaw,
+    durationMinutes: row.durationMinutes,
+    source: row.source,
+  };
 }
 
 /**

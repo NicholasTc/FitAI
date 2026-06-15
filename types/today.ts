@@ -1,4 +1,7 @@
 import type { FitAIIconName } from "@/types/icons";
+import type { WorkoutSession } from "@/lib/health";
+
+export type { WorkoutSession };
 
 export type DayType = "push" | "maintain" | "recover";
 
@@ -31,6 +34,7 @@ export interface TodayState {
   date: string;
   readiness: ReadinessResult;
   checkIn: CheckInData | null;
+  lastWorkout: WorkoutSession | null;
   snapshot: {
     sleepMinutes: number | null;
     sleepEfficiency: number | null;

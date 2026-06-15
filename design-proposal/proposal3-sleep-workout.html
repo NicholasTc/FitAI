@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitAI — Sleep Stages & Workouts Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #eef0f9; --bg-alt: #f4f5fb; --surface: #ffffff;
+    --border: rgba(148,162,218,0.16); --border-strong: rgba(148,162,218,0.28);
+    --text: #1b2040; --text-soft: #63708f; --text-dim: #9ea8c4;
+    --push: #e05f3c; --push-bg: #fff3f0; --push-border: rgba(224,95,60,0.22);
+    --maintain: #009e83; --maintain-bg: #ecfaf6; --maintain-border: rgba(0,158,131,0.22);
+    --recover: #7850e2; --recover-bg: #f4f0ff; --recover-border: rgba(120,80,226,0.22);
+    --accent: #4a7df6; --accent-bg: #eef3ff; --accent-border: rgba(74,125,246,0.24);
+    --sidebar-w: 236px; --topbar-h: 62px;
+    --radius-xl: 22px; --radius-lg: 17px; --radius-md: 13px;
+    --shadow-sm: 0 2px 14px rgba(80,100,180,0.07); --shadow-md: 0 8px 32px rgba(80,100,180,0.10);
+    --font-sans: "Inter", -apple-system, sans-serif; --font-display: "Sora", "Inter", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); color: var(--text); background: var(--bg); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1;
+    background: radial-gradient(70% 50% at 85% 10%, rgba(190,210,255,0.45), transparent 60%),
+                radial-gradient(60% 60% at 10% 90%, rgba(200,185,255,0.35), transparent 60%), var(--bg);
+  }
+  .app { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-w); flex-shrink: 0; position: fixed; top: 0; left: 0; bottom: 0;
+    background: rgba(255,255,255,0.88); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+    border-right: 1px solid var(--border); box-shadow: 2px 0 28px rgba(80,100,180,0.06);
+    display: flex; flex-direction: column; padding: 22px 14px; z-index: 100;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 6px 10px; margin-bottom: 28px; }
+  .brand-mark {
+    width: 33px; height: 33px; border-radius: 10px;
+    background: linear-gradient(140deg, #4a7df6, #8065e8); display: grid; place-items: center;
+    box-shadow: 0 4px 16px rgba(74,125,246,0.42);
+  }
+  .brand-name { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+  .nav-section { font-size: 10.5px; font-weight: 700; color: var(--text-dim); letter-spacing: 0.14em; text-transform: uppercase; padding: 0 10px; margin-bottom: 6px; }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 22px; }
+  .nav-item { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 12px; font-size: 14px; font-weight: 500; color: var(--text-soft); cursor: pointer; transition: all 0.2s; }
+  .nav-item:hover { background: rgba(74,125,246,0.06); color: var(--text); }
+  .nav-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  .nav-icon { width: 20px; height: 20px; display: grid; place-items: center; flex-shrink: 0; font-size: 15px; }
+  .nav-badge { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--maintain); box-shadow: 0 0 8px rgba(0,158,131,0.5); }
+  .sidebar-footer {
+    margin-top: auto; padding: 12px 10px; border-radius: 14px; background: var(--bg);
+    display: flex; align-items: center; gap: 11px; cursor: pointer;
+  }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #c5d8ff, #d8c8ff); display: grid; place-items: center; font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--accent); }
+  .user-name { font-size: 13.5px; font-weight: 600; }
+  .user-sub { font-size: 11.5px; color: var(--text-dim); }
+
+  /* Main */
+  .main { margin-left: var(--sidebar-w); flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    position: sticky; top: 0; z-index: 50; height: var(--topbar-h);
+    background: rgba(238,240,249,0.85); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 30px;
+  }
+  .tdate { font-size: 12px; color: var(--text-dim); margin-bottom: 1px; }
+  .tpage { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .status-chip-top {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px;
+    border-radius: 999px; font-size: 13px; font-weight: 600;
+    background: var(--maintain-bg); color: var(--maintain); border: 1px solid var(--maintain-border);
+  }
+  .status-chip-top .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--maintain); }
+  .content { padding: 26px 30px 80px; flex: 1; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; font-family: var(--font-sans); }
+  .btn-outline { background: white; color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-soft { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-border); }
+
+  /* Row label */
+  .row-label { display: flex; align-items: center; gap: 10px; font-size: 11.5px; font-weight: 700; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 13px; }
+  .row-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+  /* Hero */
+  .today-hero {
+    padding: 26px 30px; border-radius: var(--radius-xl);
+    background: linear-gradient(145deg, rgba(255,255,255,0.98), rgba(236,250,246,0.95));
+    border: 1px solid var(--maintain-border);
+    box-shadow: 0 8px 40px rgba(0,158,131,0.09), var(--shadow-sm);
+    position: relative; overflow: hidden; margin-bottom: 18px;
+  }
+  .today-hero::before { content: ""; position: absolute; top: -80px; right: -80px; width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(circle, rgba(0,158,131,0.1), transparent 65%); }
+  .hero-inner { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; position: relative; z-index: 1; flex-wrap: wrap; }
+  .hero-text { flex: 1; min-width: 280px; }
+  .hero-eyebrow { font-size: 11.5px; font-weight: 700; color: var(--maintain); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--maintain); }
+  .hero-day { font-family: var(--font-display); font-size: 32px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.05; margin-bottom: 10px; }
+  .hero-day em { font-style: normal; color: var(--maintain); }
+  .hero-rec { font-size: 15px; color: var(--text-soft); line-height: 1.65; max-width: 500px; margin-bottom: 20px; }
+  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .readiness-wrap { text-align: center; flex-shrink: 0; }
+  .r-ring-outer { position: relative; width: 126px; height: 126px; }
+  .r-ring-outer svg { position: absolute; inset: 0; }
+  .r-ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .r-val { font-family: var(--font-display); font-size: 33px; font-weight: 800; color: var(--text); line-height: 1; }
+  .r-label { font-size: 10.5px; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 3px; }
+  .r-sub { font-size: 12px; color: var(--maintain); font-weight: 600; margin-top: 8px; }
+
+  /* Metrics row */
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin-bottom: 18px; }
+  .mc {
+    background: white; border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 16px; box-shadow: var(--shadow-sm); transition: all 0.22s; cursor: default;
+  }
+  .mc:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+  .mc-icon { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; margin-bottom: 11px; border: 1px solid transparent; }
+  .mc-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 0.03em; }
+  .mc-val { font-family: var(--font-display); font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .mc-val small { font-size: 12.5px; font-weight: 500; color: var(--text-dim); }
+  .mc-bar { height: 4px; border-radius: 999px; background: #eef0f9; overflow: hidden; }
+  .mc-bar i { display: block; height: 100%; border-radius: 999px; }
+  .mc-trend { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+  .up { color: #00a87a; } .down { color: #e05f3c; }
+
+  /* ─── NEW: sleep stages mini row (added inside sleep mc) ─── */
+  .stage-row {
+    display: flex; gap: 0; margin-top: 9px;
+    border-radius: 4px; overflow: hidden; height: 4px;
+  }
+  .stage-deep-seg { background: #3a52cc; }
+  .stage-rem-seg  { background: #7850e2; }
+  .stage-light-seg { background: #9fefdf; }
+
+  .stage-labels {
+    display: flex; justify-content: space-between;
+    margin-top: 5px; font-size: 10px; color: var(--text-dim);
+  }
+  .stage-labels span { display: flex; align-items: center; gap: 3px; }
+  .stage-labels span::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+  .stage-deep-lbl::before { background: #3a52cc; }
+  .stage-rem-lbl::before  { background: #7850e2; }
+  .stage-light-lbl::before { background: #9fefdf; }
+
+  /* ─── NEW: last workout mc (same mc card style) ─── */
+  .workout-type-badge {
+    display: inline-block; margin-top: 4px;
+    padding: 2px 7px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 600;
+  }
+  .badge-high { background: var(--push-bg); color: var(--push); }
+  .badge-med  { background: var(--maintain-bg); color: var(--maintain); }
+
+  /* Why / reasons */
+  .learn-why { padding: 22px 26px; background: linear-gradient(150deg, #fafbff, #f6f7ff); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); margin-bottom: 18px; }
+  .lw-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .lw-head h3 { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+  .reasons { display: flex; flex-direction: column; gap: 9px; }
+  .reason { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: white; border-radius: 12px; border: 1px solid var(--border); font-size: 13.5px; }
+  .ricon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; flex-shrink: 0; }
+  .rtxt { flex: 1; line-height: 1.4; }
+  .rtxt b { font-weight: 600; }
+  .rtxt span { color: var(--text-soft); }
+  .rtag { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+
+  /* Mockup callout */
+  .mock-note {
+    margin-top: 6px; padding: 9px 14px; border-radius: 10px;
+    background: rgba(255,243,100,0.16); border: 1.5px dashed rgba(200,180,0,0.3);
+    font-size: 11.5px; color: #7a6800;
+  }
+  .mock-note b { font-weight: 700; }
+
+  /* New badge */
+  .new-badge {
+    display: inline-block; padding: 1px 6px; border-radius: 999px; margin-left: 4px;
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    background: linear-gradient(120deg, #4a7df6, #8065e8); color: white; vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 2L11.5 7H16L12.5 10.5L14 15.5L9 12.5L4 15.5L5.5 10.5L2 7H6.5L9 2Z" fill="white" opacity="0.9"/>
+        </svg>
+      </div>
+      <span class="brand-name">FitAI</span>
+    </div>
+    <div class="nav-section">Main</div>
+    <div class="nav-group">
+      <div class="nav-item active"><span class="nav-icon">◎</span> Today <span class="nav-badge"></span></div>
+      <div class="nav-item"><span class="nav-icon">✎</span> Check-In</div>
+      <div class="nav-item"><span class="nav-icon">↗</span> Trends</div>
+    </div>
+    <div class="nav-section">Insights</div>
+    <div class="nav-group">
+      <div class="nav-item"><span class="nav-icon">✦</span> Strategy</div>
+      <div class="nav-item"><span class="nav-icon">◑</span> Reflect</div>
+      <div class="nav-item"><span class="nav-icon">▦</span> This Week</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="avatar">N</div>
+      <div>
+        <div class="user-name">Nicholas Chan</div>
+        <div class="user-sub">6/7 day baseline</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="tdate">Monday, June 15, 2026</div>
+        <div class="tpage">Today</div>
+      </div>
+      <div class="status-chip-top"><span class="dot"></span> Maintain Day</div>
+    </header>
+
+    <div class="content">
+
+      <!-- Hero — unchanged from existing -->
+      <div class="today-hero">
+        <div class="hero-inner">
+          <div class="hero-text">
+            <div class="hero-eyebrow"><span class="dot"></span> Morning check-in complete</div>
+            <div class="hero-day">Today is a <em>Maintain Day.</em></div>
+            <div class="hero-rec">Your sleep recovery was strong — deep and REM stages are above average. You trained hard yesterday; keep today's effort controlled and protect your recovery window.</div>
+            <div class="hero-actions">
+              <button class="btn btn-outline">View full plan →</button>
+              <button class="btn btn-soft">Learn why</button>
+            </div>
+          </div>
+          <div class="readiness-wrap">
+            <div class="r-ring-outer">
+              <svg viewBox="0 0 126 126" fill="none" width="126" height="126">
+                <defs>
+                  <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#00c9a7"/>
+                    <stop offset="100%" stop-color="#4a7df6"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="63" cy="63" r="52" stroke="#eef0f8" stroke-width="9" fill="none"/>
+                <circle cx="63" cy="63" r="52" stroke="url(#rg)" stroke-width="9" fill="none"
+                  stroke-linecap="round" stroke-dasharray="242 327" stroke-dashoffset="0"
+                  transform="rotate(-90 63 63)"/>
+              </svg>
+              <div class="r-ring-center">
+                <div class="r-val">74</div>
+                <div class="r-label">Readiness</div>
+              </div>
+            </div>
+            <div class="r-sub">Good baseline</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key signals — 4 cards (sleep enhanced, workout new) -->
+      <div class="row-label">Key signals</div>
+      <div class="mock-note" style="margin-bottom:13px;">
+        <b>Mockup note:</b> The Sleep card gains a stage breakdown below the existing bar. The Workout card is a new 4th signal card — the existing grid just gains one more column. Everything else is unchanged.
+      </div>
+      <div class="metrics-row">
+
+        <!-- Sleep — ENHANCED -->
+        <div class="mc">
+          <div class="mc-icon" style="background:#edf9f6;border-color:rgba(0,158,131,0.18);color:#00a07e;">☾</div>
+          <div class="mc-label">Sleep <span class="new-badge">+stages</span></div>
+          <div class="mc-val">7h <small>15m</small></div>
+          <div class="mc-bar"><i style="width:82%;background:linear-gradient(90deg,#9fefdf,#4a7df6)"></i></div>
+          <div class="mc-trend up">↑ Above average</div>
+
+          <!-- ★ NEW: stage colour bar -->
+          <div class="stage-row" style="margin-top:10px;">
+            <div class="stage-deep-seg" style="width:20.7%;"></div>
+            <div class="stage-rem-seg"  style="width:22.3%;"></div>
+            <div class="stage-light-seg" style="width:57%;"></div>
+          </div>
+          <!-- ★ NEW: stage labels -->
+          <div class="stage-labels">
+            <span class="stage-deep-lbl">Deep 1h30</span>
+            <span class="stage-rem-lbl">REM 1h37</span>
+            <span class="stage-light-lbl">Light 4h8</span>
+          </div>
+        </div>
+
+        <!-- HRV — unchanged -->
+        <div class="mc">
+          <div class="mc-icon" style="background:#f4f0ff;border-color:rgba(120,80,226,0.18);color:#7850e2;">▤</div>
+          <div class="mc-label">HRV</div>
+          <div class="mc-val">124 <small>ms</small></div>
+          <div class="mc-bar"><i style="width:72%;background:linear-gradient(90deg,#a0d8ff,#4a7df6)"></i></div>
+          <div class="mc-trend up">↑ +15ms vs baseline</div>
+        </div>
+
+        <!-- Resting HR — unchanged -->
+        <div class="mc">
+          <div class="mc-icon" style="background:#fff5f2;border-color:rgba(224,95,60,0.18);color:#d9622c;">♥</div>
+          <div class="mc-label">Resting HR</div>
+          <div class="mc-val">61 <small>bpm</small></div>
+          <div class="mc-bar"><i style="width:55%;background:linear-gradient(90deg,#ffc6a8,#e05f3c)"></i></div>
+          <div class="mc-trend up">↓ −1 vs baseline</div>
+        </div>
+
+        <!-- ★ NEW: Last workout card -->
+        <div class="mc">
+          <div class="mc-icon" style="background:#fff3f0;border-color:rgba(224,95,60,0.18);color:#e05f3c;">🏋</div>
+          <div class="mc-label">Last workout <span class="new-badge">New</span></div>
+          <div class="mc-val" style="font-size:15px;">Strength <small>training</small></div>
+          <div class="mc-trend" style="color:var(--text-dim);">Yesterday · 52 min</div>
+          <div><span class="workout-type-badge badge-high">High intensity</span></div>
+        </div>
+
+      </div>
+
+      <!-- Why panel — one new reason added, rest unchanged -->
+      <div id="lw" class="learn-why">
+        <div class="lw-head">
+          <h3>Why Maintain?</h3>
+          <span style="font-size:12px;color:var(--text-dim);">Based on check-in + health data</span>
+        </div>
+        <div class="reasons">
+          <div class="reason">
+            <div class="ricon" style="background:#edf9f6;color:#009e83;">☾</div>
+            <div class="rtxt"><b>Sleep was restorative.</b> <span>7h 15m with 1h 30m deep and 1h 37m REM — both above your averages. Strong foundation for the day.</span></div>
+            <span class="rtag" style="background:#ecfaf6;color:#009e83;">Positive</span>
+          </div>
+          <div class="reason">
+            <div class="ricon" style="background:#eef3ff;color:#4a7df6;">▤</div>
+            <div class="rtxt"><b>HRV is elevated.</b> <span>124 ms (+15 ms vs baseline) — your nervous system recovered well overnight.</span></div>
+            <span class="rtag" style="background:#ecfaf6;color:#009e83;">Positive</span>
+          </div>
+          <!-- ★ NEW reason: workout context -->
+          <div class="reason" style="border-color:rgba(224,95,60,0.2);background:#fffbfb;">
+            <div class="ricon" style="background:#fff3f0;color:#e05f3c;">🏋</div>
+            <div class="rtxt"><b>Hard training yesterday.</b> <span>52-min strength session — muscles need consolidation. Push hard and recovery quality drops tomorrow.</span></div>
+            <span class="rtag" style="background:#fff3f0;color:#e05f3c;">Caution</span>
+          </div>
+          <div class="reason">
+            <div class="ricon" style="background:#f4f0ff;color:#7850e2;">⚡</div>
+            <div class="rtxt"><b>Energy is moderate.</b> <span>You rated energy 7/10 in check-in — enough to perform, not at peak.</span></div>
+            <span class="rtag" style="background:#f9faff;color:#9ea8c4;">Neutral</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+</body>
+</html>

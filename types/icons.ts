@@ -18,4 +18,5 @@ export type FitAIIconName =
   | "reflect"
   | "week"
   | "star"
-  | "skip";
+  | "skip"
+  | "workout";

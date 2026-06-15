@@ -97,6 +97,13 @@ function ReadinessRing({
 
 // ─── Signal metric card ───────────────────────────────────────────────────────
 
+interface SleepStagesBar {
+  deepMin: number;
+  remMin: number;
+  lightMin: number;
+  totalMin: number;
+}
+
 interface SignalProps {
   icon: FitAIIconName;
   iconClassName?: string;
@@ -109,6 +116,8 @@ interface SignalProps {
   trendUp?: boolean;
   /** When set, replaces the value+bar with a status explanation */
   status?: MetricText | null;
+  /** When set, replaces the single bar with a segmented sleep-stages bar */
+  stagesBar?: SleepStagesBar | null;
 }
 
 function SignalCard({
@@ -122,6 +131,7 @@ function SignalCard({
   trend,
   trendUp,
   status,
+  stagesBar,
 }: SignalProps) {
   // When status text is provided, render an explanatory empty state
   if (status) {
@@ -170,13 +180,58 @@ function SignalCard({
           </span>
         )}
       </p>
-      {barPct !== undefined && (
+      {barPct !== undefined && !stagesBar && (
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#eef0f8]">
           <div
             className="h-full rounded-full transition-all duration-700"
             style={{ width: `${Math.min(barPct, 100)}%`, background: barColor }}
           />
         </div>
+      )}
+      {stagesBar && (
+        <>
+          {/* Segmented stages bar */}
+          <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-[#eef0f8]">
+            <div
+              className="h-full transition-all duration-700"
+              style={{
+                width: `${Math.min((stagesBar.deepMin / stagesBar.totalMin) * 100, 100)}%`,
+                background: "#4a7df6",
+                borderRadius: "9999px 0 0 9999px",
+              }}
+            />
+            <div
+              className="h-full transition-all duration-700"
+              style={{
+                width: `${Math.min((stagesBar.remMin / stagesBar.totalMin) * 100, 100)}%`,
+                background: "#7850e2",
+              }}
+            />
+            <div
+              className="h-full transition-all duration-700"
+              style={{
+                width: `${Math.min((stagesBar.lightMin / stagesBar.totalMin) * 100, 100)}%`,
+                background: "#9fefdf",
+                borderRadius: "0 9999px 9999px 0",
+              }}
+            />
+          </div>
+          {/* Stage labels */}
+          <div className="mt-1.5 flex gap-2.5 text-[10.5px] text-[#9ea8c4]">
+            <span>
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#4a7df6] align-middle" />
+              {" "}<span className="font-medium">{stagesBar.deepMin}m</span> Deep
+            </span>
+            <span>
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#7850e2] align-middle" />
+              {" "}<span className="font-medium">{stagesBar.remMin}m</span> REM
+            </span>
+            <span>
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#009e83] align-middle" />
+              {" "}<span className="font-medium">{stagesBar.lightMin}m</span> Light
+            </span>
+          </div>
+        </>
       )}
       {trend && (
         <p
@@ -229,7 +284,7 @@ export default function TodayView({
   onGoToTrends,
   onGoToReflect,
 }: TodayViewProps) {
-  const { readiness, snapshot, baseline, checkIn, date } = data;
+  const { readiness, snapshot, baseline, checkIn, date, lastWorkout } = data;
   const dt = readiness.dayType;
   const colors = dayTypeColor(dt);
   const label = dayTypeLabel(dt);
@@ -416,20 +471,38 @@ export default function TodayView({
         <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
           Key signals
         </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5">
           {/* Sleep */}
-          <SignalCard
-            icon="sleep"
-            iconClassName="text-[#4a7df6]"
-            label="Sleep"
-            value={sleep ? `${sleep.h}h` : "—"}
-            sub={sleep && !sleepSt?.sub.includes("Stages") ? `${sleep.min}m` : undefined}
-            barPct={!sleepSt ? sleepPct : undefined}
-            barColor="linear-gradient(90deg,#9fefdf,#4a7df6)"
-            trend={!sleepSt ? sleepTrend : undefined}
-            trendUp={sleepTrendUp}
-            status={sleepSt?.sub.includes("Stages") ? sleepSt : (snapshot.sleepMinutes === null ? sleepSt : null)}
-          />
+          {(() => {
+            const hasStages =
+              snapshot.sleepDeepMin !== null &&
+              snapshot.sleepRemMin !== null &&
+              snapshot.sleepLightMin !== null &&
+              snapshot.sleepMinutes !== null;
+            const stages: SleepStagesBar | null = hasStages
+              ? {
+                  deepMin: snapshot.sleepDeepMin!,
+                  remMin: snapshot.sleepRemMin!,
+                  lightMin: snapshot.sleepLightMin!,
+                  totalMin: snapshot.sleepMinutes!,
+                }
+              : null;
+            return (
+              <SignalCard
+                icon="sleep"
+                iconClassName="text-[#4a7df6]"
+                label="Sleep"
+                value={sleep ? `${sleep.h}h` : "—"}
+                sub={sleep ? `${sleep.min}m` : undefined}
+                barPct={!stages && !sleepSt ? sleepPct : undefined}
+                barColor="linear-gradient(90deg,#9fefdf,#4a7df6)"
+                trend={!sleepSt ? sleepTrend : undefined}
+                trendUp={sleepTrendUp}
+                status={snapshot.sleepMinutes === null ? sleepSt : null}
+                stagesBar={stages}
+              />
+            );
+          })()}
 
           {/* RHR */}
           <SignalCard
@@ -484,6 +557,27 @@ export default function TodayView({
               status={stepsSt}
             />
           )}
+
+          {/* Last workout */}
+          {lastWorkout ? (
+            <SignalCard
+              icon="workout"
+              iconClassName="text-[#e05f3c]"
+              label="Last Workout"
+              value={lastWorkout.typeLabel}
+              sub={undefined}
+              trend={`${lastWorkout.durationMinutes}min · ${lastWorkout.date === date ? "Today" : lastWorkout.date === (() => { const d = new Date(date); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })() ? "Yesterday" : lastWorkout.date}`}
+              trendUp={true}
+            />
+          ) : (
+            <SignalCard
+              icon="workout"
+              iconClassName="text-[#9ea8c4]"
+              label="Last Workout"
+              value="—"
+              status={{ label: "No recent sessions", sub: "No exercise logged in the past 7 days.", isPending: false }}
+            />
+          )}
         </div>
       </div>
 
@@ -524,6 +618,42 @@ export default function TodayView({
                 </div>
               );
             })}
+
+            {/* Workout reason — shown when a recent session exists */}
+            {lastWorkout && (() => {
+              const isToday = lastWorkout.date === date;
+              const yesterday = new Date(date);
+              yesterday.setDate(yesterday.getDate() - 1);
+              const isYesterday = lastWorkout.date === yesterday.toISOString().slice(0, 10);
+              const when = isToday ? "today" : isYesterday ? "yesterday" : `on ${lastWorkout.date}`;
+              const daysSince = Math.round(
+                (new Date(date).getTime() - new Date(lastWorkout.date).getTime()) / 86400000,
+              );
+              const isRecent = daysSince <= 1;
+              const sentiment: "caution" | "neutral" = isRecent ? "caution" : "neutral";
+              const s = SENTIMENT_STYLES[sentiment];
+              return (
+                <div className="flex items-start gap-3 rounded-[13px] border border-[rgba(148,162,218,0.1)] p-3.5">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${s.icon}`}>
+                    <AppIcon name="workout" size={16} />
+                  </div>
+                  <div className="flex-1 text-[13px] leading-relaxed">
+                    <span className="font-semibold text-[#1b2040]">
+                      {lastWorkout.typeLabel} {when}
+                    </span>
+                    <span className="text-[#63708f]">
+                      {" "}— {lastWorkout.durationMinutes}min session.
+                      {isRecent
+                        ? " Factor in muscle fatigue and allow time to recover."
+                        : " Recovery window has passed — your body should be ready."}
+                    </span>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.tag}`}>
+                    {s.label}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

@@ -11,7 +11,12 @@
 import { auth } from "@/lib/auth";
 import { computeBaseline } from "@/lib/baseline";
 import { computeReadiness } from "@/lib/readiness";
-import { loadSnapshots, syncUserSnapshots } from "@/lib/sync";
+import {
+  loadSnapshots,
+  syncUserSnapshots,
+  syncUserWorkouts,
+  loadLastWorkout,
+} from "@/lib/sync";
 import { db } from "@/lib/db";
 import type { CheckInData, TodayState } from "@/types/today";
 import type { DailySnapshot } from "@/types/snapshot";
@@ -49,15 +54,25 @@ export async function GET(request: NextRequest) {
 
   // 1. Sync fresh data (best-effort — don't fail the whole request if this fails)
   if (session.accessToken) {
-    try {
-      await syncUserSnapshots(session.user.id, session.accessToken, date);
-    } catch {
-      // Silent — stale DB data is still useful
-    }
+    const syncWindowStart = new Date(date);
+    syncWindowStart.setDate(syncWindowStart.getDate() - 6);
+    const syncSince = syncWindowStart.toISOString().slice(0, 10);
+
+    await Promise.allSettled([
+      syncUserSnapshots(session.user.id, session.accessToken, date),
+      syncUserWorkouts(session.user.id, session.accessToken, syncSince, date),
+    ]);
   }
 
-  // 2. Load history + today's snapshot
-  const history = await loadSnapshots(session.user.id, date);
+  // 2. Load history + today's snapshot + last workout
+  const windowStart2 = new Date(date);
+  windowStart2.setDate(windowStart2.getDate() - 6);
+  const sinceDate = windowStart2.toISOString().slice(0, 10);
+
+  const [history, lastWorkout] = await Promise.all([
+    loadSnapshots(session.user.id, date),
+    loadLastWorkout(session.user.id, sinceDate),
+  ]);
   const today = history.find((s) => s.date === date) ?? NULL_SNAPSHOT(date);
   const { baseline } = computeBaseline(history, today);
 
@@ -84,6 +99,7 @@ export async function GET(request: NextRequest) {
     date,
     readiness,
     checkIn,
+    lastWorkout,
     snapshot: {
       sleepMinutes: today.sleepMinutes,
       sleepEfficiency: today.sleepEfficiency,

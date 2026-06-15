@@ -16,7 +16,7 @@ import { getGeminiModel } from "@/lib/ai/gemini";
 import { computeBaseline } from "@/lib/baseline";
 import { computeReadiness } from "@/lib/readiness";
 import { db } from "@/lib/db";
-import { loadSnapshots } from "@/lib/sync";
+import { loadSnapshots, loadLastWorkout } from "@/lib/sync";
 import type { CheckInData } from "@/types/today";
 import type { DailySnapshot } from "@/types/snapshot";
 import type { StrategyAction, StrategyResponse } from "@/types/strategy";
@@ -95,7 +95,14 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Load data from DB (no sync — today route already synced) ────────────
-  const history = await loadSnapshots(session.user.id, date);
+  const windowStart = new Date(date);
+  windowStart.setDate(windowStart.getDate() - 6);
+  const sinceDate = windowStart.toISOString().slice(0, 10);
+
+  const [history, lastWorkout] = await Promise.all([
+    loadSnapshots(session.user.id, date),
+    loadLastWorkout(session.user.id, sinceDate),
+  ]);
   const today = history.find((s) => s.date === date) ?? NULL_SNAPSHOT(date);
   const { baseline } = computeBaseline(history, today);
 
@@ -123,6 +130,7 @@ export async function POST(request: NextRequest) {
     readiness.score,
     date,
     tasks,
+    lastWorkout,
   );
   const userPrompt = buildUserPrompt(action, context, readiness.dayType);
 

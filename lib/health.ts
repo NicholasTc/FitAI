@@ -296,3 +296,125 @@ export async function fetchRecentSnapshots(
 export function getTodayDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+// ─── Exercise / workouts ──────────────────────────────────────────────────────
+
+/**
+ * Exercise type strings returned by Google Health API.
+ * Map to a simpler label for display.
+ */
+const EXERCISE_TYPE_LABELS: Record<string, string> = {
+  RUNNING: "Running",
+  WALKING: "Walking",
+  BIKING: "Cycling",
+  SWIMMING: "Swimming",
+  HIKING: "Hiking",
+  YOGA: "Yoga",
+  PILATES: "Pilates",
+  WORKOUT: "Workout",
+  HIIT: "HIIT",
+  WEIGHTLIFTING: "Weightlifting",
+  STRENGTH_TRAINING: "Strength training",
+  OTHER: "Exercise",
+};
+
+export interface WorkoutSession {
+  /** ISO timestamp of workout start */
+  startTime: string;
+  /** ISO timestamp of workout end */
+  endTime: string;
+  /** YYYY-MM-DD local date the workout started */
+  date: string;
+  /** Human-readable type label */
+  typeLabel: string;
+  /** Raw API exercise type string */
+  typeRaw: string;
+  /** Active duration in minutes */
+  durationMinutes: number;
+  /** Source platform (e.g. "FITBIT") */
+  source: string | null;
+}
+
+interface ExerciseInterval {
+  civilStartTime?: string; // ISO datetime
+  civilEndTime?: string;
+}
+
+interface ExerciseDataPoint {
+  exercise?: {
+    interval?: ExerciseInterval;
+    exerciseType?: string;
+    displayName?: string;
+    activeDuration?: { seconds?: Num };
+    exerciseMetadata?: { platform?: string };
+  };
+}
+
+interface ExerciseResponse {
+  dataPoints?: ExerciseDataPoint[];
+}
+
+/**
+ * Fetch recorded exercise sessions within a date range.
+ * Uses `exercise.interval.civil_start_time` for filtering.
+ * Returns up to 25 sessions (Google Health API page limit for exercise).
+ */
+export async function fetchRecentWorkouts(
+  accessToken: string,
+  startDate: string,
+  endDate: string,
+): Promise<WorkoutSession[]> {
+  const filter = `exercise.interval.civil_start_time >= "${startDate}" AND exercise.interval.civil_start_time < "${addDays(endDate, 1)}"`;
+  const params = new URLSearchParams({ filter });
+  const result = await apiFetch<ExerciseResponse>(
+    `${HEALTH_API_BASE}/users/me/dataTypes/exercise/dataPoints?${params.toString()}`,
+    accessToken,
+  );
+
+  if (!result.ok || !result.data?.dataPoints) return [];
+
+  const workouts: WorkoutSession[] = [];
+
+  for (const dp of result.data.dataPoints) {
+    const ex = dp.exercise;
+    if (!ex) continue;
+
+    const start = ex.interval?.civilStartTime;
+    const end = ex.interval?.civilEndTime;
+    if (!start) continue;
+
+    // Duration from activeDuration seconds, fallback to interval diff
+    let durationMinutes = 0;
+    const activeSecs = toFloat(ex.activeDuration?.seconds);
+    if (activeSecs !== null && activeSecs > 0) {
+      durationMinutes = Math.round(activeSecs / 60);
+    } else if (start && end) {
+      const ms = new Date(end).getTime() - new Date(start).getTime();
+      durationMinutes = Math.round(ms / 60000);
+    }
+
+    if (durationMinutes < 5) continue; // skip trivially short auto-detects
+
+    const typeRaw = ex.exerciseType ?? "OTHER";
+    const typeLabel =
+      ex.displayName?.trim() ||
+      EXERCISE_TYPE_LABELS[typeRaw] ||
+      "Exercise";
+
+    workouts.push({
+      startTime: start,
+      endTime: end ?? start,
+      date: start.slice(0, 10),
+      typeLabel,
+      typeRaw,
+      durationMinutes,
+      source: ex.exerciseMetadata?.platform ?? null,
+    });
+  }
+
+  // Newest first
+  workouts.sort(
+    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+  );
+  return workouts;
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { AppIcon, type FitAIIconName } from "@/components/AppIcon";
 import {
   hrvStatus,
@@ -9,6 +10,7 @@ import {
   type MetricText,
 } from "@/lib/metricStatus";
 import type { TodayState } from "@/types/today";
+import type { MetricKey } from "@/app/api/explain-metric/route";
 import {
   dayTypeColor,
   dayTypeLabel,
@@ -118,6 +120,11 @@ interface SignalProps {
   status?: MetricText | null;
   /** When set, replaces the single bar with a segmented sleep-stages bar */
   stagesBar?: SleepStagesBar | null;
+  /** Inline AI explanation state */
+  explanation?: string | null;
+  explaining?: boolean;
+  onExplain?: () => void;
+  onDismiss?: () => void;
 }
 
 function SignalCard({
@@ -132,17 +139,17 @@ function SignalCard({
   trendUp,
   status,
   stagesBar,
+  explanation,
+  explaining,
+  onExplain,
+  onDismiss,
 }: SignalProps) {
   // When status text is provided, render an explanatory empty state
   if (status) {
     return (
       <div className="rounded-[16px] border border-[rgba(148,162,218,0.14)] bg-white p-4 shadow-[0_2px_14px_rgba(80,100,180,0.06)]">
         <div className="mb-2 flex items-center gap-2">
-          <AppIcon
-            name={icon}
-            size={18}
-            className={iconClassName ?? "text-[#63708f]"}
-          />
+          <AppIcon name={icon} size={18} className={iconClassName ?? "text-[#63708f]"} />
           <span className="text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
             {label}
           </span>
@@ -160,17 +167,27 @@ function SignalCard({
     );
   }
 
+
   return (
     <div className="rounded-[16px] border border-[rgba(148,162,218,0.14)] bg-white p-4 shadow-[0_2px_14px_rgba(80,100,180,0.06)]">
       <div className="mb-2 flex items-center gap-2">
-        <AppIcon
-          name={icon}
-          size={18}
-          className={iconClassName ?? "text-[#63708f]"}
-        />
-        <span className="text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
+        <AppIcon name={icon} size={18} className={iconClassName ?? "text-[#63708f]"} />
+        <span className="flex-1 text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
           {label}
         </span>
+        {onExplain && (
+          <button
+            onClick={explanation ? onDismiss : onExplain}
+            title={explanation ? "Dismiss" : "Explain this metric"}
+            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10.5px] font-bold transition
+              ${explanation
+                ? "bg-[#4a7df6] text-white"
+                : "bg-[#eef0f8] text-[#9ea8c4] hover:bg-[#e2e6f4] hover:text-[#4a7df6]"
+              }`}
+          >
+            {explanation ? "×" : "?"}
+          </button>
+        )}
       </div>
       <p className="font-[family-name:var(--font-display)] text-[20px] font-bold leading-tight text-[#1b2040]">
         {value}
@@ -234,11 +251,25 @@ function SignalCard({
         </>
       )}
       {trend && (
-        <p
-          className={`mt-1.5 text-[11.5px] font-medium ${trendUp ? "text-[#009e83]" : "text-[#e05f3c]"}`}
-        >
+        <p className={`mt-1.5 text-[11.5px] font-medium ${trendUp ? "text-[#009e83]" : "text-[#e05f3c]"}`}>
           {trend}
         </p>
+      )}
+
+      {/* Inline AI explanation */}
+      {(explaining || explanation) && (
+        <div className="mt-3 border-t border-[rgba(148,162,218,0.12)] pt-3">
+          {explaining ? (
+            <div className="flex items-center gap-2 text-[11.5px] text-[#9ea8c4]">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[#9ea8c4] border-t-transparent" />
+              Explaining…
+            </div>
+          ) : (
+            <p className="text-[12px] leading-relaxed text-[#63708f]">
+              {explanation}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -288,6 +319,45 @@ export default function TodayView({
   const dt = readiness.dayType;
   const colors = dayTypeColor(dt);
   const label = dayTypeLabel(dt);
+
+  // ─── Per-metric explain state ────────────────────────────────────────────
+  const [activeMetric, setActiveMetric] = useState<MetricKey | null>(null);
+  const [explanations, setExplanations] = useState<Partial<Record<MetricKey, string>>>({});
+  const [explaining, setExplaining] = useState(false);
+
+  const handleExplain = useCallback(async (metric: MetricKey, values: Record<string, number | string | null>) => {
+    // Toggle off if already showing this metric
+    if (activeMetric === metric) {
+      setActiveMetric(null);
+      return;
+    }
+    // If already cached, just show it
+    if (explanations[metric]) {
+      setActiveMetric(metric);
+      return;
+    }
+    setActiveMetric(metric);
+    setExplaining(true);
+    try {
+      const res = await fetch("/api/explain-metric", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metric, values }),
+      });
+      const json = (await res.json()) as { explanation?: string; error?: string };
+      if (json.explanation) {
+        setExplanations((prev) => ({ ...prev, [metric]: json.explanation! }));
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setExplaining(false);
+    }
+  }, [activeMetric, explanations]);
+
+  const handleDismiss = useCallback(() => {
+    setActiveMetric(null);
+  }, []);
 
   // ─── Metric status (explains null values)
   const sleepSt = sleepStatus(
@@ -471,7 +541,7 @@ export default function TodayView({
         <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
           Key signals
         </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {/* Sleep */}
           {(() => {
             const hasStages =
@@ -500,6 +570,21 @@ export default function TodayView({
                 trendUp={sleepTrendUp}
                 status={snapshot.sleepMinutes === null ? sleepSt : null}
                 stagesBar={stages}
+                explanation={activeMetric === "sleep" ? (explanations.sleep ?? null) : null}
+                explaining={activeMetric === "sleep" && explaining}
+                onExplain={() => handleExplain("sleep", {
+                  sleepMinutes: snapshot.sleepMinutes,
+                  sleepHours: sleep?.h ?? null,
+                  sleepMins: sleep?.min ?? null,
+                  deepMin: snapshot.sleepDeepMin,
+                  remMin: snapshot.sleepRemMin,
+                  lightMin: snapshot.sleepLightMin,
+                  efficiency: snapshot.sleepEfficiency,
+                  avgMinutes: baseline.sleepMinutes !== null ? Math.round(baseline.sleepMinutes) : null,
+                  deltaMinutes: snapshot.sleepMinutes !== null && baseline.sleepMinutes !== null
+                    ? Math.round(snapshot.sleepMinutes - baseline.sleepMinutes) : null,
+                })}
+                onDismiss={handleDismiss}
               />
             );
           })()}
@@ -516,6 +601,15 @@ export default function TodayView({
             trend={rhrTrend}
             trendUp={rhrTrendUp}
             status={rhrSt}
+            explanation={activeMetric === "rhr" ? (explanations.rhr ?? null) : null}
+            explaining={activeMetric === "rhr" && explaining}
+            onExplain={() => handleExplain("rhr", {
+              rhr: snapshot.restingHr,
+              avgRhr: baseline.restingHr !== null ? Math.round(baseline.restingHr) : null,
+              deltaRhr: snapshot.restingHr !== null && baseline.restingHr !== null
+                ? Math.round(snapshot.restingHr - baseline.restingHr) : null,
+            })}
+            onDismiss={handleDismiss}
           />
 
           {/* HRV */}
@@ -530,6 +624,15 @@ export default function TodayView({
             trend={hrvTrend}
             trendUp={hrvTrendUp}
             status={hrvSt}
+            explanation={activeMetric === "hrv" ? (explanations.hrv ?? null) : null}
+            explaining={activeMetric === "hrv" && explaining}
+            onExplain={() => handleExplain("hrv", {
+              hrv: snapshot.hrv !== null ? snapshot.hrv.toFixed(1) : null,
+              avgHrv: baseline.hrv !== null ? baseline.hrv.toFixed(1) : null,
+              deltaHrv: snapshot.hrv !== null && baseline.hrv !== null
+                ? (snapshot.hrv - baseline.hrv).toFixed(1) : null,
+            })}
+            onDismiss={handleDismiss}
           />
 
           {/* Check-in composite or Steps fallback */}
@@ -544,6 +647,15 @@ export default function TodayView({
               barColor="linear-gradient(90deg,#ffd580,#f6a235)"
               trend={checkIn.stressLevel >= 7 ? "↑ High stress today" : undefined}
               trendUp={false}
+              explanation={activeMetric === "energy" ? (explanations.energy ?? null) : null}
+              explaining={activeMetric === "energy" && explaining}
+              onExplain={() => handleExplain("energy", {
+                energy: checkIn.energyLevel,
+                stress: checkIn.stressLevel,
+                sleepQuality: checkIn.sleepQuality,
+                motivation: checkIn.motivation,
+              })}
+              onDismiss={handleDismiss}
             />
           ) : (
             <SignalCard
@@ -555,29 +667,17 @@ export default function TodayView({
               barPct={snapshot.steps !== null ? Math.min((snapshot.steps / 10000) * 100, 100) : undefined}
               barColor="linear-gradient(90deg,#9fefdf,#009e83)"
               status={stepsSt}
+              explanation={activeMetric === "steps" ? (explanations.steps ?? null) : null}
+              explaining={activeMetric === "steps" && explaining}
+              onExplain={() => handleExplain("steps", {
+                steps: snapshot.steps,
+                avgSteps: baseline.steps !== null ? Math.round(baseline.steps) : null,
+                timeOfDay: `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}`,
+              })}
+              onDismiss={handleDismiss}
             />
           )}
 
-          {/* Last workout */}
-          {lastWorkout ? (
-            <SignalCard
-              icon="workout"
-              iconClassName="text-[#e05f3c]"
-              label="Last Workout"
-              value={lastWorkout.typeLabel}
-              sub={undefined}
-              trend={`${lastWorkout.durationMinutes}min · ${lastWorkout.date === date ? "Today" : lastWorkout.date === (() => { const d = new Date(date); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })() ? "Yesterday" : lastWorkout.date}`}
-              trendUp={true}
-            />
-          ) : (
-            <SignalCard
-              icon="workout"
-              iconClassName="text-[#9ea8c4]"
-              label="Last Workout"
-              value="—"
-              status={{ label: "No recent sessions", sub: "No exercise logged in the past 7 days.", isPending: false }}
-            />
-          )}
         </div>
       </div>
 
@@ -619,41 +719,6 @@ export default function TodayView({
               );
             })}
 
-            {/* Workout reason — shown when a recent session exists */}
-            {lastWorkout && (() => {
-              const isToday = lastWorkout.date === date;
-              const yesterday = new Date(date);
-              yesterday.setDate(yesterday.getDate() - 1);
-              const isYesterday = lastWorkout.date === yesterday.toISOString().slice(0, 10);
-              const when = isToday ? "today" : isYesterday ? "yesterday" : `on ${lastWorkout.date}`;
-              const daysSince = Math.round(
-                (new Date(date).getTime() - new Date(lastWorkout.date).getTime()) / 86400000,
-              );
-              const isRecent = daysSince <= 1;
-              const sentiment: "caution" | "neutral" = isRecent ? "caution" : "neutral";
-              const s = SENTIMENT_STYLES[sentiment];
-              return (
-                <div className="flex items-start gap-3 rounded-[13px] border border-[rgba(148,162,218,0.1)] p-3.5">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${s.icon}`}>
-                    <AppIcon name="workout" size={16} />
-                  </div>
-                  <div className="flex-1 text-[13px] leading-relaxed">
-                    <span className="font-semibold text-[#1b2040]">
-                      {lastWorkout.typeLabel} {when}
-                    </span>
-                    <span className="text-[#63708f]">
-                      {" "}— {lastWorkout.durationMinutes}min session.
-                      {isRecent
-                        ? " Factor in muscle fatigue and allow time to recover."
-                        : " Recovery window has passed — your body should be ready."}
-                    </span>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.tag}`}>
-                    {s.label}
-                  </span>
-                </div>
-              );
-            })()}
           </div>
         </div>
       )}

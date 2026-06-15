@@ -4,7 +4,7 @@
  */
 import { auth } from "@/lib/auth";
 import { computeBaseline } from "@/lib/baseline";
-import { fetchDaySnapshot } from "@/lib/health";
+import { fetchDaySnapshot, fetchRecentWorkouts } from "@/lib/health";
 import { loadSnapshots } from "@/lib/sync";
 import { db } from "@/lib/db";
 
@@ -29,6 +29,19 @@ export async function GET() {
     rawSnapshot = await fetchDaySnapshot(session.accessToken, localDate);
   } catch (e) {
     rawError = e instanceof Error ? e.message : String(e);
+  }
+
+  // Fetch raw exercise data from the API for the last 7 days.
+  const sevenDaysAgo = new Date(localDate);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const windowStart = sevenDaysAgo.toISOString().slice(0, 10);
+
+  let rawWorkouts = null;
+  let rawWorkoutsError = null;
+  try {
+    rawWorkouts = await fetchRecentWorkouts(session.accessToken, windowStart, localDate);
+  } catch (e) {
+    rawWorkoutsError = e instanceof Error ? e.message : String(e);
   }
 
   // Load stored snapshots from DB.
@@ -65,6 +78,8 @@ export async function GET() {
     },
     rawSnapshot,
     rawError,
+    rawWorkouts,
+    rawWorkoutsError,
     storedRows,
     computedBaseline,
   });

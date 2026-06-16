@@ -22,6 +22,7 @@ import {
   IoStarOutline,
   IoRemoveCircleOutline,
   IoBarbell,
+  IoSettingsOutline,
 } from "react-icons/io5";
 
 export type { FitAIIconName } from "@/types/icons";
@@ -51,6 +52,7 @@ const ICONS: Record<
   star: IoStarOutline,
   skip: IoRemoveCircleOutline,
   workout: IoBarbell,
+  settings: IoSettingsOutline,
 };
 
 interface AppIconProps {

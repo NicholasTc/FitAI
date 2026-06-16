@@ -30,6 +30,20 @@ export interface ReadinessReason {
   sentiment: "positive" | "caution" | "negative" | "neutral";
 }
 
+export interface UserSettings {
+  wakeTime: string;        // "HH:MM" 24h
+  sleepTargetTime: string; // "HH:MM" 24h
+  deepWorkLabel: string;
+  lightWorkLabel: string;
+}
+
+export const DEFAULT_SETTINGS: UserSettings = {
+  wakeTime: "07:00",
+  sleepTargetTime: "23:00",
+  deepWorkLabel: "Deep work",
+  lightWorkLabel: "Admin / Comms",
+};
+
 export interface TodayState {
   date: string;
   readiness: ReadinessResult;
@@ -53,6 +67,7 @@ export interface TodayState {
     daysWithData: number;
     status: "forming" | "ready";
   };
+  settings: UserSettings;
   history: Array<{
     date: string;
     /** Computed objective-only readiness day type. null when insufficient data. */

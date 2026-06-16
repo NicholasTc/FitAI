@@ -8,8 +8,9 @@ import CheckInView from "@/components/views/CheckInView";
 import TrendsView from "@/components/views/TrendsView";
 import ReflectionView from "@/components/views/ReflectionView";
 import WeeklyView from "@/components/views/WeeklyView";
+import SettingsView from "@/components/views/SettingsView";
 
-type ViewId = "today" | "checkin" | "trends" | "reflect" | "week";
+type ViewId = "today" | "checkin" | "trends" | "reflect" | "week" | "settings";
 
 const VIEW_LABELS: Record<ViewId, string> = {
   today: "Today",
@@ -17,6 +18,7 @@ const VIEW_LABELS: Record<ViewId, string> = {
   trends: "Trends",
   reflect: "Reflect",
   week: "This Week",
+  settings: "Settings",
 };
 
 function Spinner() {
@@ -173,6 +175,28 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
           </nav>
         </div>
 
+        {/* Preferences (settings — sidebar only) */}
+        <div className="px-3 pb-3">
+          <p className="mb-1 px-2 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
+            Preferences
+          </p>
+          <button
+            onClick={() => { setView("settings"); setMobileNavOpen(false); }}
+            className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13.5px] font-medium transition-all ${
+              view === "settings"
+                ? "bg-[#eef3ff] text-[#4a7df6] shadow-[0_1px_6px_rgba(74,125,246,0.12)]"
+                : "text-[#63708f] hover:bg-[rgba(0,0,0,0.04)] hover:text-[#1b2040]"
+            }`}
+          >
+            <AppIcon
+              name="settings"
+              size={16}
+              className={view === "settings" ? "text-[#4a7df6]" : "text-current"}
+            />
+            Settings
+          </button>
+        </div>
+
         {/* User */}
         <div className="border-t border-[rgba(148,162,218,0.14)] px-4 py-3">
           <div className="flex items-center gap-3">
@@ -246,8 +270,10 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
 
         {/* Content — extra bottom padding on mobile so island doesn't cover content */}
         <main className="flex-1 overflow-y-auto p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8">
-          {loading && <Spinner />}
-          {error && !loading && (
+          {/* Settings is always available — no health data needed */}
+          {view === "settings" && <SettingsView />}
+          {view !== "settings" && loading && <Spinner />}
+          {view !== "settings" && error && !loading && (
             <div className="rounded-2xl bg-red-50 p-5 text-sm text-red-600">
               {error}
               <button
@@ -258,7 +284,7 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
               </button>
             </div>
           )}
-          {!loading && !error && data && (
+          {view !== "settings" && !loading && !error && data && (
             <>
               {view === "today" && (
                 <TodayView

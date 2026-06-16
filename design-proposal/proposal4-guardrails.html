@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitAI — Today's Limits mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #eef0f9;
+    --surface: #fff;
+    --border: rgba(148,162,218,0.14);
+    --text: #1b2040;
+    --soft: #63708f;
+    --dim: #9ea8c4;
+    --accent: #4a7df6;
+    --maintain: #009e83;
+    --shadow: 0 2px 14px rgba(80,100,180,0.06);
+    --r: 18px;
+    --font: "Inter", -apple-system, sans-serif;
+    --display: "Sora", "Inter", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: -1;
+    background:
+      radial-gradient(70% 50% at 85% 10%, rgba(190,210,255,0.4), transparent 60%),
+      radial-gradient(60% 60% at 10% 90%, rgba(200,185,255,0.3), transparent 60%),
+      var(--bg);
+  }
+
+  /* page shell matches the app's max-width content area */
+  .page {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ── Section eyebrow label (matches app) ── */
+  .eyebrow {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: -4px;
+  }
+
+  /* ── Generic white card (matches app cards exactly) ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+
+  /* ── Hero card (greyed — existing, unchanged) ── */
+  .hero-card { opacity: 0.38; pointer-events: none; user-select: none; }
+  .hero-eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--maintain);
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .hero-eyebrow::before {
+    content: ""; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--maintain);
+  }
+  .hero-day {
+    font-family: var(--display);
+    font-size: 22px; font-weight: 800; line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .hero-day em { color: var(--maintain); font-style: normal; }
+  .hero-desc { font-size: 13px; color: var(--soft); line-height: 1.55; }
+
+  /* ── Insertion marker ── */
+  .marker {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11.5px; font-weight: 600; color: var(--accent);
+  }
+  .marker-line {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(74,125,246,0.35), transparent);
+  }
+
+  /* ══════════════════════════
+     TODAY'S LIMITS CARD
+     ══════════════════════════ */
+  .limits-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .limits-title {
+    font-family: var(--display);
+    font-size: 15px; font-weight: 700; color: var(--text);
+  }
+  .limits-chip {
+    font-size: 11.5px; font-weight: 600;
+    color: var(--maintain);
+    background: #ecfaf6;
+    border: 1px solid rgba(0,158,131,0.22);
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+
+  /* four limit rows */
+  .limit-rows { display: flex; flex-direction: column; gap: 0; }
+  .limit-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid rgba(148,162,218,0.08);
+  }
+  .limit-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .limit-row:first-child { padding-top: 0; }
+
+  .limit-label {
+    flex: 1;
+    font-size: 13px; font-weight: 500; color: var(--soft);
+  }
+  .limit-value {
+    font-size: 13.5px; font-weight: 600; color: var(--text);
+    text-align: right;
+  }
+  .pill {
+    font-size: 11px; font-weight: 600;
+    border-radius: 20px; padding: 2px 9px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    margin-left: 6px;
+  }
+  .pill-ok    { background: #ecfaf6; color: #009e83; border-color: rgba(0,158,131,0.22); }
+  .pill-mod   { background: #fff8f0; color: #c87a36; border-color: rgba(200,122,54,0.22); }
+  .pill-warn  { background: #fff3f0; color: #e05f3c; border-color: rgba(224,95,60,0.22); }
+
+  /* ── Existing key signals grid (greyed) ── */
+  .signals-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    opacity: 0.38;
+    pointer-events: none; user-select: none;
+  }
+  .sig-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+  .sig-lbl {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dim);
+    margin-bottom: 6px;
+  }
+  .sig-val {
+    font-family: var(--display);
+    font-size: 20px; font-weight: 800; color: var(--text);
+  }
+  .sig-val small { font-size: 13px; font-weight: 400; color: var(--dim); margin-left: 2px; }
+  .sig-bar { height: 5px; border-radius: 99px; background: #eef0f8; margin-top: 8px; overflow: hidden; }
+  .sig-bar i { display: block; height: 100%; border-radius: 99px; }
+  .sig-sub { font-size: 11px; font-weight: 500; color: var(--maintain); margin-top: 6px; }
+
+  /* ── Comparison section ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-top: 32px;
+  }
+  .compare-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dim);
+    margin-bottom: 6px; padding: 0 2px;
+  }
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+  .compare-day {
+    font-family: var(--display);
+    font-size: 12px; font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .compare-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(148,162,218,0.07);
+    font-size: 11.5px;
+  }
+  .compare-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .compare-lbl { color: var(--soft); }
+  .compare-val { font-weight: 600; color: var(--text); }
+  .cpill {
+    font-size: 10px; font-weight: 600;
+    border-radius: 20px; padding: 1px 7px;
+    border: 1px solid transparent;
+  }
+
+  /* annotation banner */
+  .note {
+    background: #1b2040;
+    color: #d0d8f8;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 12px; line-height: 1.5;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .note strong { color: #fff; }
+  .note-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 4px; }
+
+  @media (max-width: 480px) {
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- annotation -->
+  <div class="note">
+    <div class="note-dot"></div>
+    <div>
+      <strong>Today's Limits — mockup.</strong>
+      One new card inserted between the hero and Key signals. Greyed sections = existing UI, unchanged.
+    </div>
+  </div>
+
+  <!-- existing hero (greyed) -->
+  <div class="card hero-card">
+    <div class="hero-eyebrow">Objective readiness</div>
+    <div class="hero-day">Today is a <em>Maintain Day.</em></div>
+    <div class="hero-desc">Solid baseline. Do one focused work block, keep your workout moderate, and protect your recovery for tomorrow.</div>
+  </div>
+
+  <!-- insertion marker -->
+  <div class="marker">
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <path d="M6.5 1.5v9M3 7l3.5 3.5L10 7" stroke="#4a7df6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    New — inserted here
+    <div class="marker-line"></div>
+  </div>
+
+  <!-- ── TODAY'S LIMITS card ── -->
+  <div class="card">
+    <div class="limits-header">
+      <div class="limits-title">Today's Limits</div>
+      <div class="limits-chip">Maintain Day</div>
+    </div>
+
+    <div class="limit-rows">
+      <div class="limit-row">
+        <span class="limit-label">Deep work</span>
+        <span class="limit-value">1 block max</span>
+        <span class="pill pill-mod">Moderate</span>
+      </div>
+      <div class="limit-row">
+        <span class="limit-label">Training</span>
+        <span class="limit-value">Moderate only</span>
+        <span class="pill pill-mod">Moderate</span>
+      </div>
+      <div class="limit-row">
+        <span class="limit-label">Stacking risk</span>
+        <span class="limit-value">Gym + late work</span>
+        <span class="pill pill-warn">Avoid</span>
+      </div>
+      <div class="limit-row">
+        <span class="limit-label">Tonight</span>
+        <span class="limit-value">Wind down by 10:30</span>
+        <span class="pill pill-ok">Protect</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- existing key signals (greyed) -->
+  <div class="marker" style="color:#9ea8c4;">
+    <div class="marker-line" style="background:linear-gradient(90deg,rgba(148,162,218,0.3),transparent);"></div>
+    Existing — Key signals (unchanged)
+  </div>
+
+  <div class="eyebrow">Key signals</div>
+  <div class="signals-grid">
+    <div class="sig-card">
+      <div class="sig-lbl">Sleep</div>
+      <div class="sig-val">7h <small>49m</small></div>
+      <div class="sig-bar"><i style="width:83%;background:linear-gradient(90deg,#9fefdf,#4a7df6)"></i></div>
+      <div class="sig-sub">↑ 24m vs your avg</div>
+    </div>
+    <div class="sig-card">
+      <div class="sig-lbl">Resting HR</div>
+      <div class="sig-val">62 <small>bpm</small></div>
+      <div class="sig-bar"><i style="width:44%;background:linear-gradient(90deg,#ffc6a8,#e05f3c)"></i></div>
+    </div>
+    <div class="sig-card">
+      <div class="sig-lbl">HRV</div>
+      <div class="sig-val">140 <small>ms</small></div>
+      <div class="sig-bar"><i style="width:88%;background:linear-gradient(90deg,#a0d8ff,#4a7df6)"></i></div>
+      <div class="sig-sub" style="color:#4a7df6;">↑ 27.8ms vs avg</div>
+    </div>
+    <div class="sig-card">
+      <div class="sig-lbl">Energy</div>
+      <div class="sig-val">6 <small>/10</small></div>
+      <div class="sig-bar"><i style="width:60%;background:linear-gradient(90deg,#ffd580,#f6a235)"></i></div>
+    </div>
+  </div>
+
+  <!-- ─── Day-type variants ─── -->
+  <div style="margin-top:28px;">
+    <div class="note" style="background:#1e2550;">
+      <div class="note-dot" style="background:#9fefdf;"></div>
+      <div>
+        <strong>Same card, three day types</strong> — content and pills adapt. Structure is identical.
+      </div>
+    </div>
+
+    <div class="compare-grid" style="margin-top:14px;">
+
+      <!-- Push -->
+      <div>
+        <div class="compare-label">Push Day</div>
+        <div class="compare-card">
+          <div class="compare-day" style="color:#e05f3c;">Push Day</div>
+          <div class="compare-row">
+            <span class="compare-lbl">Deep work</span>
+            <span class="cpill pill-ok">2 blocks</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Training</span>
+            <span class="cpill pill-ok">Hard ok</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Stacking</span>
+            <span class="cpill pill-mod">Low risk</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Tonight</span>
+            <span class="cpill pill-ok">By 11 PM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Maintain -->
+      <div>
+        <div class="compare-label">Maintain Day</div>
+        <div class="compare-card" style="border-color:rgba(74,125,246,0.22);">
+          <div class="compare-day" style="color:#009e83;">Maintain Day</div>
+          <div class="compare-row">
+            <span class="compare-lbl">Deep work</span>
+            <span class="cpill pill-mod">1 block</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Training</span>
+            <span class="cpill pill-mod">Moderate</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Stacking</span>
+            <span class="cpill pill-warn">Avoid</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Tonight</span>
+            <span class="cpill pill-ok">By 10:30</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recover -->
+      <div>
+        <div class="compare-label">Recover Day</div>
+        <div class="compare-card">
+          <div class="compare-day" style="color:#7850e2;">Recover Day</div>
+          <div class="compare-row">
+            <span class="compare-lbl">Deep work</span>
+            <span class="cpill pill-warn">Light only</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Training</span>
+            <span class="cpill pill-warn">Rest/walk</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Stacking</span>
+            <span class="cpill pill-warn">High risk</span>
+          </div>
+          <div class="compare-row">
+            <span class="compare-lbl">Tonight</span>
+            <span class="cpill pill-ok">By 10 PM</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

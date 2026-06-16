@@ -4,9 +4,9 @@
  * StrategyPanel — Today's Strategy AI coaching panel.
  *
  * Three actions:
- *   Explain      – Why today's day type was assigned
- *   Adjust Day   – Prioritise user-entered tasks given recovery state
- *   Protect      – What to do tonight to set up a strong tomorrow
+ *   Explain           – Why today's day type was assigned
+ *   Plan Today        – Prioritise user-entered tasks given recovery state
+ *   Set up Tomorrow   – What to do tonight to set up a strong tomorrow
  *
  * Streams from POST /api/strategy, showing prose as typewriter text,
  * then transitioning to structured cards.
@@ -55,14 +55,14 @@ const ACTION_META: Record<
     icon: "chart",
   },
   adjust: {
-    label: "Adjust Day",
-    shortLabel: "Adjust",
+    label: "Plan Today",
+    shortLabel: "Plan Today",
     description: "Prioritise your tasks around your recovery state",
     icon: "energy",
   },
   protect: {
-    label: "Protect Tomorrow",
-    shortLabel: "Protect",
+    label: "Set up Tomorrow",
+    shortLabel: "Set up Tomorrow",
     description: "Set yourself up for a stronger tomorrow",
     icon: "stress-low",
   },

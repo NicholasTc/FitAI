@@ -75,6 +75,19 @@ model Reflection {
   @@index([userId])
 }
 
+// User-configurable preferences — one row per user.
+model UserSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  wakeTime        String @default("07:00") // HH:MM 24h
+  sleepTargetTime String @default("23:00") // HH:MM 24h (target bedtime, used as upper clamp)
+  deepWorkLabel   String @default("Deep work")
+  lightWorkLabel  String @default("Admin / Comms")
+
+  updatedAt DateTime @updatedAt
+}
+
 // Phase 2B: morning check-in — defined now so DB is ready.
 model CheckIn {
   id     String @id @default(cuid())

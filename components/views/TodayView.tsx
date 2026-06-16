@@ -18,6 +18,7 @@ import {
   ringGradient,
 } from "@/lib/readiness";
 import StrategyPanel from "@/components/views/StrategyPanel";
+import { computeGuardrails, type GuardrailLevel, type ScoreBand } from "@/lib/guardrails";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,64 @@ function ReadinessRing({
       <span className="text-[12.5px] font-medium text-[#63708f]">
         {readinessLabel(score)}
       </span>
+    </div>
+  );
+}
+
+// ─── Today's Limits card ─────────────────────────────────────────────────────
+
+const LEVEL_STYLES: Record<GuardrailLevel, { pill: string; label: string }> = {
+  ok:       { pill: "bg-[#ecfaf6] text-[#009e83] border border-[rgba(0,158,131,0.22)]",   label: "Good" },
+  moderate: { pill: "bg-[#fff8f0] text-[#c87a36] border border-[rgba(200,122,54,0.22)]",  label: "Moderate" },
+  avoid:    { pill: "bg-[#fff3f0] text-[#e05f3c] border border-[rgba(224,95,60,0.22)]",   label: "Avoid" },
+};
+
+const DAY_CHIP: Record<string, string> = {
+  push:     "bg-[#fff3f0] text-[#e05f3c] border border-[rgba(224,95,60,0.22)]",
+  maintain: "bg-[#ecfaf6] text-[#009e83] border border-[rgba(0,158,131,0.22)]",
+  recover:  "bg-[#f4f0ff] text-[#7850e2] border border-[rgba(120,80,226,0.22)]",
+};
+
+const BAND_SUBLABEL: Record<ScoreBand, string> = {
+  "push-peak":     "Push Day · Peak",
+  "push":          "Push Day",
+  "maintain-high": "Maintain Day · Strong",
+  "maintain-low":  "Maintain Day · Steady",
+  "recover":       "Recover Day",
+  "rest":          "Rest Day",
+};
+
+function LimitsCard({ dayType, band, rows }: ReturnType<typeof computeGuardrails>) {
+  const chipStyle = DAY_CHIP[dayType] ?? DAY_CHIP.maintain;
+  const chipLabel = BAND_SUBLABEL[band];
+
+  return (
+    <div className="rounded-[18px] border border-[rgba(148,162,218,0.14)] bg-white p-5 shadow-[0_2px_14px_rgba(80,100,180,0.06)]">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-[family-name:var(--font-display)] text-[15px] font-bold text-[#1b2040]">
+          Today&apos;s Limits
+        </h3>
+        <span className={`rounded-full px-3 py-1 text-[11.5px] font-semibold ${chipStyle}`}>
+          {chipLabel}
+        </span>
+      </div>
+
+      {/* Rows */}
+      <div className="divide-y divide-[rgba(148,162,218,0.08)]">
+        {rows.map(({ label, value, level }) => {
+          const s = LEVEL_STYLES[level];
+          return (
+            <div key={label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+              <span className="w-[88px] shrink-0 text-[13px] text-[#63708f]">{label}</span>
+              <span className="flex-1 text-[13.5px] font-semibold text-[#1b2040]">{value}</span>
+              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${s.pill}`}>
+                {s.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -384,6 +443,13 @@ export default function TodayView({
     setActiveMetric(null);
   }, []);
 
+  // ─── Today's Limits
+  const guardrails = computeGuardrails(dt, readiness.score, baseline.sleepMinutes, {
+    wakeTime: data.settings.wakeTime,
+    deepWorkLabel: data.settings.deepWorkLabel,
+    lightWorkLabel: data.settings.lightWorkLabel,
+  });
+
   // ─── Metric status (explains null values)
   const sleepSt = sleepStatus(
     { sleepMinutes: snapshot.sleepMinutes, sleepDeepMin: snapshot.sleepDeepMin, sleepRemMin: snapshot.sleepRemMin },
@@ -560,6 +626,9 @@ export default function TodayView({
           </div>
         </div>
       </div>
+
+      {/* Today's Limits */}
+      <LimitsCard {...guardrails} />
 
       {/* Key signals */}
       <div>

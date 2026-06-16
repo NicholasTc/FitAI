@@ -18,7 +18,8 @@ import {
   loadLastWorkout,
 } from "@/lib/sync";
 import { db } from "@/lib/db";
-import type { CheckInData, TodayState } from "@/types/today";
+import type { CheckInData, TodayState, UserSettings } from "@/types/today";
+import { DEFAULT_SETTINGS } from "@/types/today";
 import type { DailySnapshot } from "@/types/snapshot";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -76,10 +77,22 @@ export async function GET(request: NextRequest) {
   const today = history.find((s) => s.date === date) ?? NULL_SNAPSHOT(date);
   const { baseline } = computeBaseline(history, today);
 
-  // 3. Load today's check-in
-  const rawCheckIn = await db.checkIn.findUnique({
-    where: { userId_date: { userId: session.user.id, date } },
-  });
+  // 3. Load today's check-in + user settings (parallel)
+  const [rawCheckIn, rawSettings] = await Promise.all([
+    db.checkIn.findUnique({
+      where: { userId_date: { userId: session.user.id, date } },
+    }),
+    db.userSettings.findUnique({ where: { userId: session.user.id } }),
+  ]);
+
+  const settings: UserSettings = rawSettings
+    ? {
+        wakeTime: rawSettings.wakeTime,
+        sleepTargetTime: rawSettings.sleepTargetTime,
+        deepWorkLabel: rawSettings.deepWorkLabel,
+        lightWorkLabel: rawSettings.lightWorkLabel,
+      }
+    : DEFAULT_SETTINGS;
 
   const checkIn: CheckInData | null = rawCheckIn
     ? {
@@ -100,6 +113,7 @@ export async function GET(request: NextRequest) {
     readiness,
     checkIn,
     lastWorkout,
+    settings,
     snapshot: {
       sleepMinutes: today.sleepMinutes,
       sleepEfficiency: today.sleepEfficiency,

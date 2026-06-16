@@ -17,7 +17,7 @@ interface ExplainRequest {
 }
 
 const METRIC_SYSTEM_PROMPT = `\
-You are FitAI, a personal recovery coach for Nicholas (trains 4–5x/week, strength + cardio).
+You are FitAI, a personal recovery coach. The user trains 4–5x/week (strength + cardio).
 Your job is to explain a single health metric using EXACTLY this format — no deviations:
 
 What it means:
@@ -27,7 +27,7 @@ Decision impact:
 <1–2 sentences on how this signal affects today's Push / Maintain / Recover decision. Be specific about conditions that would change the call.>
 
 Recommended action:
-<1 concrete sentence on what Nicholas should do with this signal today. Avoid vague advice.>
+<1 concrete sentence on what the user should do with this signal today. Avoid vague advice.>
 
 Confidence:
 <Level> — <1 sentence explaining why the confidence is at that level, and what would increase it.>
@@ -37,6 +37,7 @@ Rules:
 - Use the actual numbers from the data — never invent or estimate missing values
 - If a value is "not available", acknowledge it honestly in the relevant section
 - No medical claims or diagnoses
+- Address the user as "you", never by name
 - No markdown, no bullet points, no extra headers — only the four sections above`;
 
 function buildExplainPrompt(metric: MetricKey, values: Record<string, number | string | null>): string {
@@ -44,7 +45,7 @@ function buildExplainPrompt(metric: MetricKey, values: Record<string, number | s
 
   switch (metric) {
     case "sleep":
-      return `Explain Nicholas's sleep for today using the required format.
+      return `Explain the user's sleep for today using the required format. Address the user as "you".
 
 Data:
 - Total sleep: ${v("sleepMinutes")} minutes (${v("sleepHours")}h ${v("sleepMins")}m)
@@ -54,7 +55,7 @@ Data:
 - Delta vs average: ${v("deltaMinutes")} minutes`;
 
     case "rhr":
-      return `Explain Nicholas's resting heart rate for today using the required format.
+      return `Explain the user's resting heart rate for today using the required format. Address the user as "you".
 
 Data:
 - Today's RHR: ${v("rhr")} bpm
@@ -62,7 +63,7 @@ Data:
 - Delta: ${v("deltaRhr")} bpm (${Number(v("deltaRhr")) < 0 ? "lower than average — positive signal" : "higher than average — potential stress"})`;
 
     case "hrv":
-      return `Explain Nicholas's HRV for today using the required format.
+      return `Explain the user's HRV for today using the required format. Address the user as "you".
 
 Data:
 - Today's HRV: ${v("hrv")} ms
@@ -70,7 +71,7 @@ Data:
 - Delta: ${v("deltaHrv")} ms (${Number(v("deltaHrv")) > 0 ? "above average — positive signal" : "below average — potential fatigue"})`;
 
     case "steps":
-      return `Explain Nicholas's step count in context using the required format.
+      return `Explain the user's step count in context using the required format. Address the user as "you".
 
 Data:
 - Steps so far today: ${v("steps")}
@@ -78,7 +79,7 @@ Data:
 - Current time: ${v("timeOfDay")}`;
 
     case "energy":
-      return `Explain Nicholas's subjective check-in values using the required format.
+      return `Explain the user's subjective check-in values using the required format. Address the user as "you".
 
 Data:
 - Energy: ${v("energy")}/10

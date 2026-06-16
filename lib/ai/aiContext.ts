@@ -150,7 +150,7 @@ export function buildAiContext(
           stress: `${checkIn.stressLevel}/10 (higher = more stressed)`,
           sleepQuality: `${checkIn.sleepQuality}/10`,
           motivation: `${checkIn.motivation}/10`,
-          note: "Subjective check-in is complete — treat this as the primary signal if it conflicts with wearable data.",
+          note: "Subjective check-in is complete — treat this as the primary signal if it conflicts with wearable data. Do not address the user by name.",
         }
       : {
           note: "No check-in yet — readiness is based on wearable data only.",

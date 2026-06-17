@@ -17,6 +17,7 @@ export interface DailySnapshot {
   // Activity
   steps: number | null;
   activeMinutes: number | null;
+  totalCalories: number | null; // kcal
 }
 
 // Seven-day rolling baselines. null when fewer than 2 data points available.
@@ -27,6 +28,7 @@ export interface WeeklyBaseline {
   hrv: number | null;
   steps: number | null;
   activeMinutes: number | null;
+  totalCalories: number | null;
 
   // How many days have data (out of the last 7 attempted).
   daysWithData: number;
@@ -49,6 +51,7 @@ export interface DailyBaseline {
     hrv: MetricDelta;
     steps: MetricDelta;
     activeMinutes: MetricDelta;
+    totalCalories: MetricDelta;
   };
   // Past 7 days ordered oldest → newest (for sparklines).
   history: DailySnapshot[];

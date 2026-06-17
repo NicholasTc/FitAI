@@ -60,6 +60,7 @@ export function computeBaseline(
     hrv: average(pick(prior, "hrv")),
     steps: average(pick(prior, "steps")),
     activeMinutes: average(pick(prior, "activeMinutes")),
+    totalCalories: average(pick(prior, "totalCalories")),
     daysWithData,
     status: daysWithData >= 5 ? "ready" : "forming",
   };
@@ -75,6 +76,7 @@ export function computeBaseline(
       hrv: delta(today.hrv, baseline.hrv),
       steps: delta(today.steps, baseline.steps),
       activeMinutes: delta(today.activeMinutes, baseline.activeMinutes),
+      totalCalories: delta(today.totalCalories, baseline.totalCalories),
     },
     history,
   };

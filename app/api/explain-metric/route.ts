@@ -9,7 +9,7 @@ import { auth } from "@/lib/auth";
 import { getGeminiModel } from "@/lib/ai/gemini";
 import { type NextRequest, NextResponse } from "next/server";
 
-export type MetricKey = "sleep" | "rhr" | "hrv" | "steps" | "energy";
+export type MetricKey = "sleep" | "rhr" | "hrv" | "steps" | "energy" | "calories";
 
 interface ExplainRequest {
   metric: MetricKey;
@@ -88,6 +88,16 @@ Data:
 - Motivation: ${v("motivation")}/10
 
 Note: subjective signals take priority over wearable data when they conflict.`;
+
+    case "calories":
+      return `Explain the user's total daily calorie burn using the required format. Address the user as "you".
+
+Data:
+- Total calories today: ${v("totalCalories")} kcal
+- 7-day average: ${v("avgCalories")} kcal
+- Delta vs average: ${v("deltaCalories")} kcal
+
+Note: total calories = resting metabolic rate + all activity. A lower-than-average value on a rest or easy day is expected. A much lower value on a planned push day may indicate under-recovery or low activity.`;
   }
 }
 
@@ -109,7 +119,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as Partial<ExplainRequest>;
-    const validMetrics: MetricKey[] = ["sleep", "rhr", "hrv", "steps", "energy"];
+    const validMetrics: MetricKey[] = ["sleep", "rhr", "hrv", "steps", "energy", "calories"];
     if (!body.metric || !validMetrics.includes(body.metric)) {
       return NextResponse.json({ error: "Invalid metric" }, { status: 400 });
     }

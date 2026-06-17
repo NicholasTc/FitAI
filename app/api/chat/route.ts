@@ -51,6 +51,7 @@ const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
   hrv: null,
   steps: null,
   activeMinutes: null,
+  totalCalories: null,
 });
 
 const CHAT_SYSTEM_PROMPT = `\

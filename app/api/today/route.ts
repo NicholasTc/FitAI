@@ -34,6 +34,7 @@ const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
   hrv: null,
   steps: null,
   activeMinutes: null,
+  totalCalories: null,
 });
 
 export async function GET(request: NextRequest) {
@@ -123,12 +124,14 @@ export async function GET(request: NextRequest) {
       restingHr: today.restingHr,
       hrv: today.hrv,
       steps: today.steps,
+      totalCalories: today.totalCalories,
     },
     baseline: {
       sleepMinutes: baseline.sleepMinutes,
       restingHr: baseline.restingHr,
       hrv: baseline.hrv,
       steps: baseline.steps,
+      totalCalories: baseline.totalCalories,
       daysWithData: baseline.daysWithData,
       status: baseline.status,
     },

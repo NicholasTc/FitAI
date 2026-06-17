@@ -144,6 +144,19 @@ export function buildAiContext(
         baseline.steps !== null ? Math.round(baseline.steps) : null,
     },
 
+    totalCalories: snapshot.totalCalories !== null
+      ? {
+          today: `${snapshot.totalCalories} kcal`,
+          yourAverage: baseline.totalCalories !== null
+            ? `${Math.round(baseline.totalCalories)} kcal`
+            : null,
+          delta: snapshot.totalCalories !== null && baseline.totalCalories !== null
+            ? Math.round(snapshot.totalCalories - baseline.totalCalories)
+            : null,
+          note: "Total calories = resting metabolic rate + activity. A value well below your average may indicate low activity, illness, or early-day sync.",
+        }
+      : { note: "Total calories not yet available — likely pending end-of-day Fitbit sync." },
+
     subjectiveCheckIn: checkIn
       ? {
           energy: `${checkIn.energyLevel}/10`,

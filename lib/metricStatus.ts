@@ -155,3 +155,25 @@ export function stepsStatus(
     isPending: false,
   };
 }
+
+// ─── Total Calories ────────────────────────────────────────────────────────────
+
+export function caloriesStatus(
+  snapshot: { totalCalories: number | null },
+  date: string,
+): MetricText | null {
+  if (snapshot.totalCalories !== null) return null;
+
+  if (isToday(date)) {
+    return {
+      label: "Pending",
+      sub: "Finalises at end of day",
+      isPending: true,
+    };
+  }
+  return {
+    label: "Not synced",
+    sub: "No calorie data for this day",
+    isPending: false,
+  };
+}

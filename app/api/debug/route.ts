@@ -8,6 +8,52 @@ import { fetchDaySnapshot, fetchRecentWorkouts } from "@/lib/health";
 import { loadSnapshots } from "@/lib/sync";
 import { db } from "@/lib/db";
 
+const HEALTH_API_BASE = "https://health.googleapis.com/v4";
+
+function parseCivilDate(dateStr: string) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return { year, month, day };
+}
+
+async function fetchCaloriesRollup(accessToken: string, date: string) {
+  const nextDate = new Date(`${date}T00:00:00`);
+  nextDate.setDate(nextDate.getDate() + 1);
+  const endDateStr = nextDate.toISOString().slice(0, 10);
+
+  const body = {
+    range: {
+      start: { date: parseCivilDate(date) },
+      end: { date: parseCivilDate(endDateStr) },
+    },
+    windowSizeDays: 1,
+  };
+
+  const res = await fetch(
+    `${HEALTH_API_BASE}/users/me/dataTypes/total-calories/dataPoints:dailyRollUp`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    },
+  );
+
+  const json = await res.json();
+
+  return {
+    status: res.status,
+    ok: res.ok,
+    raw: json,
+    parsed:
+      (json as { rollupDataPoints?: Array<{ totalCalories?: { kcalSum?: number } }> })
+        ?.rollupDataPoints?.[0]?.totalCalories?.kcalSum ?? null,
+  };
+}
+
 export async function GET() {
   const session = await auth();
 
@@ -44,6 +90,15 @@ export async function GET() {
     rawWorkoutsError = e instanceof Error ? e.message : String(e);
   }
 
+  // Probe: total-calories + active-energy-burned for today.
+  let rawCalories = null;
+  let rawCaloriesError = null;
+  try {
+    rawCalories = await fetchCaloriesRollup(session.accessToken, localDate);
+  } catch (e) {
+    rawCaloriesError = e instanceof Error ? e.message : String(e);
+  }
+
   // Load stored snapshots from DB.
   const storedRows = userId
     ? await db.dailyHealthSnapshot.findMany({
@@ -61,7 +116,7 @@ export async function GET() {
       date: localDate,
       sleepMinutes: null, sleepEfficiency: null, sleepDeepMin: null,
       sleepRemMin: null, sleepLightMin: null,
-      restingHr: null, hrv: null, steps: null, activeMinutes: null,
+      restingHr: null, hrv: null, steps: null, activeMinutes: null, totalCalories: null,
     };
     computedBaseline = computeBaseline(history, today);
   }
@@ -80,6 +135,8 @@ export async function GET() {
     rawError,
     rawWorkouts,
     rawWorkoutsError,
+    rawTotalCalories: rawCalories,
+    rawCaloriesError,
     storedRows,
     computedBaseline,
   });

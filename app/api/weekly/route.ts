@@ -39,6 +39,7 @@ const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
   hrv: null,
   steps: null,
   activeMinutes: null,
+  totalCalories: null,
 });
 
 export async function GET(request: NextRequest) {

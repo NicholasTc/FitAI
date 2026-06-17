@@ -181,6 +181,12 @@ interface ActiveMinutesRollup {
   }>;
 }
 
+interface TotalCaloriesRollup {
+  rollupDataPoints?: Array<{
+    totalCalories?: { kcalSum?: Num };
+  }>;
+}
+
 // ─── Coercion helpers ─────────────────────────────────────────────────────────
 
 function toInt(v: Num): number | null {
@@ -204,6 +210,7 @@ function normalizeSnapshot(
   rhr: FetchResult<RhrResponse>,
   hrv: FetchResult<HrvResponse>,
   activeMinutes: FetchResult<ActiveMinutesRollup>,
+  totalCalories: FetchResult<TotalCaloriesRollup>,
 ): DailySnapshot {
   const sleepPoint = sleep.data?.dataPoints?.[0]?.sleep;
   const sleepSummary = sleepPoint?.summary;
@@ -227,6 +234,12 @@ function normalizeSnapshot(
   const rhrPoint = rhr.data?.dataPoints?.[0]?.dailyRestingHeartRate;
   const hrvPoint = hrv.data?.dataPoints?.[0]?.dailyHeartRateVariability;
   const activePoint = activeMinutes.data?.rollupDataPoints?.[0]?.activeMinutes;
+  const calPoint = totalCalories.data?.rollupDataPoints?.[0]?.totalCalories;
+
+  // Only store calories if the day is substantially complete (> 500 kcal means
+  // Fitbit has synced enough activity data — early-morning values like 3 kcal are useless).
+  const rawKcal = toFloat(calPoint?.kcalSum);
+  const totalCal = rawKcal !== null && rawKcal > 500 ? Math.round(rawKcal) : null;
 
   return {
     date,
@@ -239,6 +252,7 @@ function normalizeSnapshot(
     hrv: toFloat(hrvPoint?.averageHeartRateVariabilityMilliseconds),
     steps: toInt(stepsPoint?.countSum),
     activeMinutes: toInt(activePoint?.activeMinutesSum),
+    totalCalories: totalCal,
   };
 }
 
@@ -251,7 +265,7 @@ export async function fetchDaySnapshot(
   accessToken: string,
   date: string,
 ): Promise<DailySnapshot> {
-  const [sleep, steps, rhr, hrv, activeMinutes] = await Promise.all([
+  const [sleep, steps, rhr, hrv, activeMinutes, totalCalories] = await Promise.all([
     sleepList<SleepResponse>(accessToken, date),
     dailyRollUp<StepsRollup>(accessToken, "steps", date),
     dailyList<RhrResponse>(
@@ -267,9 +281,10 @@ export async function fetchDaySnapshot(
       date,
     ),
     dailyRollUp<ActiveMinutesRollup>(accessToken, "active-minutes", date),
+    dailyRollUp<TotalCaloriesRollup>(accessToken, "total-calories", date),
   ]);
 
-  return normalizeSnapshot(date, sleep, steps, rhr, hrv, activeMinutes);
+  return normalizeSnapshot(date, sleep, steps, rhr, hrv, activeMinutes, totalCalories);
 }
 
 /**

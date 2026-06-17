@@ -58,12 +58,14 @@ export interface TodayState {
     restingHr: number | null;
     hrv: number | null;
     steps: number | null;
+    totalCalories: number | null;
   };
   baseline: {
     sleepMinutes: number | null;
     restingHr: number | null;
     hrv: number | null;
     steps: number | null;
+    totalCalories: number | null;
     daysWithData: number;
     status: "forming" | "ready";
   };

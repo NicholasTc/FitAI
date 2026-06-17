@@ -41,6 +41,7 @@ async function upsertSnapshot(
       hrv: snapshot.hrv,
       steps: snapshot.steps,
       activeMinutes: snapshot.activeMinutes,
+      totalCalories: snapshot.totalCalories,
     },
     update: {
       sleepMinutes: nz(snapshot.sleepMinutes),
@@ -52,6 +53,7 @@ async function upsertSnapshot(
       hrv: nz(snapshot.hrv),
       steps: nz(snapshot.steps),
       activeMinutes: nz(snapshot.activeMinutes),
+      totalCalories: nz(snapshot.totalCalories),
     },
   });
 }
@@ -163,5 +165,6 @@ export async function loadSnapshots(
     hrv: r.hrv,
     steps: r.steps,
     activeMinutes: r.activeMinutes,
+    totalCalories: r.totalCalories,
   }));
 }

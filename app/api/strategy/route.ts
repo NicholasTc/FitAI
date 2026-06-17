@@ -35,6 +35,7 @@ const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
   hrv: null,
   steps: null,
   activeMinutes: null,
+  totalCalories: null,
 });
 
 function isStrategyResponse(v: unknown): v is StrategyResponse {

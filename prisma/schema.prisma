@@ -27,8 +27,9 @@ model DailyHealthSnapshot {
   hrv       Float? // daily HRV ms
 
   // Activity
-  steps         Int? // step count
-  activeMinutes Int? // active minutes
+  steps         Int?   // step count
+  activeMinutes Int?   // active minutes
+  totalCalories Float? // total kcal burned (resting + active)
 
   syncedAt DateTime @default(now()) @updatedAt
 

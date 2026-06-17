@@ -1,8 +1,16 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import {
+  ChatThread,
+  ChatInput,
+  streamChatResponse,
+  type ChatMessage,
+  MAX_CHAT_TURNS,
+} from "@/components/AiChat";
 import { AppIcon, type FitAIIconName } from "@/components/AppIcon";
 import {
+  caloriesStatus,
   hrvStatus,
   rhrStatus,
   sleepStatus,
@@ -443,6 +451,88 @@ export default function TodayView({
     setActiveMetric(null);
   }, []);
 
+  // ─── Per-metric follow-up chat state ─────────────────────────────────────
+  const [metricChatHistory, setMetricChatHistory] = useState<
+    Partial<Record<MetricKey, ChatMessage[]>>
+  >({});
+  const [metricChatStreaming, setMetricChatStreaming] = useState<
+    Partial<Record<MetricKey, string>>
+  >({});
+  const [metricChatBusy, setMetricChatBusy] = useState(false);
+
+  const sendMetricChat = useCallback(
+    async (metric: MetricKey, userText: string) => {
+      const originalExplanation = explanations[metric];
+      if (!originalExplanation) return;
+
+      const prior = metricChatHistory[metric] ?? [];
+      const userMsg: ChatMessage = { role: "user", content: userText };
+      const newHistory = [...prior, userMsg];
+
+      setMetricChatHistory((prev) => ({ ...prev, [metric]: newHistory }));
+      setMetricChatBusy(true);
+      setMetricChatStreaming((prev) => ({ ...prev, [metric]: "" }));
+
+      const metricLabel = {
+        sleep: "Sleep duration and stages",
+        rhr: "Resting heart rate",
+        hrv: "Heart rate variability (HRV)",
+        steps: "Step count",
+        energy: "Subjective energy and check-in",
+      }[metric];
+
+      try {
+        await streamChatResponse(
+          {
+            date,
+            // We re-use the /api/chat route with action "explain" and pass the
+            // metric explanation as the originalResponse so the AI has full context.
+            action: "explain",
+            originalResponse: `Metric: ${metricLabel}\n\n${originalExplanation}`,
+            history: newHistory,
+          },
+          (accumulated) =>
+            setMetricChatStreaming((prev) => ({ ...prev, [metric]: accumulated })),
+          (full) => {
+            setMetricChatHistory((prev) => ({
+              ...prev,
+              [metric]: [
+                ...(prev[metric] ?? []),
+                { role: "assistant", content: full },
+              ],
+            }));
+            setMetricChatStreaming((prev) => ({ ...prev, [metric]: "" }));
+          },
+          (msg) => {
+            setMetricChatHistory((prev) => ({
+              ...prev,
+              [metric]: [
+                ...(prev[metric] ?? []),
+                { role: "assistant", content: `Error: ${msg}` },
+              ],
+            }));
+            setMetricChatStreaming((prev) => ({ ...prev, [metric]: "" }));
+          },
+        );
+      } catch (e) {
+        setMetricChatHistory((prev) => ({
+          ...prev,
+          [metric]: [
+            ...(prev[metric] ?? []),
+            {
+              role: "assistant",
+              content: `Network error: ${e instanceof Error ? e.message : "Unknown"}`,
+            },
+          ],
+        }));
+        setMetricChatStreaming((prev) => ({ ...prev, [metric]: "" }));
+      } finally {
+        setMetricChatBusy(false);
+      }
+    },
+    [explanations, metricChatHistory, date],
+  );
+
   // ─── Today's Limits
   const guardrails = computeGuardrails(dt, readiness.score, baseline.sleepMinutes, {
     wakeTime: data.settings.wakeTime,
@@ -464,6 +554,7 @@ export default function TodayView({
     date,
   );
   const stepsSt = stepsStatus({ steps: snapshot.steps }, date);
+  const calSt = caloriesStatus({ totalCalories: snapshot.totalCalories }, date);
 
   // Hero chip: show when today has incomplete wearable data (missing HRV but baseline has it)
   const missingHrvToday = snapshot.hrv === null && baseline.hrv !== null;
@@ -762,6 +853,25 @@ export default function TodayView({
             />
           )}
 
+          {/* Total Calories */}
+          <SignalCard
+            icon="calories"
+            iconClassName="text-[#e07a3c]"
+            label="Total Calories"
+            value={snapshot.totalCalories !== null ? snapshot.totalCalories.toLocaleString() : "—"}
+            sub={snapshot.totalCalories !== null ? " kcal" : undefined}
+            barPct={snapshot.totalCalories !== null ? Math.min((snapshot.totalCalories / 3000) * 100, 100) : undefined}
+            barColor="linear-gradient(90deg,#ffd580,#e07a3c)"
+            status={calSt}
+            active={activeMetric === "calories"}
+            onExplain={() => handleExplain("calories", {
+              totalCalories: snapshot.totalCalories,
+              avgCalories: baseline.totalCalories !== null ? Math.round(baseline.totalCalories) : null,
+              deltaCalories: snapshot.totalCalories !== null && baseline.totalCalories !== null
+                ? Math.round(snapshot.totalCalories - baseline.totalCalories) : null,
+            })}
+          />
+
         </div>
       </div>
 
@@ -778,6 +888,7 @@ export default function TodayView({
                   hrv: "HRV Explanation",
                   steps: "Steps Explanation",
                   energy: "Energy & Check-in Explanation",
+                  calories: "Total Calories Explanation",
                 }[activeMetric]}
               </h3>
             </div>
@@ -795,7 +906,20 @@ export default function TodayView({
               Analysing your {activeMetric === "rhr" ? "resting HR" : activeMetric}…
             </div>
           ) : explanations[activeMetric] ? (
-            <ExplainSections text={explanations[activeMetric]!} />
+            <>
+              <ExplainSections text={explanations[activeMetric]!} />
+              <ChatThread
+                messages={metricChatHistory[activeMetric] ?? []}
+                streamingText={metricChatStreaming[activeMetric] ?? ""}
+              />
+              <ChatInput
+                onSend={(text) => sendMetricChat(activeMetric, text)}
+                disabled={metricChatBusy || explaining}
+                atLimit={
+                  (metricChatHistory[activeMetric]?.filter((m) => m.role === "user").length ?? 0) >= MAX_CHAT_TURNS
+                }
+              />
+            </>
           ) : null}
         </div>
       )}

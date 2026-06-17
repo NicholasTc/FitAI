@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     hrv: null,
     steps: null,
     activeMinutes: null,
+  totalCalories: null,
   };
 
   const result = computeBaseline(history, today);

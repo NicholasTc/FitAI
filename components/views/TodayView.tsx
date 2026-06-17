@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { IoReorderTwoOutline } from "react-icons/io5";
 import {
   ChatThread,
   ChatInput,
@@ -238,6 +239,8 @@ interface SignalProps {
   /** Whether this card's explanation is currently active */
   active?: boolean;
   onExplain?: () => void;
+  /** When true, shows drag handle instead of ? button */
+  dragHandle?: boolean;
 }
 
 function SignalCard({
@@ -254,6 +257,7 @@ function SignalCard({
   stagesBar,
   active,
   onExplain,
+  dragHandle,
 }: SignalProps) {
   // When status text is provided, render an explanatory empty state
   if (status) {
@@ -261,9 +265,14 @@ function SignalCard({
       <div className="rounded-[16px] border border-[rgba(148,162,218,0.14)] bg-white p-4 shadow-[0_2px_14px_rgba(80,100,180,0.06)]">
         <div className="mb-2 flex items-center gap-2">
           <AppIcon name={icon} size={18} className={iconClassName ?? "text-[#63708f]"} />
-          <span className="text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
+          <span className="flex-1 text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
             {label}
           </span>
+          {dragHandle && (
+            <span className="flex h-5 w-5 items-center justify-center text-[#c0c8e0]">
+              <IoReorderTwoOutline size={16} />
+            </span>
+          )}
         </div>
         <p
           className="font-[family-name:var(--font-display)] text-[17px] font-semibold leading-tight"
@@ -286,7 +295,11 @@ function SignalCard({
         <span className="flex-1 text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
           {label}
         </span>
-        {onExplain && (
+        {dragHandle ? (
+          <span className="flex h-5 w-5 items-center justify-center text-[#c0c8e0]">
+            <IoReorderTwoOutline size={16} />
+          </span>
+        ) : onExplain ? (
           <button
             onClick={onExplain}
             title="Explain this metric"
@@ -298,7 +311,7 @@ function SignalCard({
           >
             ?
           </button>
-        )}
+        ) : null}
       </div>
       <p className="font-[family-name:var(--font-display)] text-[20px] font-bold leading-tight text-[#1b2040]">
         {value}
@@ -394,6 +407,12 @@ const SENTIMENT_STYLES = {
     label: "Neutral",
   },
 };
+
+// ─── Signal card ordering ─────────────────────────────────────────────────────
+
+type SignalCardId = "sleep" | "rhr" | "hrv" | "energy" | "steps" | "calories";
+const DEFAULT_CARD_ORDER: SignalCardId[] = ["sleep", "rhr", "hrv", "energy", "steps", "calories"];
+const SIGNAL_ORDER_KEY = "fitai-signal-order";
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
@@ -540,6 +559,61 @@ export default function TodayView({
     lightWorkLabel: data.settings.lightWorkLabel,
   });
 
+  // ─── Card order (persisted to localStorage) ───────────────────────────────
+  const [cardOrder, setCardOrder] = useState<SignalCardId[]>(DEFAULT_CARD_ORDER);
+  const [isReordering, setIsReordering] = useState(false);
+  const dragCardRef = useRef<SignalCardId | null>(null);
+  const [dragOverCard, setDragOverCard] = useState<SignalCardId | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SIGNAL_ORDER_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as SignalCardId[];
+        // Validate all known IDs are present (handles new cards added later)
+        const isValid =
+          DEFAULT_CARD_ORDER.every((id) => parsed.includes(id)) &&
+          parsed.length === DEFAULT_CARD_ORDER.length;
+        if (isValid) setCardOrder(parsed);
+      }
+    } catch {
+      // localStorage unavailable — use default
+    }
+  }, []);
+
+  const handleDragStart = useCallback((id: SignalCardId) => {
+    dragCardRef.current = id;
+  }, []);
+
+  const handleDragOver = useCallback((id: SignalCardId) => {
+    if (!dragCardRef.current || dragCardRef.current === id) return;
+    setDragOverCard(id);
+  }, []);
+
+  const handleDrop = useCallback(
+    (targetId: SignalCardId) => {
+      const sourceId = dragCardRef.current;
+      if (!sourceId || sourceId === targetId) return;
+      setCardOrder((prev) => {
+        const next = [...prev];
+        const fromIdx = next.indexOf(sourceId);
+        const toIdx = next.indexOf(targetId);
+        next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, sourceId);
+        try { localStorage.setItem(SIGNAL_ORDER_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      dragCardRef.current = null;
+      setDragOverCard(null);
+    },
+    [],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    dragCardRef.current = null;
+    setDragOverCard(null);
+  }, []);
+
   // ─── Metric status (explains null values)
   const sleepSt = sleepStatus(
     { sleepMinutes: snapshot.sleepMinutes, sleepDeepMin: snapshot.sleepDeepMin, sleepRemMin: snapshot.sleepRemMin },
@@ -612,6 +686,19 @@ export default function TodayView({
     }
   }
 
+  // ─── Steps signal (trend only on past days — today is partial)
+  const isToday = date === new Date().toLocaleDateString("en-CA");
+  let stepsTrend: string | undefined;
+  let stepsTrendUp: boolean | undefined;
+  if (!isToday && snapshot.steps !== null && baseline.steps !== null) {
+    const delta = snapshot.steps - baseline.steps;
+    if (Math.abs(delta) > 500) {
+      const sign = delta > 0 ? "↑ " : "↓ ";
+      stepsTrend = `${sign}${Math.abs(Math.round(delta)).toLocaleString()} vs avg`;
+      stepsTrendUp = delta > 0;
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       {/* Baseline forming banner */}
@@ -656,9 +743,9 @@ export default function TodayView({
         <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:gap-8 sm:p-8">
           {/* Text */}
           <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
-                className="h-2 w-2 rounded-full"
+                className="h-2 w-2 rounded-full shrink-0"
                 style={{ background: colors.text }}
               />
               <span
@@ -666,6 +753,15 @@ export default function TodayView({
                 style={{ color: colors.text }}
               >
                 {checkIn ? "Morning check-in complete" : "Objective readiness"}
+              </span>
+              {/* Phase 1b: confidence indicator */}
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                readiness.confidence === "high"   ? "bg-[#ecfaf6] text-[#009e83]" :
+                readiness.confidence === "medium" ? "bg-[#fef9ec] text-[#c87a36]" :
+                                                    "bg-[#f4f0ff] text-[#7850e2]"
+              }`}>
+                {readiness.confidence === "high" ? "High confidence" :
+                 readiness.confidence === "medium" ? "Partial data" : "Low data"}
               </span>
             </div>
             <h2 className="font-[family-name:var(--font-display)] text-[26px] font-bold leading-tight text-[#1b2040]">
@@ -722,100 +818,96 @@ export default function TodayView({
       <LimitsCard {...guardrails} />
 
       {/* Key signals */}
-      <div>
-        <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
-          Key signals
-        </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {/* Sleep */}
-          {(() => {
-            const hasStages =
-              snapshot.sleepDeepMin !== null &&
-              snapshot.sleepRemMin !== null &&
-              snapshot.sleepLightMin !== null &&
-              snapshot.sleepMinutes !== null;
-            const stages: SleepStagesBar | null = hasStages
-              ? {
-                  deepMin: snapshot.sleepDeepMin!,
-                  remMin: snapshot.sleepRemMin!,
-                  lightMin: snapshot.sleepLightMin!,
-                  totalMin: snapshot.sleepMinutes!,
-                }
-              : null;
-            return (
-              <SignalCard
-                icon="sleep"
-                iconClassName="text-[#4a7df6]"
-                label="Sleep"
-                value={sleep ? `${sleep.h}h` : "—"}
-                sub={sleep ? `${sleep.min}m` : undefined}
-                barPct={!stages && !sleepSt ? sleepPct : undefined}
-                barColor="linear-gradient(90deg,#9fefdf,#4a7df6)"
-                trend={!sleepSt ? sleepTrend : undefined}
-                trendUp={sleepTrendUp}
-                status={snapshot.sleepMinutes === null ? sleepSt : null}
-                stagesBar={stages}
-                active={activeMetric === "sleep"}
-                onExplain={() => handleExplain("sleep", {
-                  sleepMinutes: snapshot.sleepMinutes,
-                  sleepHours: sleep?.h ?? null,
-                  sleepMins: sleep?.min ?? null,
-                  deepMin: snapshot.sleepDeepMin,
-                  remMin: snapshot.sleepRemMin,
-                  lightMin: snapshot.sleepLightMin,
-                  efficiency: snapshot.sleepEfficiency,
-                  avgMinutes: baseline.sleepMinutes !== null ? Math.round(baseline.sleepMinutes) : null,
-                  deltaMinutes: snapshot.sleepMinutes !== null && baseline.sleepMinutes !== null
-                    ? Math.round(snapshot.sleepMinutes - baseline.sleepMinutes) : null,
-                })}
-              />
-            );
-          })()}
+      {(() => {
+        const hasStages =
+          snapshot.sleepDeepMin !== null &&
+          snapshot.sleepRemMin !== null &&
+          snapshot.sleepLightMin !== null &&
+          snapshot.sleepMinutes !== null;
+        const stages: SleepStagesBar | null = hasStages
+          ? {
+              deepMin: snapshot.sleepDeepMin!,
+              remMin: snapshot.sleepRemMin!,
+              lightMin: snapshot.sleepLightMin!,
+              totalMin: snapshot.sleepMinutes!,
+            }
+          : null;
 
-          {/* RHR */}
-          <SignalCard
-            icon="heart"
-            iconClassName="text-[#e05f3c]"
-            label="Resting HR"
-            value={fmt(snapshot.restingHr, 0)}
-            sub={snapshot.restingHr !== null ? " bpm" : undefined}
-            barPct={snapshot.restingHr !== null ? Math.max(0, 100 - ((snapshot.restingHr - 40) / 60) * 100) : undefined}
-            barColor="linear-gradient(90deg,#ffc6a8,#e05f3c)"
-            trend={rhrTrend}
-            trendUp={rhrTrendUp}
-            status={rhrSt}
-            active={activeMetric === "rhr"}
-            onExplain={() => handleExplain("rhr", {
-              rhr: snapshot.restingHr,
-              avgRhr: baseline.restingHr !== null ? Math.round(baseline.restingHr) : null,
-              deltaRhr: snapshot.restingHr !== null && baseline.restingHr !== null
-                ? Math.round(snapshot.restingHr - baseline.restingHr) : null,
-            })}
-          />
-
-          {/* HRV */}
-          <SignalCard
-            icon="hrv"
-            iconClassName="text-[#7850e2]"
-            label="HRV"
-            value={fmt(snapshot.hrv, 1)}
-            sub={snapshot.hrv !== null ? " ms" : undefined}
-            barPct={snapshot.hrv !== null ? Math.min((snapshot.hrv / 120) * 100, 100) : undefined}
-            barColor="linear-gradient(90deg,#a0d8ff,#4a7df6)"
-            trend={hrvTrend}
-            trendUp={hrvTrendUp}
-            status={hrvSt}
-            active={activeMetric === "hrv"}
-            onExplain={() => handleExplain("hrv", {
-              hrv: snapshot.hrv !== null ? snapshot.hrv.toFixed(1) : null,
-              avgHrv: baseline.hrv !== null ? baseline.hrv.toFixed(1) : null,
-              deltaHrv: snapshot.hrv !== null && baseline.hrv !== null
-                ? (snapshot.hrv - baseline.hrv).toFixed(1) : null,
-            })}
-          />
-
-          {/* Check-in composite or Steps fallback */}
-          {checkIn ? (
+        const cardMap: Record<SignalCardId, React.ReactNode> = {
+          sleep: (
+            <SignalCard
+              icon="sleep"
+              iconClassName="text-[#4a7df6]"
+              label="Sleep"
+              value={sleep ? `${sleep.h}h` : "—"}
+              sub={sleep ? `${sleep.min}m` : undefined}
+              barPct={!stages && !sleepSt ? sleepPct : undefined}
+              barColor="linear-gradient(90deg,#9fefdf,#4a7df6)"
+              trend={!sleepSt ? sleepTrend : undefined}
+              trendUp={sleepTrendUp}
+              status={snapshot.sleepMinutes === null ? sleepSt : null}
+              stagesBar={stages}
+              active={activeMetric === "sleep"}
+              dragHandle={isReordering}
+              onExplain={() => handleExplain("sleep", {
+                sleepMinutes: snapshot.sleepMinutes,
+                sleepHours: sleep?.h ?? null,
+                sleepMins: sleep?.min ?? null,
+                deepMin: snapshot.sleepDeepMin,
+                remMin: snapshot.sleepRemMin,
+                lightMin: snapshot.sleepLightMin,
+                efficiency: snapshot.sleepEfficiency,
+                avgMinutes: baseline.sleepMinutes !== null ? Math.round(baseline.sleepMinutes) : null,
+                deltaMinutes: snapshot.sleepMinutes !== null && baseline.sleepMinutes !== null
+                  ? Math.round(snapshot.sleepMinutes - baseline.sleepMinutes) : null,
+              })}
+            />
+          ),
+          rhr: (
+            <SignalCard
+              icon="heart"
+              iconClassName="text-[#e05f3c]"
+              label="Resting HR"
+              value={fmt(snapshot.restingHr, 0)}
+              sub={snapshot.restingHr !== null ? " bpm" : undefined}
+              barPct={snapshot.restingHr !== null ? Math.max(0, 100 - ((snapshot.restingHr - 40) / 60) * 100) : undefined}
+              barColor="linear-gradient(90deg,#ffc6a8,#e05f3c)"
+              trend={rhrTrend}
+              trendUp={rhrTrendUp}
+              status={rhrSt}
+              active={activeMetric === "rhr"}
+              dragHandle={isReordering}
+              onExplain={() => handleExplain("rhr", {
+                rhr: snapshot.restingHr,
+                avgRhr: baseline.restingHr !== null ? Math.round(baseline.restingHr) : null,
+                deltaRhr: snapshot.restingHr !== null && baseline.restingHr !== null
+                  ? Math.round(snapshot.restingHr - baseline.restingHr) : null,
+              })}
+            />
+          ),
+          hrv: (
+            <SignalCard
+              icon="hrv"
+              iconClassName="text-[#7850e2]"
+              label="HRV"
+              value={fmt(snapshot.hrv, 1)}
+              sub={snapshot.hrv !== null ? " ms" : undefined}
+              barPct={snapshot.hrv !== null ? Math.min((snapshot.hrv / 120) * 100, 100) : undefined}
+              barColor="linear-gradient(90deg,#a0d8ff,#4a7df6)"
+              trend={hrvTrend}
+              trendUp={hrvTrendUp}
+              status={hrvSt}
+              active={activeMetric === "hrv"}
+              dragHandle={isReordering}
+              onExplain={() => handleExplain("hrv", {
+                hrv: snapshot.hrv !== null ? snapshot.hrv.toFixed(1) : null,
+                avgHrv: baseline.hrv !== null ? baseline.hrv.toFixed(1) : null,
+                deltaHrv: snapshot.hrv !== null && baseline.hrv !== null
+                  ? (snapshot.hrv - baseline.hrv).toFixed(1) : null,
+              })}
+            />
+          ),
+          energy: checkIn ? (
             <SignalCard
               icon="energy"
               iconClassName="text-[#f6a235]"
@@ -827,6 +919,7 @@ export default function TodayView({
               trend={checkIn.stressLevel >= 7 ? "↑ High stress today" : undefined}
               trendUp={false}
               active={activeMetric === "energy"}
+              dragHandle={isReordering}
               onExplain={() => handleExplain("energy", {
                 energy: checkIn.energyLevel,
                 stress: checkIn.stressLevel,
@@ -836,44 +929,94 @@ export default function TodayView({
             />
           ) : (
             <SignalCard
+              icon="energy"
+              iconClassName="text-[#f6a235]"
+              label="Energy"
+              value="—"
+              status={{ label: "No check-in", sub: "Complete morning check-in to see your energy score", isPending: true }}
+              dragHandle={isReordering}
+            />
+          ),
+          steps: (
+            <SignalCard
               icon="steps"
               iconClassName="text-[#009e83]"
               label="Steps"
               value={snapshot.steps !== null ? snapshot.steps.toLocaleString() : "—"}
-              sub={snapshot.steps !== null && date === new Date().toLocaleDateString("en-CA") ? " so far" : undefined}
+              sub={snapshot.steps !== null && isToday ? " so far" : undefined}
               barPct={snapshot.steps !== null ? Math.min((snapshot.steps / 10000) * 100, 100) : undefined}
               barColor="linear-gradient(90deg,#9fefdf,#009e83)"
-              status={stepsSt}
+              trend={stepsTrend}
+              trendUp={stepsTrendUp}
+              status={snapshot.steps === null ? stepsSt : null}
               active={activeMetric === "steps"}
+              dragHandle={isReordering}
               onExplain={() => handleExplain("steps", {
                 steps: snapshot.steps,
                 avgSteps: baseline.steps !== null ? Math.round(baseline.steps) : null,
                 timeOfDay: `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}`,
               })}
             />
-          )}
+          ),
+          calories: (
+            <SignalCard
+              icon="calories"
+              iconClassName="text-[#e07a3c]"
+              label="Total Calories"
+              value={snapshot.totalCalories !== null ? snapshot.totalCalories.toLocaleString() : "—"}
+              sub={snapshot.totalCalories !== null ? " kcal" : undefined}
+              barPct={snapshot.totalCalories !== null ? Math.min((snapshot.totalCalories / 3000) * 100, 100) : undefined}
+              barColor="linear-gradient(90deg,#ffd580,#e07a3c)"
+              status={calSt}
+              active={activeMetric === "calories"}
+              dragHandle={isReordering}
+              onExplain={() => handleExplain("calories", {
+                totalCalories: snapshot.totalCalories,
+                avgCalories: baseline.totalCalories !== null ? Math.round(baseline.totalCalories) : null,
+                deltaCalories: snapshot.totalCalories !== null && baseline.totalCalories !== null
+                  ? Math.round(snapshot.totalCalories - baseline.totalCalories) : null,
+              })}
+            />
+          ),
+        };
 
-          {/* Total Calories */}
-          <SignalCard
-            icon="calories"
-            iconClassName="text-[#e07a3c]"
-            label="Total Calories"
-            value={snapshot.totalCalories !== null ? snapshot.totalCalories.toLocaleString() : "—"}
-            sub={snapshot.totalCalories !== null ? " kcal" : undefined}
-            barPct={snapshot.totalCalories !== null ? Math.min((snapshot.totalCalories / 3000) * 100, 100) : undefined}
-            barColor="linear-gradient(90deg,#ffd580,#e07a3c)"
-            status={calSt}
-            active={activeMetric === "calories"}
-            onExplain={() => handleExplain("calories", {
-              totalCalories: snapshot.totalCalories,
-              avgCalories: baseline.totalCalories !== null ? Math.round(baseline.totalCalories) : null,
-              deltaCalories: snapshot.totalCalories !== null && baseline.totalCalories !== null
-                ? Math.round(snapshot.totalCalories - baseline.totalCalories) : null,
-            })}
-          />
-
-        </div>
-      </div>
+        return (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
+                Key signals
+              </p>
+              <button
+                onClick={() => setIsReordering((r) => !r)}
+                className={`text-[11.5px] font-medium transition ${
+                  isReordering
+                    ? "text-[#4a7df6]"
+                    : "text-[#9ea8c4] hover:text-[#63708f]"
+                }`}
+              >
+                {isReordering ? "Done" : "Reorder"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {cardOrder.map((id) => (
+                <div
+                  key={id}
+                  draggable={isReordering}
+                  onDragStart={() => handleDragStart(id)}
+                  onDragOver={(e) => { e.preventDefault(); handleDragOver(id); }}
+                  onDrop={(e) => { e.preventDefault(); handleDrop(id); }}
+                  onDragEnd={handleDragEnd}
+                  className={`transition-all duration-150 ${
+                    isReordering ? "cursor-grab active:cursor-grabbing" : ""
+                  } ${dragOverCard === id ? "rounded-[16px] ring-2 ring-[#4a7df6] ring-offset-1" : ""}`}
+                >
+                  {cardMap[id]}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Metric explanation panel */}
       {activeMetric && (

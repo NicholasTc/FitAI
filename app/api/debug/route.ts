@@ -99,19 +99,19 @@ export async function GET() {
     rawCaloriesError = e instanceof Error ? e.message : String(e);
   }
 
-  // Load stored snapshots from DB.
+  // Load stored snapshots from DB (28-day window for full baseline visibility).
   const storedRows = userId
     ? await db.dailyHealthSnapshot.findMany({
         where: { userId },
         orderBy: { date: "desc" },
-        take: 7,
+        take: 28,
       })
     : [];
 
   // Compute what the dashboard would show from stored data.
   let computedBaseline = null;
   if (userId) {
-    const history = await loadSnapshots(userId, localDate);
+    const history = await loadSnapshots(userId, localDate, 28);
     const today = history.find((s) => s.date === localDate) ?? {
       date: localDate,
       sleepMinutes: null, sleepEfficiency: null, sleepDeepMin: null,
@@ -120,6 +120,15 @@ export async function GET() {
     };
     computedBaseline = computeBaseline(history, today);
   }
+
+  // Phase 0: recent score audit rows (last 14 days)
+  const recentAudit = userId
+    ? await db.scoreAudit.findMany({
+        where: { userId },
+        orderBy: { date: "desc" },
+        take: 14,
+      })
+    : [];
 
   return Response.json({
     session: {
@@ -139,5 +148,6 @@ export async function GET() {
     rawCaloriesError,
     storedRows,
     computedBaseline,
+    recentAudit,
   });
 }

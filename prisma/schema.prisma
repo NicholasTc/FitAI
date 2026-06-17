@@ -89,6 +89,26 @@ model UserSettings {
   updatedAt DateTime @updatedAt
 }
 
+// Phase 0: score audit — one row per user per day.
+// Records the score, breakdown, and scoring method so accuracy improvements
+// can be measured over historical days rather than guessed at.
+model ScoreAudit {
+  id     String @id @default(cuid())
+  userId String
+  date   String // YYYY-MM-DD
+
+  score            Float
+  dayType          String  // "push" | "maintain" | "recover"
+  method           String  // "legacy" | "z-score" | "load" | "z-score+load"
+  dataCompleteness Float   // 0–1 fraction of key signals that are real data
+  breakdown        Json    // ScoreBreakdown object
+
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
 // Phase 2B: morning check-in — defined now so DB is ready.
 model CheckIn {
   id     String @id @default(cuid())

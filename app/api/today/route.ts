@@ -11,6 +11,8 @@
 import { auth } from "@/lib/auth";
 import { computeBaseline } from "@/lib/baseline";
 import { computeReadiness } from "@/lib/readiness";
+import { computeTrainingLoad } from "@/lib/trainingLoad";
+import { recordScoreAudit } from "@/lib/scoreAudit";
 import {
   loadSnapshots,
   syncUserSnapshots,
@@ -66,13 +68,13 @@ export async function GET(request: NextRequest) {
     ]);
   }
 
-  // 2. Load history + today's snapshot + last workout
+  // 2. Load history (28 days for stable z-score baselines) + today + last workout
   const windowStart2 = new Date(date);
-  windowStart2.setDate(windowStart2.getDate() - 6);
+  windowStart2.setDate(windowStart2.getDate() - 27); // 28-day window
   const sinceDate = windowStart2.toISOString().slice(0, 10);
 
   const [history, lastWorkout] = await Promise.all([
-    loadSnapshots(session.user.id, date),
+    loadSnapshots(session.user.id, date, 28), // Phase 2: up to 28 days
     loadLastWorkout(session.user.id, sinceDate),
   ]);
   const today = history.find((s) => s.date === date) ?? NULL_SNAPSHOT(date);
@@ -105,10 +107,20 @@ export async function GET(request: NextRequest) {
       }
     : null;
 
-  // 4. Compute readiness
-  const readiness = computeReadiness(today, baseline, checkIn);
+  // 4. Compute training load (Phase 3) from prior history (exclude today)
+  const priorHistory = history.filter((s) => s.date !== date);
+  const trainingLoad = computeTrainingLoad(priorHistory);
 
-  // 5. Build response
+  // 5. Compute readiness with all Phase 1–3 options
+  const readiness = computeReadiness(today, baseline, checkIn, {
+    date,
+    trainingLoad,
+  });
+
+  // Phase 0: persist score audit (fire-and-forget — never blocks the response)
+  void recordScoreAudit(session.user.id, date, readiness);
+
+  // 6. Build response
   const state: TodayState = {
     date,
     readiness,

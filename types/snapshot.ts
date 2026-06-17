@@ -20,8 +20,10 @@ export interface DailySnapshot {
   totalCalories: number | null; // kcal
 }
 
-// Seven-day rolling baselines. null when fewer than 2 data points available.
+// Seven-day (or longer) rolling baselines.
+// null when fewer than 2 data points available for a given metric.
 export interface WeeklyBaseline {
+  // Rolling means
   sleepMinutes: number | null;
   sleepEfficiency: number | null;
   restingHr: number | null;
@@ -30,7 +32,17 @@ export interface WeeklyBaseline {
   activeMinutes: number | null;
   totalCalories: number | null;
 
-  // How many days have data (out of the last 7 attempted).
+  // Phase 2: per-metric standard deviations + sample counts.
+  // SD is null when fewer than 3 valid observations exist.
+  // Gates z-score scoring: only activates when n >= 14 AND sd is non-trivial.
+  sdHrv: number | null;
+  sdRestingHr: number | null;
+  sdSleepMinutes: number | null;
+  nHrv: number;          // count of valid HRV observations
+  nRestingHr: number;    // count of valid RHR observations
+  nSleepMinutes: number; // count of valid sleep observations
+
+  // How many days have ANY data (out of the loaded window).
   daysWithData: number;
   // "forming" when daysWithData < 5, "ready" when >= 5.
   status: "forming" | "ready";

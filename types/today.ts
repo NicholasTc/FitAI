@@ -13,6 +13,48 @@ export interface CheckInData {
   motivation: number;    // 1–10
 }
 
+// Phase 0: per-component score breakdown stored in ScoreAudit and passed through UI.
+export interface ScoreBreakdown {
+  subjective: {
+    score: number;
+    maxPts: number;
+    present: boolean;
+  } | null;
+  sleep: {
+    score: number;
+    maxPts: number;
+    dataSource: "real" | "neutral";
+    minutes: number | null;
+    stageBonus: number; // Phase 1c adjustment from deep+REM proportion
+  };
+  hrv: {
+    score: number;
+    maxPts: number;
+    dataSource: "real" | "neutral";
+    method: "z-score" | "ratio" | "neutral"; // Phase 2: z-score when ≥14 days
+    z?: number; // z-score value when method === "z-score"
+  };
+  restingHr: {
+    score: number;
+    maxPts: number;
+    dataSource: "real" | "neutral";
+    method: "z-score" | "ratio" | "neutral";
+    z?: number;
+  };
+  activity: {
+    score: number;
+    maxPts: number;
+    timeOfDayAdjusted: boolean; // Phase 1a: true when same-day steps treated as neutral
+    stepsSource: "real" | "neutral";
+    efficiencySource: "real" | "neutral";
+  };
+  trainingLoad: {
+    modifier: number;                             // ±10 Phase 3
+    method: "acute-chronic" | "insufficient-data";
+    ratio: number | null;                         // acute/chronic ratio
+  };
+}
+
 export interface ReadinessResult {
   score: number;      // 0–100
   dayType: DayType;
@@ -21,6 +63,10 @@ export interface ReadinessResult {
   subjectiveScore: number;  // 0–50
   objectiveScore: number;   // 0–50
   hasCheckIn: boolean;
+  // Phase 0+: accuracy tracking fields
+  confidence: "high" | "medium" | "low"; // based on how many real signals are present
+  dataCompleteness: number;               // 0–1 fraction of key signals that are real data
+  breakdown: ScoreBreakdown;              // per-component contribution
 }
 
 export interface ReadinessReason {

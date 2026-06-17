@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { IoReorderTwoOutline } from "react-icons/io5";
 import {
   ChatThread,
   ChatInput,
@@ -238,6 +239,8 @@ interface SignalProps {
   /** Whether this card's explanation is currently active */
   active?: boolean;
   onExplain?: () => void;
+  /** When true, shows drag handle instead of ? button */
+  dragHandle?: boolean;
 }
 
 function SignalCard({
@@ -254,6 +257,7 @@ function SignalCard({
   stagesBar,
   active,
   onExplain,
+  dragHandle,
 }: SignalProps) {
   // When status text is provided, render an explanatory empty state
   if (status) {
@@ -261,9 +265,14 @@ function SignalCard({
       <div className="rounded-[16px] border border-[rgba(148,162,218,0.14)] bg-white p-4 shadow-[0_2px_14px_rgba(80,100,180,0.06)]">
         <div className="mb-2 flex items-center gap-2">
           <AppIcon name={icon} size={18} className={iconClassName ?? "text-[#63708f]"} />
-          <span className="text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
+          <span className="flex-1 text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
             {label}
           </span>
+          {dragHandle && (
+            <span className="flex h-5 w-5 items-center justify-center text-[#c0c8e0]">
+              <IoReorderTwoOutline size={16} />
+            </span>
+          )}
         </div>
         <p
           className="font-[family-name:var(--font-display)] text-[17px] font-semibold leading-tight"
@@ -286,7 +295,11 @@ function SignalCard({
         <span className="flex-1 text-[11.5px] font-semibold uppercase tracking-wide text-[#9ea8c4]">
           {label}
         </span>
-        {onExplain && (
+        {dragHandle ? (
+          <span className="flex h-5 w-5 items-center justify-center text-[#c0c8e0]">
+            <IoReorderTwoOutline size={16} />
+          </span>
+        ) : onExplain ? (
           <button
             onClick={onExplain}
             title="Explain this metric"
@@ -298,7 +311,7 @@ function SignalCard({
           >
             ?
           </button>
-        )}
+        ) : null}
       </div>
       <p className="font-[family-name:var(--font-display)] text-[20px] font-bold leading-tight text-[#1b2040]">
         {value}
@@ -394,6 +407,12 @@ const SENTIMENT_STYLES = {
     label: "Neutral",
   },
 };
+
+// ─── Signal card ordering ─────────────────────────────────────────────────────
+
+type SignalCardId = "sleep" | "rhr" | "hrv" | "energy" | "steps" | "calories";
+const DEFAULT_CARD_ORDER: SignalCardId[] = ["sleep", "rhr", "hrv", "energy", "steps", "calories"];
+const SIGNAL_ORDER_KEY = "fitai-signal-order";
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
@@ -656,9 +675,9 @@ export default function TodayView({
         <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:gap-8 sm:p-8">
           {/* Text */}
           <div className="flex-1 space-y-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
-                className="h-2 w-2 rounded-full"
+                className="h-2 w-2 rounded-full shrink-0"
                 style={{ background: colors.text }}
               />
               <span
@@ -666,6 +685,15 @@ export default function TodayView({
                 style={{ color: colors.text }}
               >
                 {checkIn ? "Morning check-in complete" : "Objective readiness"}
+              </span>
+              {/* Phase 1b: confidence indicator */}
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                readiness.confidence === "high"   ? "bg-[#ecfaf6] text-[#009e83]" :
+                readiness.confidence === "medium" ? "bg-[#fef9ec] text-[#c87a36]" :
+                                                    "bg-[#f4f0ff] text-[#7850e2]"
+              }`}>
+                {readiness.confidence === "high" ? "High confidence" :
+                 readiness.confidence === "medium" ? "Partial data" : "Low data"}
               </span>
             </div>
             <h2 className="font-[family-name:var(--font-display)] text-[26px] font-bold leading-tight text-[#1b2040]">

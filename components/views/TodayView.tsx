@@ -559,6 +559,61 @@ export default function TodayView({
     lightWorkLabel: data.settings.lightWorkLabel,
   });
 
+  // ─── Card order (persisted to localStorage) ───────────────────────────────
+  const [cardOrder, setCardOrder] = useState<SignalCardId[]>(DEFAULT_CARD_ORDER);
+  const [isReordering, setIsReordering] = useState(false);
+  const dragCardRef = useRef<SignalCardId | null>(null);
+  const [dragOverCard, setDragOverCard] = useState<SignalCardId | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SIGNAL_ORDER_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as SignalCardId[];
+        // Validate all known IDs are present (handles new cards added later)
+        const isValid =
+          DEFAULT_CARD_ORDER.every((id) => parsed.includes(id)) &&
+          parsed.length === DEFAULT_CARD_ORDER.length;
+        if (isValid) setCardOrder(parsed);
+      }
+    } catch {
+      // localStorage unavailable — use default
+    }
+  }, []);
+
+  const handleDragStart = useCallback((id: SignalCardId) => {
+    dragCardRef.current = id;
+  }, []);
+
+  const handleDragOver = useCallback((id: SignalCardId) => {
+    if (!dragCardRef.current || dragCardRef.current === id) return;
+    setDragOverCard(id);
+  }, []);
+
+  const handleDrop = useCallback(
+    (targetId: SignalCardId) => {
+      const sourceId = dragCardRef.current;
+      if (!sourceId || sourceId === targetId) return;
+      setCardOrder((prev) => {
+        const next = [...prev];
+        const fromIdx = next.indexOf(sourceId);
+        const toIdx = next.indexOf(targetId);
+        next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, sourceId);
+        try { localStorage.setItem(SIGNAL_ORDER_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      dragCardRef.current = null;
+      setDragOverCard(null);
+    },
+    [],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    dragCardRef.current = null;
+    setDragOverCard(null);
+  }, []);
+
   // ─── Metric status (explains null values)
   const sleepSt = sleepStatus(
     { sleepMinutes: snapshot.sleepMinutes, sleepDeepMin: snapshot.sleepDeepMin, sleepRemMin: snapshot.sleepRemMin },
@@ -628,6 +683,19 @@ export default function TodayView({
       const sign = delta < 0 ? "↓ " : "↑ "; // lower RHR = better
       rhrTrend = `${sign}${Math.abs(Math.round(delta))}bpm vs avg ${Math.round(baseline.restingHr)}bpm`;
       rhrTrendUp = delta < 0; // improvement if down
+    }
+  }
+
+  // ─── Steps signal (trend only on past days — today is partial)
+  const isToday = date === new Date().toLocaleDateString("en-CA");
+  let stepsTrend: string | undefined;
+  let stepsTrendUp: boolean | undefined;
+  if (!isToday && snapshot.steps !== null && baseline.steps !== null) {
+    const delta = snapshot.steps - baseline.steps;
+    if (Math.abs(delta) > 500) {
+      const sign = delta > 0 ? "↑ " : "↓ ";
+      stepsTrend = `${sign}${Math.abs(Math.round(delta)).toLocaleString()} vs avg`;
+      stepsTrendUp = delta > 0;
     }
   }
 
@@ -750,100 +818,96 @@ export default function TodayView({
       <LimitsCard {...guardrails} />
 
       {/* Key signals */}
-      <div>
-        <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
-          Key signals
-        </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {/* Sleep */}
-          {(() => {
-            const hasStages =
-              snapshot.sleepDeepMin !== null &&
-              snapshot.sleepRemMin !== null &&
-              snapshot.sleepLightMin !== null &&
-              snapshot.sleepMinutes !== null;
-            const stages: SleepStagesBar | null = hasStages
-              ? {
-                  deepMin: snapshot.sleepDeepMin!,
-                  remMin: snapshot.sleepRemMin!,
-                  lightMin: snapshot.sleepLightMin!,
-                  totalMin: snapshot.sleepMinutes!,
-                }
-              : null;
-            return (
-              <SignalCard
-                icon="sleep"
-                iconClassName="text-[#4a7df6]"
-                label="Sleep"
-                value={sleep ? `${sleep.h}h` : "—"}
-                sub={sleep ? `${sleep.min}m` : undefined}
-                barPct={!stages && !sleepSt ? sleepPct : undefined}
-                barColor="linear-gradient(90deg,#9fefdf,#4a7df6)"
-                trend={!sleepSt ? sleepTrend : undefined}
-                trendUp={sleepTrendUp}
-                status={snapshot.sleepMinutes === null ? sleepSt : null}
-                stagesBar={stages}
-                active={activeMetric === "sleep"}
-                onExplain={() => handleExplain("sleep", {
-                  sleepMinutes: snapshot.sleepMinutes,
-                  sleepHours: sleep?.h ?? null,
-                  sleepMins: sleep?.min ?? null,
-                  deepMin: snapshot.sleepDeepMin,
-                  remMin: snapshot.sleepRemMin,
-                  lightMin: snapshot.sleepLightMin,
-                  efficiency: snapshot.sleepEfficiency,
-                  avgMinutes: baseline.sleepMinutes !== null ? Math.round(baseline.sleepMinutes) : null,
-                  deltaMinutes: snapshot.sleepMinutes !== null && baseline.sleepMinutes !== null
-                    ? Math.round(snapshot.sleepMinutes - baseline.sleepMinutes) : null,
-                })}
-              />
-            );
-          })()}
+      {(() => {
+        const hasStages =
+          snapshot.sleepDeepMin !== null &&
+          snapshot.sleepRemMin !== null &&
+          snapshot.sleepLightMin !== null &&
+          snapshot.sleepMinutes !== null;
+        const stages: SleepStagesBar | null = hasStages
+          ? {
+              deepMin: snapshot.sleepDeepMin!,
+              remMin: snapshot.sleepRemMin!,
+              lightMin: snapshot.sleepLightMin!,
+              totalMin: snapshot.sleepMinutes!,
+            }
+          : null;
 
-          {/* RHR */}
-          <SignalCard
-            icon="heart"
-            iconClassName="text-[#e05f3c]"
-            label="Resting HR"
-            value={fmt(snapshot.restingHr, 0)}
-            sub={snapshot.restingHr !== null ? " bpm" : undefined}
-            barPct={snapshot.restingHr !== null ? Math.max(0, 100 - ((snapshot.restingHr - 40) / 60) * 100) : undefined}
-            barColor="linear-gradient(90deg,#ffc6a8,#e05f3c)"
-            trend={rhrTrend}
-            trendUp={rhrTrendUp}
-            status={rhrSt}
-            active={activeMetric === "rhr"}
-            onExplain={() => handleExplain("rhr", {
-              rhr: snapshot.restingHr,
-              avgRhr: baseline.restingHr !== null ? Math.round(baseline.restingHr) : null,
-              deltaRhr: snapshot.restingHr !== null && baseline.restingHr !== null
-                ? Math.round(snapshot.restingHr - baseline.restingHr) : null,
-            })}
-          />
-
-          {/* HRV */}
-          <SignalCard
-            icon="hrv"
-            iconClassName="text-[#7850e2]"
-            label="HRV"
-            value={fmt(snapshot.hrv, 1)}
-            sub={snapshot.hrv !== null ? " ms" : undefined}
-            barPct={snapshot.hrv !== null ? Math.min((snapshot.hrv / 120) * 100, 100) : undefined}
-            barColor="linear-gradient(90deg,#a0d8ff,#4a7df6)"
-            trend={hrvTrend}
-            trendUp={hrvTrendUp}
-            status={hrvSt}
-            active={activeMetric === "hrv"}
-            onExplain={() => handleExplain("hrv", {
-              hrv: snapshot.hrv !== null ? snapshot.hrv.toFixed(1) : null,
-              avgHrv: baseline.hrv !== null ? baseline.hrv.toFixed(1) : null,
-              deltaHrv: snapshot.hrv !== null && baseline.hrv !== null
-                ? (snapshot.hrv - baseline.hrv).toFixed(1) : null,
-            })}
-          />
-
-          {/* Check-in composite or Steps fallback */}
-          {checkIn ? (
+        const cardMap: Record<SignalCardId, React.ReactNode> = {
+          sleep: (
+            <SignalCard
+              icon="sleep"
+              iconClassName="text-[#4a7df6]"
+              label="Sleep"
+              value={sleep ? `${sleep.h}h` : "—"}
+              sub={sleep ? `${sleep.min}m` : undefined}
+              barPct={!stages && !sleepSt ? sleepPct : undefined}
+              barColor="linear-gradient(90deg,#9fefdf,#4a7df6)"
+              trend={!sleepSt ? sleepTrend : undefined}
+              trendUp={sleepTrendUp}
+              status={snapshot.sleepMinutes === null ? sleepSt : null}
+              stagesBar={stages}
+              active={activeMetric === "sleep"}
+              dragHandle={isReordering}
+              onExplain={() => handleExplain("sleep", {
+                sleepMinutes: snapshot.sleepMinutes,
+                sleepHours: sleep?.h ?? null,
+                sleepMins: sleep?.min ?? null,
+                deepMin: snapshot.sleepDeepMin,
+                remMin: snapshot.sleepRemMin,
+                lightMin: snapshot.sleepLightMin,
+                efficiency: snapshot.sleepEfficiency,
+                avgMinutes: baseline.sleepMinutes !== null ? Math.round(baseline.sleepMinutes) : null,
+                deltaMinutes: snapshot.sleepMinutes !== null && baseline.sleepMinutes !== null
+                  ? Math.round(snapshot.sleepMinutes - baseline.sleepMinutes) : null,
+              })}
+            />
+          ),
+          rhr: (
+            <SignalCard
+              icon="heart"
+              iconClassName="text-[#e05f3c]"
+              label="Resting HR"
+              value={fmt(snapshot.restingHr, 0)}
+              sub={snapshot.restingHr !== null ? " bpm" : undefined}
+              barPct={snapshot.restingHr !== null ? Math.max(0, 100 - ((snapshot.restingHr - 40) / 60) * 100) : undefined}
+              barColor="linear-gradient(90deg,#ffc6a8,#e05f3c)"
+              trend={rhrTrend}
+              trendUp={rhrTrendUp}
+              status={rhrSt}
+              active={activeMetric === "rhr"}
+              dragHandle={isReordering}
+              onExplain={() => handleExplain("rhr", {
+                rhr: snapshot.restingHr,
+                avgRhr: baseline.restingHr !== null ? Math.round(baseline.restingHr) : null,
+                deltaRhr: snapshot.restingHr !== null && baseline.restingHr !== null
+                  ? Math.round(snapshot.restingHr - baseline.restingHr) : null,
+              })}
+            />
+          ),
+          hrv: (
+            <SignalCard
+              icon="hrv"
+              iconClassName="text-[#7850e2]"
+              label="HRV"
+              value={fmt(snapshot.hrv, 1)}
+              sub={snapshot.hrv !== null ? " ms" : undefined}
+              barPct={snapshot.hrv !== null ? Math.min((snapshot.hrv / 120) * 100, 100) : undefined}
+              barColor="linear-gradient(90deg,#a0d8ff,#4a7df6)"
+              trend={hrvTrend}
+              trendUp={hrvTrendUp}
+              status={hrvSt}
+              active={activeMetric === "hrv"}
+              dragHandle={isReordering}
+              onExplain={() => handleExplain("hrv", {
+                hrv: snapshot.hrv !== null ? snapshot.hrv.toFixed(1) : null,
+                avgHrv: baseline.hrv !== null ? baseline.hrv.toFixed(1) : null,
+                deltaHrv: snapshot.hrv !== null && baseline.hrv !== null
+                  ? (snapshot.hrv - baseline.hrv).toFixed(1) : null,
+              })}
+            />
+          ),
+          energy: checkIn ? (
             <SignalCard
               icon="energy"
               iconClassName="text-[#f6a235]"
@@ -855,6 +919,7 @@ export default function TodayView({
               trend={checkIn.stressLevel >= 7 ? "↑ High stress today" : undefined}
               trendUp={false}
               active={activeMetric === "energy"}
+              dragHandle={isReordering}
               onExplain={() => handleExplain("energy", {
                 energy: checkIn.energyLevel,
                 stress: checkIn.stressLevel,
@@ -864,44 +929,94 @@ export default function TodayView({
             />
           ) : (
             <SignalCard
+              icon="energy"
+              iconClassName="text-[#f6a235]"
+              label="Energy"
+              value="—"
+              status={{ label: "No check-in", sub: "Complete morning check-in to see your energy score", isPending: true }}
+              dragHandle={isReordering}
+            />
+          ),
+          steps: (
+            <SignalCard
               icon="steps"
               iconClassName="text-[#009e83]"
               label="Steps"
               value={snapshot.steps !== null ? snapshot.steps.toLocaleString() : "—"}
-              sub={snapshot.steps !== null && date === new Date().toLocaleDateString("en-CA") ? " so far" : undefined}
+              sub={snapshot.steps !== null && isToday ? " so far" : undefined}
               barPct={snapshot.steps !== null ? Math.min((snapshot.steps / 10000) * 100, 100) : undefined}
               barColor="linear-gradient(90deg,#9fefdf,#009e83)"
-              status={stepsSt}
+              trend={stepsTrend}
+              trendUp={stepsTrendUp}
+              status={snapshot.steps === null ? stepsSt : null}
               active={activeMetric === "steps"}
+              dragHandle={isReordering}
               onExplain={() => handleExplain("steps", {
                 steps: snapshot.steps,
                 avgSteps: baseline.steps !== null ? Math.round(baseline.steps) : null,
                 timeOfDay: `${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2, "0")}`,
               })}
             />
-          )}
+          ),
+          calories: (
+            <SignalCard
+              icon="calories"
+              iconClassName="text-[#e07a3c]"
+              label="Total Calories"
+              value={snapshot.totalCalories !== null ? snapshot.totalCalories.toLocaleString() : "—"}
+              sub={snapshot.totalCalories !== null ? " kcal" : undefined}
+              barPct={snapshot.totalCalories !== null ? Math.min((snapshot.totalCalories / 3000) * 100, 100) : undefined}
+              barColor="linear-gradient(90deg,#ffd580,#e07a3c)"
+              status={calSt}
+              active={activeMetric === "calories"}
+              dragHandle={isReordering}
+              onExplain={() => handleExplain("calories", {
+                totalCalories: snapshot.totalCalories,
+                avgCalories: baseline.totalCalories !== null ? Math.round(baseline.totalCalories) : null,
+                deltaCalories: snapshot.totalCalories !== null && baseline.totalCalories !== null
+                  ? Math.round(snapshot.totalCalories - baseline.totalCalories) : null,
+              })}
+            />
+          ),
+        };
 
-          {/* Total Calories */}
-          <SignalCard
-            icon="calories"
-            iconClassName="text-[#e07a3c]"
-            label="Total Calories"
-            value={snapshot.totalCalories !== null ? snapshot.totalCalories.toLocaleString() : "—"}
-            sub={snapshot.totalCalories !== null ? " kcal" : undefined}
-            barPct={snapshot.totalCalories !== null ? Math.min((snapshot.totalCalories / 3000) * 100, 100) : undefined}
-            barColor="linear-gradient(90deg,#ffd580,#e07a3c)"
-            status={calSt}
-            active={activeMetric === "calories"}
-            onExplain={() => handleExplain("calories", {
-              totalCalories: snapshot.totalCalories,
-              avgCalories: baseline.totalCalories !== null ? Math.round(baseline.totalCalories) : null,
-              deltaCalories: snapshot.totalCalories !== null && baseline.totalCalories !== null
-                ? Math.round(snapshot.totalCalories - baseline.totalCalories) : null,
-            })}
-          />
-
-        </div>
-      </div>
+        return (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
+                Key signals
+              </p>
+              <button
+                onClick={() => setIsReordering((r) => !r)}
+                className={`text-[11.5px] font-medium transition ${
+                  isReordering
+                    ? "text-[#4a7df6]"
+                    : "text-[#9ea8c4] hover:text-[#63708f]"
+                }`}
+              >
+                {isReordering ? "Done" : "Reorder"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {cardOrder.map((id) => (
+                <div
+                  key={id}
+                  draggable={isReordering}
+                  onDragStart={() => handleDragStart(id)}
+                  onDragOver={(e) => { e.preventDefault(); handleDragOver(id); }}
+                  onDrop={(e) => { e.preventDefault(); handleDrop(id); }}
+                  onDragEnd={handleDragEnd}
+                  className={`transition-all duration-150 ${
+                    isReordering ? "cursor-grab active:cursor-grabbing" : ""
+                  } ${dragOverCard === id ? "rounded-[16px] ring-2 ring-[#4a7df6] ring-offset-1" : ""}`}
+                >
+                  {cardMap[id]}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Metric explanation panel */}
       {activeMetric && (

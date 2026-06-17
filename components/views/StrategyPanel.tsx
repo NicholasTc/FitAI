@@ -23,7 +23,7 @@ import type {
   StrategySignal,
   SignalImpact,
 } from "@/types/strategy";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ChatThread,
   ChatInput,

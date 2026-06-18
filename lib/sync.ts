@@ -14,6 +14,7 @@ import type { WorkoutSessionModel } from "@/lib/generated/prisma/models/WorkoutS
 import type { DailySnapshot } from "@/types/snapshot";
 
 const SYNC_DAYS = 7;
+export const MAX_BACKFILL_DAYS = 90;
 
 /**
  * Upsert a single snapshot for a user into the DB.
@@ -62,12 +63,18 @@ async function upsertSnapshot(
  * Sync the last 7 days of health data for a user.
  * Called on each dashboard load.
  */
+/**
+ * Sync recent snapshots from Google Health API.
+ * @param days — how many days back to fetch (default 7, max 90 for history backfill)
+ */
 export async function syncUserSnapshots(
   userId: string,
   accessToken: string,
   today: string,
+  days = SYNC_DAYS,
 ): Promise<void> {
-  const snapshots = await fetchRecentSnapshots(accessToken, today, SYNC_DAYS);
+  const safeDays = Math.min(days, MAX_BACKFILL_DAYS);
+  const snapshots = await fetchRecentSnapshots(accessToken, today, safeDays);
   await Promise.all(snapshots.map((s) => upsertSnapshot(userId, s)));
 }
 

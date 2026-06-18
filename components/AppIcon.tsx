@@ -24,6 +24,7 @@ import {
   IoBarbell,
   IoFlameOutline,
   IoSettingsOutline,
+  IoTimeOutline,
 } from "react-icons/io5";
 
 export type { FitAIIconName } from "@/types/icons";
@@ -55,6 +56,7 @@ const ICONS: Record<
   workout: IoBarbell,
   settings: IoSettingsOutline,
   calories: IoFlameOutline,
+  history: IoTimeOutline,
 };
 
 interface AppIconProps {

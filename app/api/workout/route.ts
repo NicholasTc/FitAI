@@ -1,7 +1,9 @@
 /**
- * GET  /api/workout             — list the user's manual workout sessions (last 28 days)
- * POST /api/workout             — log a new manual workout session
- * DELETE /api/workout?id=<id>  — delete a session
+ * GET  /api/workout               — list the user's manual workout sessions
+ *       ?since=YYYY-MM-DD         — from this date (default: 28 days ago)
+ *       ?all=true                 — all sessions, no date cap (used by History)
+ * POST /api/workout               — log a new manual workout session
+ * DELETE /api/workout?id=<id>     — delete a session
  */
 
 import { auth } from "@/lib/auth";
@@ -15,18 +17,33 @@ function isValidType(t: string): t is TypeLabel {
   return TYPE_LABELS.includes(t as TypeLabel);
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 28);
-  const since = cutoff.toISOString().slice(0, 10);
+  const { searchParams } = request.nextUrl;
+  const allHistory = searchParams.get("all") === "true";
+  const sinceParam = searchParams.get("since");
+
+  let since: string | undefined;
+  if (!allHistory) {
+    if (sinceParam && /^\d{4}-\d{2}-\d{2}$/.test(sinceParam)) {
+      since = sinceParam;
+    } else {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 28);
+      since = cutoff.toISOString().slice(0, 10);
+    }
+  }
 
   const sessions = await db.workoutSession.findMany({
-    where: { userId: session.user.id, isManual: true, date: { gte: since } },
+    where: {
+      userId: session.user.id,
+      isManual: true,
+      ...(since ? { date: { gte: since } } : {}),
+    },
     orderBy: { date: "desc" },
   });
 

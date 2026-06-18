@@ -10,8 +10,9 @@ import ReflectionView from "@/components/views/ReflectionView";
 import WeeklyView from "@/components/views/WeeklyView";
 import SettingsView from "@/components/views/SettingsView";
 import WorkoutLogView from "@/components/views/WorkoutLogView";
+import HistoryView from "@/components/views/HistoryView";
 
-type ViewId = "today" | "checkin" | "trends" | "reflect" | "week" | "workout" | "settings";
+type ViewId = "today" | "checkin" | "trends" | "reflect" | "week" | "workout" | "history" | "settings";
 
 const VIEW_LABELS: Record<ViewId, string> = {
   today: "Today",
@@ -20,6 +21,7 @@ const VIEW_LABELS: Record<ViewId, string> = {
   reflect: "Reflect",
   week: "This Week",
   workout: "Log Workout",
+  history: "History",
   settings: "Settings",
 };
 
@@ -115,11 +117,12 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
 
   // Nav items
   const navItems: { id: ViewId; icon: FitAIIconName; label: string }[] = [
-    { id: "today", icon: "today", label: "Today" },
+    { id: "today",   icon: "today",   label: "Today" },
     { id: "checkin", icon: "checkin", label: "Check-In" },
-    { id: "trends", icon: "trends", label: "Trends" },
+    { id: "trends",  icon: "trends",  label: "Trends" },
     { id: "reflect", icon: "reflect", label: "Reflect" },
-    { id: "week", icon: "week", label: "This Week" },
+    { id: "week",    icon: "week",    label: "This Week" },
+    { id: "history", icon: "history", label: "History" },
     { id: "workout", icon: "workout", label: "Log Workout" },
   ];
 
@@ -273,11 +276,12 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
 
         {/* Content — extra bottom padding on mobile so island doesn't cover content */}
         <main className="flex-1 overflow-y-auto p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8">
-          {/* Settings + Workout log are always available — no health data needed */}
+          {/* These views are always available — no health data needed */}
           {view === "settings" && <SettingsView />}
-          {view === "workout" && <WorkoutLogView />}
-          {view !== "settings" && view !== "workout" && loading && <Spinner />}
-          {view !== "settings" && view !== "workout" && error && !loading && (
+          {view === "workout"  && <WorkoutLogView />}
+          {view === "history"  && <HistoryView />}
+          {view !== "settings" && view !== "workout" && view !== "history" && loading && <Spinner />}
+          {view !== "settings" && view !== "workout" && view !== "history" && error && !loading && (
             <div className="rounded-2xl bg-red-50 p-5 text-sm text-red-600">
               {error}
               <button
@@ -288,7 +292,7 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
               </button>
             </div>
           )}
-          {view !== "settings" && view !== "workout" && !loading && !error && data && (
+          {view !== "settings" && view !== "workout" && view !== "history" && !loading && !error && data && (
             <>
               {view === "today" && (
                 <TodayView

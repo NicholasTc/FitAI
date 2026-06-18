@@ -21,4 +21,5 @@ export type FitAIIconName =
   | "skip"
   | "workout"
   | "settings"
-  | "calories";
+  | "calories"
+  | "history";

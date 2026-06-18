@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { computeBaseline } from "@/lib/baseline";
-import { loadSnapshots, syncUserSnapshots } from "@/lib/sync";
+import { loadSnapshots, syncUserSnapshots, MAX_BACKFILL_DAYS } from "@/lib/sync";
 import { type NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -21,9 +21,15 @@ export async function POST(request: NextRequest) {
     request.nextUrl.searchParams.get("date") ??
     new Date().toISOString().slice(0, 10);
 
-  await syncUserSnapshots(session.user.id, session.accessToken, date);
+  // Optional days param — used by History view for wearable backfill (max 90)
+  const daysParam = request.nextUrl.searchParams.get("days");
+  const days = daysParam
+    ? Math.min(Math.max(1, parseInt(daysParam, 10)), MAX_BACKFILL_DAYS)
+    : 7;
 
-  const history = await loadSnapshots(session.user.id, date);
+  await syncUserSnapshots(session.user.id, session.accessToken, date, days);
+
+  const history = await loadSnapshots(session.user.id, date, days);
   const today = history.find((s) => s.date === date) ?? {
     date,
     sleepMinutes: null,
@@ -35,7 +41,7 @@ export async function POST(request: NextRequest) {
     hrv: null,
     steps: null,
     activeMinutes: null,
-  totalCalories: null,
+    totalCalories: null,
   };
 
   const result = computeBaseline(history, today);

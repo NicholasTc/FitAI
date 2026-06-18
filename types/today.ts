@@ -50,7 +50,7 @@ export interface ScoreBreakdown {
   };
   trainingLoad: {
     modifier: number;                             // ±10 Phase 3
-    method: "acute-chronic" | "insufficient-data";
+    method: "manual-acute-chronic" | "acute-chronic" | "insufficient-data";
     ratio: number | null;                         // acute/chronic ratio
   };
 }
@@ -81,6 +81,11 @@ export interface UserSettings {
   sleepTargetTime: string; // "HH:MM" 24h
   deepWorkLabel: string;
   lightWorkLabel: string;
+  // Phase A: biometric profile
+  age:      number | null; // years
+  sex:      "male" | "female" | null;
+  heightCm: number | null; // cm
+  weightKg: number | null; // kg
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -88,6 +93,10 @@ export const DEFAULT_SETTINGS: UserSettings = {
   sleepTargetTime: "23:00",
   deepWorkLabel: "Deep work",
   lightWorkLabel: "Admin / Comms",
+  age:      null,
+  sex:      null,
+  heightCm: null,
+  weightKg: null,
 };
 
 export interface TodayState {

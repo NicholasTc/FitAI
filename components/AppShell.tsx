@@ -9,8 +9,9 @@ import TrendsView from "@/components/views/TrendsView";
 import ReflectionView from "@/components/views/ReflectionView";
 import WeeklyView from "@/components/views/WeeklyView";
 import SettingsView from "@/components/views/SettingsView";
+import WorkoutLogView from "@/components/views/WorkoutLogView";
 
-type ViewId = "today" | "checkin" | "trends" | "reflect" | "week" | "settings";
+type ViewId = "today" | "checkin" | "trends" | "reflect" | "week" | "workout" | "settings";
 
 const VIEW_LABELS: Record<ViewId, string> = {
   today: "Today",
@@ -18,6 +19,7 @@ const VIEW_LABELS: Record<ViewId, string> = {
   trends: "Trends",
   reflect: "Reflect",
   week: "This Week",
+  workout: "Log Workout",
   settings: "Settings",
 };
 
@@ -118,6 +120,7 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
     { id: "trends", icon: "trends", label: "Trends" },
     { id: "reflect", icon: "reflect", label: "Reflect" },
     { id: "week", icon: "week", label: "This Week" },
+    { id: "workout", icon: "workout", label: "Log Workout" },
   ];
 
   function NavContent() {
@@ -270,10 +273,11 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
 
         {/* Content — extra bottom padding on mobile so island doesn't cover content */}
         <main className="flex-1 overflow-y-auto p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8">
-          {/* Settings is always available — no health data needed */}
+          {/* Settings + Workout log are always available — no health data needed */}
           {view === "settings" && <SettingsView />}
-          {view !== "settings" && loading && <Spinner />}
-          {view !== "settings" && error && !loading && (
+          {view === "workout" && <WorkoutLogView />}
+          {view !== "settings" && view !== "workout" && loading && <Spinner />}
+          {view !== "settings" && view !== "workout" && error && !loading && (
             <div className="rounded-2xl bg-red-50 p-5 text-sm text-red-600">
               {error}
               <button
@@ -284,7 +288,7 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
               </button>
             </div>
           )}
-          {view !== "settings" && !loading && !error && data && (
+          {view !== "settings" && view !== "workout" && !loading && !error && data && (
             <>
               {view === "today" && (
                 <TodayView

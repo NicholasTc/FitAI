@@ -47,6 +47,7 @@ import type {
 import type { WeeklyBaseline } from "@/types/snapshot";
 import type { DailySnapshot } from "@/types/snapshot";
 import type { TrainingLoadResult } from "@/lib/trainingLoad";
+import { getHrvAbsoluteThresholds, type UserProfile } from "@/lib/bmr";
 
 // ─── Options ─────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,8 @@ export interface ReadinessOptions {
   date?: string;
   /** Pre-computed training load from lib/trainingLoad.ts — Phase 3 */
   trainingLoad?: TrainingLoadResult;
+  /** Phase A: biometric profile — enables age/sex-adjusted thresholds */
+  userProfile?: UserProfile;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -186,6 +189,7 @@ interface ObjectiveResult {
 function scoreObjective(
   snapshot: DailySnapshot,
   baseline: WeeklyBaseline,
+  options?: ReadinessOptions,
 ): ObjectiveResult {
   const reasons: ReadinessReason[] = [];
   let score = 0;
@@ -212,28 +216,40 @@ function scoreObjective(
         reasons.push({ icon: "sleep", title: "Sleep was below average.", detail: `${label}. Reduced sleep limits recovery.`, sentiment: "negative" });
       }
     } else {
-      if (snapshot.sleepMinutes >= 420)      sleepPts = 15;
-      else if (snapshot.sleepMinutes >= 360) sleepPts = 11;
-      else if (snapshot.sleepMinutes >= 300) sleepPts = 7;
-      else                                   sleepPts = 3;
+      // Phase C: absolute thresholds aligned with Hirshkowitz et al. 2015
+      // (NSF sleep duration recommendations for adults):
+      // ≥8h (480 min) = optimal / may be appropriate
+      // 7–9h (420–539 min) = recommended range
+      // 6–7h (360–419 min) = may be appropriate (some individuals)
+      // <6h (<360 min) = not recommended
+      if      (snapshot.sleepMinutes >= 480) sleepPts = 15;
+      else if (snapshot.sleepMinutes >= 420) sleepPts = 12;
+      else if (snapshot.sleepMinutes >= 360) sleepPts = 8;
+      else if (snapshot.sleepMinutes >= 300) sleepPts = 5;
+      else                                   sleepPts = 2;
       const h = Math.floor(snapshot.sleepMinutes / 60), m = snapshot.sleepMinutes % 60;
       const label = `${h}h ${m}m`;
       if (snapshot.sleepMinutes >= 420) {
-        reasons.push({ icon: "sleep", title: "Good sleep duration.", detail: `${label} — solid recovery foundation.`, sentiment: "positive" });
+        reasons.push({ icon: "sleep", title: "Good sleep duration.", detail: `${label} — within the recommended 7–9h range.`, sentiment: "positive" });
       } else if (snapshot.sleepMinutes < 360) {
-        reasons.push({ icon: "sleep", title: "Sleep was short.", detail: `${label} — aim for 7h+ for full recovery.`, sentiment: "caution" });
+        reasons.push({ icon: "sleep", title: "Sleep was short.", detail: `${label} — below the recommended 6h minimum. Recovery is likely impaired.`, sentiment: "negative" });
+      } else {
+        reasons.push({ icon: "sleep", title: "Sleep was below target.", detail: `${label} — in the 6–7h range. Aim for 7h+ for optimal recovery.`, sentiment: "caution" });
       }
     }
 
-    // Phase 1c: deep+REM proportion adjusts score within ±2 pts of the budget
+    // Phase 1c / C: deep+REM proportion adjusts score within ±2 pts.
+    // Research basis: Ohayon et al. (2004) meta-analysis of sleep stages.
+    // Healthy adults: deep (N3) ~13–23%, REM ~20–25% of total sleep → combined ~33–48%.
     const hasStages = snapshot.sleepDeepMin !== null || snapshot.sleepRemMin !== null;
     if (hasStages && snapshot.sleepMinutes > 0) {
       const deepRem = (snapshot.sleepDeepMin ?? 0) + (snapshot.sleepRemMin ?? 0);
       const qualityRatio = deepRem / snapshot.sleepMinutes;
-      // Research-informed targets: healthy adults ~30–35% deep+REM combined
-      if      (qualityRatio >= 0.35) stageBonus =  2;
-      else if (qualityRatio >= 0.25) stageBonus =  1;
-      else if (qualityRatio < 0.15)  stageBonus = -1;
+      // Thresholds based on Ohayon 2004 combined deep+REM norms:
+      if      (qualityRatio >= 0.38) stageBonus =  2; // above norm → excellent quality
+      else if (qualityRatio >= 0.28) stageBonus =  1; // normal range
+      else if (qualityRatio < 0.18)  stageBonus = -2; // clearly fragmented/poor quality
+      else if (qualityRatio < 0.25)  stageBonus = -1; // below norm
       sleepPts = clamp(sleepPts + stageBonus, 0, 15);
     }
   }
@@ -272,10 +288,13 @@ function scoreObjective(
         reasons.push({ icon: "hrv", title: "HRV is below baseline.", detail: `${snapshot.hrv.toFixed(1)}ms vs avg ${avgHrv.toFixed(1)}ms — body is still recovering.`, sentiment: "caution" });
       }
     } else {
-      // Absolute thresholds (baseline forming)
-      if      (snapshot.hrv >= 80) hrvPts = 13;
-      else if (snapshot.hrv >= 50) hrvPts = 9;
-      else                         hrvPts = 5;
+      // Phase A: age/sex-adjusted absolute thresholds (Nunan et al. 2010)
+      // when baseline is forming. Falls back to generic when no profile.
+      const hrvThresh = getHrvAbsoluteThresholds(options?.userProfile ?? { age: null, sex: null, heightCm: null, weightKg: null });
+      if      (snapshot.hrv >= hrvThresh.good * 1.4) hrvPts = 13;
+      else if (snapshot.hrv >= hrvThresh.good)        hrvPts = 11;
+      else if (snapshot.hrv >= hrvThresh.ok)          hrvPts = 7;
+      else                                            hrvPts = 4;
       hrvMethod = "ratio";
     }
   }
@@ -420,7 +439,7 @@ export function computeReadiness(
   checkIn: CheckInData | null,
   options?: ReadinessOptions,
 ): ReadinessResult {
-  const objectiveResult  = scoreObjective(snapshot, baseline);
+  const objectiveResult  = scoreObjective(snapshot, baseline, options);
   const activityResult   = scoreActivity(snapshot, baseline, options);
   const { confidence, dataCompleteness } = computeConfidence(snapshot, !!checkIn);
 

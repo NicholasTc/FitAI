@@ -72,30 +72,42 @@ export async function syncUserSnapshots(
 }
 
 /**
- * Upsert a single workout session for a user.
- * Uses [userId, startTime] as the unique key to avoid duplicates.
+ * Upsert a single API-synced workout session for a user.
+ * Uses [userId, date, typeRaw] as a soft dedup key via findFirst + create.
+ * We lost the @unique([userId, startTime]) when we made startTime optional,
+ * so we do an idempotent findFirst → skip-or-create pattern instead.
  */
 async function upsertWorkout(userId: string, w: WorkoutSession): Promise<void> {
-  await db.workoutSession.upsert({
-    where: { userId_startTime: { userId, startTime: w.startTime } },
-    create: {
-      userId,
-      startTime: w.startTime,
-      endTime: w.endTime,
-      date: w.date,
-      typeLabel: w.typeLabel,
-      typeRaw: w.typeRaw,
-      durationMinutes: w.durationMinutes,
-      source: w.source,
-    },
-    update: {
-      endTime: w.endTime,
-      typeLabel: w.typeLabel,
-      typeRaw: w.typeRaw,
-      durationMinutes: w.durationMinutes,
-      source: w.source,
-    },
+  const existing = await db.workoutSession.findFirst({
+    where: { userId, startTime: w.startTime, isManual: false },
+    select: { id: true },
   });
+  if (existing) {
+    await db.workoutSession.update({
+      where: { id: existing.id },
+      data: {
+        endTime:         w.endTime,
+        typeLabel:       w.typeLabel,
+        typeRaw:         w.typeRaw,
+        durationMinutes: w.durationMinutes,
+        source:          w.source,
+      },
+    });
+  } else {
+    await db.workoutSession.create({
+      data: {
+        userId,
+        startTime:       w.startTime,
+        endTime:         w.endTime,
+        date:            w.date,
+        typeLabel:       w.typeLabel,
+        typeRaw:         w.typeRaw,
+        durationMinutes: w.durationMinutes,
+        source:          w.source,
+        isManual:        false,
+      },
+    });
+  }
 }
 
 /**
@@ -121,19 +133,19 @@ export async function loadLastWorkout(
 ): Promise<WorkoutSession | null> {
   const row = await db.workoutSession.findFirst({
     where: { userId, date: { gte: sinceDate } },
-    orderBy: { startTime: "desc" },
+    orderBy: { date: "desc" },
   }) as WorkoutSessionModel | null;
 
   if (!row) return null;
 
   return {
-    startTime: row.startTime,
-    endTime: row.endTime,
-    date: row.date,
+    startTime: row.startTime ?? row.date + "T00:00:00Z",
+    endTime:   row.endTime   ?? row.date + "T01:00:00Z",
+    date:      row.date,
     typeLabel: row.typeLabel,
-    typeRaw: row.typeRaw,
+    typeRaw:   row.typeRaw   ?? row.typeLabel,
     durationMinutes: row.durationMinutes,
-    source: row.source,
+    source:    row.source,
   };
 }
 

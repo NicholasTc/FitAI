@@ -493,11 +493,12 @@ export default function TodayView({
       setMetricChatStreaming((prev) => ({ ...prev, [metric]: "" }));
 
       const metricLabel = {
-        sleep: "Sleep duration and stages",
-        rhr: "Resting heart rate",
-        hrv: "Heart rate variability (HRV)",
-        steps: "Step count",
-        energy: "Subjective energy and check-in",
+        sleep:    "Sleep duration and stages",
+        rhr:      "Resting heart rate",
+        hrv:      "Heart rate variability (HRV)",
+        steps:    "Step count",
+        energy:   "Subjective energy and check-in",
+        calories: "Total daily calorie burn",
       }[metric];
 
       try {

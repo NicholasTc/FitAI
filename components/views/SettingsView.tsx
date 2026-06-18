@@ -97,6 +97,65 @@ export default function SettingsView() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
+
+      {/* Profile */}
+      <SettingsSection title="Profile">
+        <FieldRow label="Age" hint="Used for age-adjusted HRV thresholds">
+          <input
+            type="number"
+            min={10} max={99}
+            value={form.age ?? ""}
+            onChange={(e) => update("age", e.target.value ? Number(e.target.value) : null)}
+            placeholder="e.g. 26"
+            className={INPUT_CLS}
+          />
+        </FieldRow>
+
+        <div className="border-t border-[rgba(148,162,218,0.1)]" />
+
+        <FieldRow label="Sex" hint="Used for BMR calculation and HRV norms">
+          <select
+            value={form.sex ?? ""}
+            onChange={(e) => update("sex", (e.target.value as "male" | "female") || null)}
+            className={INPUT_CLS}
+          >
+            <option value="">Prefer not to say</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </FieldRow>
+
+        <div className="border-t border-[rgba(148,162,218,0.1)]" />
+
+        <FieldRow label="Height (cm)" hint="Used with weight to compute BMR">
+          <input
+            type="number"
+            min={100} max={250}
+            value={form.heightCm ?? ""}
+            onChange={(e) => update("heightCm", e.target.value ? Number(e.target.value) : null)}
+            placeholder="e.g. 175"
+            className={INPUT_CLS}
+          />
+        </FieldRow>
+
+        <div className="border-t border-[rgba(148,162,218,0.1)]" />
+
+        <FieldRow label="Weight (kg)" hint="Used to estimate your daily calorie baseline (BMR)">
+          <input
+            type="number"
+            min={20} max={300}
+            value={form.weightKg ?? ""}
+            onChange={(e) => update("weightKg", e.target.value ? Number(e.target.value) : null)}
+            placeholder="e.g. 75"
+            className={INPUT_CLS}
+          />
+        </FieldRow>
+
+        <p className="text-[11px] text-[#9ea8c4] pt-1">
+          Height and weight are only used to estimate your resting calorie burn (BMR). They are stored securely and never shared.
+        </p>
+      </SettingsSection>
+
       {/* Schedule */}
       <SettingsSection title="Schedule">
         <FieldRow

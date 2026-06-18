@@ -11,7 +11,7 @@
 import { auth } from "@/lib/auth";
 import { computeBaseline } from "@/lib/baseline";
 import { computeReadiness } from "@/lib/readiness";
-import { computeTrainingLoad } from "@/lib/trainingLoad";
+import { computeTrainingLoad, computeTrainingLoadFromManual, type ManualWorkoutSession } from "@/lib/trainingLoad";
 import { recordScoreAudit } from "@/lib/scoreAudit";
 import {
   loadSnapshots,
@@ -90,10 +90,14 @@ export async function GET(request: NextRequest) {
 
   const settings: UserSettings = rawSettings
     ? {
-        wakeTime: rawSettings.wakeTime,
+        wakeTime:        rawSettings.wakeTime,
         sleepTargetTime: rawSettings.sleepTargetTime,
-        deepWorkLabel: rawSettings.deepWorkLabel,
-        lightWorkLabel: rawSettings.lightWorkLabel,
+        deepWorkLabel:   rawSettings.deepWorkLabel,
+        lightWorkLabel:  rawSettings.lightWorkLabel,
+        age:             rawSettings.age,
+        sex:             (rawSettings.sex as "male" | "female" | null) ?? null,
+        heightCm:        rawSettings.heightCm,
+        weightKg:        rawSettings.weightKg,
       }
     : DEFAULT_SETTINGS;
 
@@ -107,14 +111,42 @@ export async function GET(request: NextRequest) {
       }
     : null;
 
-  // 4. Compute training load (Phase 3) from prior history (exclude today)
+  // 4. Compute training load (Phase B preferred: manual sessions; fallback: activeMinutes)
   const priorHistory = history.filter((s) => s.date !== date);
-  const trainingLoad = computeTrainingLoad(priorHistory);
 
-  // 5. Compute readiness with all Phase 1–3 options
+  const windowStart28 = new Date(date);
+  windowStart28.setDate(windowStart28.getDate() - 27);
+  const since28 = windowStart28.toISOString().slice(0, 10);
+
+  const rawManualSessions = await db.workoutSession.findMany({
+    where: { userId: session.user.id, isManual: true, date: { gte: since28 } },
+    orderBy: { date: "desc" },
+  });
+
+  const manualSessions: ManualWorkoutSession[] = rawManualSessions
+    .filter((s) => s.sessionLoad !== null)
+    .map((s) => ({
+      date:            s.date,
+      sessionLoad:     s.sessionLoad!,
+      durationMinutes: s.durationMinutes,
+      rpe:             s.rpe ?? 5,
+    }));
+
+  const manualLoad = computeTrainingLoadFromManual(manualSessions, date);
+  const trainingLoad = manualLoad.method !== "insufficient-data"
+    ? manualLoad
+    : computeTrainingLoad(priorHistory);
+
+  // Phase A: user profile for age/sex-adjusted thresholds
+  const userProfile = settings.age !== null || settings.sex !== null
+    ? { age: settings.age, sex: settings.sex, heightCm: settings.heightCm, weightKg: settings.weightKg }
+    : undefined;
+
+  // 5. Compute readiness with all Phase 1–3 + Phase A options
   const readiness = computeReadiness(today, baseline, checkIn, {
     date,
     trainingLoad,
+    userProfile,
   });
 
   // Phase 0: persist score audit (fire-and-forget — never blocks the response)

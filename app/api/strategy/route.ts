@@ -100,12 +100,17 @@ export async function POST(request: NextRequest) {
   windowStart.setDate(windowStart.getDate() - 6);
   const sinceDate = windowStart.toISOString().slice(0, 10);
 
-  const [history, lastWorkout] = await Promise.all([
+  const [history, lastWorkout, rawSettings] = await Promise.all([
     loadSnapshots(session.user.id, date),
     loadLastWorkout(session.user.id, sinceDate),
+    db.userSettings.findUnique({ where: { userId: session.user.id } }),
   ]);
   const today = history.find((s) => s.date === date) ?? NULL_SNAPSHOT(date);
   const { baseline } = computeBaseline(history, today);
+
+  const userProfile = rawSettings && (rawSettings.age || rawSettings.sex)
+    ? { age: rawSettings.age, sex: rawSettings.sex as "male" | "female" | null, heightCm: rawSettings.heightCm, weightKg: rawSettings.weightKg }
+    : null;
 
   const rawCheckIn = await db.checkIn.findUnique({
     where: { userId_date: { userId: session.user.id, date } },
@@ -132,6 +137,7 @@ export async function POST(request: NextRequest) {
     date,
     tasks,
     lastWorkout,
+    userProfile,
   );
   const userPrompt = buildUserPrompt(action, context, readiness.dayType);
 

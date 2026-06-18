@@ -6,6 +6,7 @@
  */
 
 import { hrvStatus, rhrStatus, sleepStatus } from "@/lib/metricStatus";
+import { computeBMR, computeCalorieContext, type UserProfile } from "@/lib/bmr";
 import type { DailySnapshot } from "@/types/snapshot";
 import type { CheckInData, DayType, WorkoutSession } from "@/types/today";
 import type { WeeklyBaseline } from "@/types/snapshot";
@@ -32,6 +33,7 @@ export function buildAiContext(
   date: string,
   tasks?: string[],
   lastWorkout?: WorkoutSession | null,
+  userProfile?: UserProfile | null,
 ): string {
   // Metric statuses — same as UI
   const sleepSt = sleepStatus(
@@ -187,6 +189,32 @@ export function buildAiContext(
 
     todaysPlannedTasks:
       tasks && tasks.length > 0 ? tasks : "No tasks provided",
+
+    // Phase A: biometric profile + calorie context
+    ...(userProfile && (userProfile.age || userProfile.sex || userProfile.heightCm || userProfile.weightKg) && {
+      userProfile: {
+        age:      userProfile.age,
+        sex:      userProfile.sex,
+        heightCm: userProfile.heightCm,
+        weightKg: userProfile.weightKg,
+        bmr:      computeBMR(userProfile),
+      },
+      calorieContext: (() => {
+        const ctx2 = computeCalorieContext(snapshot.totalCalories, userProfile);
+        return ctx2
+          ? {
+              bmr:               ctx2.bmr,
+              activityMultiplier: ctx2.activityMultiplier,
+              label:             ctx2.label,
+              note:              ctx2.isLow
+                ? "Calorie burn is well below BMR — possible low activity, illness, or early sync."
+                : ctx2.isSurplus
+                ? "High output day — calorie burn is > 2× BMR, indicating significant physical effort."
+                : "Calorie burn is in a normal range relative to this user's BMR.",
+            }
+          : { note: "BMR context unavailable — profile incomplete or calories not synced." };
+      })(),
+    }),
   };
 
   return JSON.stringify(ctx, null, 2);

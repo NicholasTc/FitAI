@@ -30,3 +30,5 @@ This is what expected: A score that is still fully explainable (no black box), w
 CONCERN/PROBLEM: why is the steps count dissappear, we need this as a key factor also 
 
 Task 4: consideration => should we add more reflection? will this help shape and train the data?
+
+Task 5: add calendar/workout history 

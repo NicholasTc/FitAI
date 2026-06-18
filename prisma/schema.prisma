@@ -37,23 +37,30 @@ model DailyHealthSnapshot {
   @@index([userId])
 }
 
-// Phase 3B: workout sessions synced from Google Health API exercise endpoint.
+// Workout sessions — manual logs (primary) or synced from API (future).
+// Manual logs use isManual=true; startTime/endTime/typeRaw are optional for manual.
 model WorkoutSession {
   id     String @id @default(cuid())
   userId String
 
-  startTime String // ISO datetime string
-  endTime   String // ISO datetime string
-  date      String // YYYY-MM-DD of startTime
+  date            String  // YYYY-MM-DD
+  typeLabel       String  // human-readable: "Strength" | "Cardio" | "Mixed" | "Sport" | "Other"
+  durationMinutes Int     // session duration in minutes
 
-  typeLabel       String  // human-readable, e.g. "Strength training"
-  typeRaw         String  // raw API value, e.g. "STRENGTH_TRAINING"
-  durationMinutes Int
-  source          String? // e.g. "FITBIT"
+  // Manual log fields (Phase B)
+  isManual        Boolean @default(false)
+  rpe             Int?    // 1–10 Rate of Perceived Exertion (Foster 2001)
+  sessionLoad     Int?    // computed: rpe × durationMinutes (arbitrary units)
 
-  syncedAt DateTime @default(now()) @updatedAt
+  // API sync fields (optional for manual logs)
+  startTime String? // ISO datetime string
+  endTime   String? // ISO datetime string
+  typeRaw   String? // raw API value
+  source    String? // "FITBIT" | "MANUAL"
 
-  @@unique([userId, startTime])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId, date])
 }
 
@@ -85,6 +92,13 @@ model UserSettings {
   sleepTargetTime String @default("23:00") // HH:MM 24h (target bedtime, used as upper clamp)
   deepWorkLabel   String @default("Deep work")
   lightWorkLabel  String @default("Admin / Comms")
+
+  // Phase A: biometric profile — enables BMR computation + age/sex-adjusted HRV thresholds.
+  // All nullable — profile is optional; scoring degrades gracefully without it.
+  age      Int?    // years (10–99)
+  sex      String? // "male" | "female"
+  heightCm Float?  // centimetres (100–250)
+  weightKg Float?  // kilograms (20–300)
 
   updatedAt DateTime @updatedAt
 }

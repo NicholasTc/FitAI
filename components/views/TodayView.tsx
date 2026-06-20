@@ -27,7 +27,15 @@ import {
   ringGradient,
 } from "@/lib/readiness";
 import StrategyPanel from "@/components/views/StrategyPanel";
-import { computeGuardrails, type GuardrailLevel, type ScoreBand } from "@/lib/guardrails";
+import {
+  computeGuardrails,
+  deriveLimiterEnabler,
+  bandHeroDesc,
+  bandFullLabel,
+  bandIntensityLabel,
+  type GuardrailLevel,
+  type ScoreBand,
+} from "@/lib/guardrails";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -636,13 +644,9 @@ export default function TodayView({
   const missingRhrToday = snapshot.restingHr === null && baseline.restingHr !== null;
   const incompleteTodayData = missingHrvToday || missingRhrToday;
 
-  // ─── Hero description per day type
-  const heroDesc =
-    dt === "push"
-      ? "Your body is ready. Go deep on your most challenging work, hit a hard training session, and make the most of today's capacity."
-      : dt === "maintain"
-        ? "Solid baseline. Do one focused work block, keep your workout moderate, and protect your recovery for tomorrow."
-        : "Your system needs rest today. Light movement only — protect your energy and prioritize sleep tonight for a stronger tomorrow.";
+  // ─── Band-specific hero description + limiter/enabler chips
+  const heroDesc = bandHeroDesc(guardrails.band, data.settings.deepWorkLabel);
+  const { limiter, enabler } = deriveLimiterEnabler(readiness.reasons);
 
   // ─── Sleep signal
   const sleep = fmtSleep(snapshot.sleepMinutes);
@@ -744,6 +748,7 @@ export default function TodayView({
         <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:gap-8 sm:p-8">
           {/* Text */}
           <div className="flex-1 space-y-3">
+            {/* Source label + confidence */}
             <div className="flex items-center gap-2 flex-wrap">
               <span
                 className="h-2 w-2 rounded-full shrink-0"
@@ -765,18 +770,58 @@ export default function TodayView({
                  readiness.confidence === "medium" ? "Partial data" : "Low data"}
               </span>
             </div>
-            <h2 className="font-[family-name:var(--font-display)] text-[26px] font-bold leading-tight text-[#1b2040]">
-              Today is a{" "}
-              <em
-                className="not-italic"
-                style={{ color: colors.text }}
-              >
-                {label}.
-              </em>
-            </h2>
+
+            {/* Gear + Intensity headline */}
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-[26px] font-bold leading-tight text-[#1b2040]">
+                <em className="not-italic" style={{ color: colors.text }}>
+                  {label}
+                </em>
+              </h2>
+              {/* Intensity sub-label */}
+              <div className="mt-1 flex items-center gap-2">
+                <span
+                  className="rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold"
+                  style={{
+                    background: colors.bg,
+                    color: colors.text,
+                    border: `1px solid ${colors.border}`,
+                  }}
+                >
+                  {bandIntensityLabel(guardrails.band)} intensity
+                </span>
+                {/* Borderline note for scores 75–78 */}
+                {readiness.score >= 75 && readiness.score <= 78 && (
+                  <span className="rounded-full border border-[rgba(200,122,54,0.25)] bg-[#fff8f0] px-2.5 py-0.5 text-[10.5px] font-semibold text-[#c87a36]">
+                    Borderline — treat cautiously
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Band-aware description */}
             <p className="max-w-md text-[14px] leading-relaxed text-[#63708f]">
               {heroDesc}
             </p>
+
+            {/* Limiter / Enabler chips */}
+            {(limiter || enabler) && (
+              <div className="flex flex-wrap gap-2">
+                {limiter && (
+                  <div className="flex items-center gap-1.5 rounded-xl border border-[rgba(224,95,60,0.2)] bg-[#fff3f0] px-3 py-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#e05f3c]">Limiter</span>
+                    <span className="text-[11.5px] text-[#63708f]">{limiter.text}</span>
+                  </div>
+                )}
+                {enabler && (
+                  <div className="flex items-center gap-1.5 rounded-xl border border-[rgba(0,158,131,0.2)] bg-[#ecfaf6] px-3 py-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#009e83]">Enabler</span>
+                    <span className="text-[11.5px] text-[#63708f]">{enabler.text}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {incompleteTodayData && (
               <p className="flex items-center gap-1.5 text-[12px] text-[#c87a36]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#c87a36]" />
@@ -785,6 +830,7 @@ export default function TodayView({
                   : "Some metrics still pending — score will update after sync."}
               </p>
             )}
+
             <div className="flex flex-wrap gap-2 pt-1">
               {!checkIn && (
                 <button

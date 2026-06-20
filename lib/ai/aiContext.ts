@@ -7,6 +7,7 @@
 
 import { hrvStatus, rhrStatus, sleepStatus } from "@/lib/metricStatus";
 import { computeBMR, computeCalorieContext, type UserProfile } from "@/lib/bmr";
+import { bandFullLabel, bandHeroDesc, bandOneLiner, type ScoreBand } from "@/lib/guardrails";
 import type { DailySnapshot } from "@/types/snapshot";
 import type { CheckInData, DayType, WorkoutSession } from "@/types/today";
 import type { WeeklyBaseline } from "@/types/snapshot";
@@ -34,6 +35,7 @@ export function buildAiContext(
   tasks?: string[],
   lastWorkout?: WorkoutSession | null,
   userProfile?: UserProfile | null,
+  scoreBand?: ScoreBand,
 ): string {
   // Metric statuses — same as UI
   const sleepSt = sleepStatus(
@@ -186,6 +188,17 @@ export function buildAiContext(
             "Factor in accumulated fatigue from this session when advising on today's capacity.",
         }
       : { note: "No exercise sessions recorded in the past 7 days." },
+
+    // Gear + Intensity — use these for all planning language, not the raw day type
+    ...(scoreBand && {
+      gearIntensity: {
+        band:       scoreBand,
+        fullLabel:  bandFullLabel(scoreBand),
+        oneLiner:   bandOneLiner(scoreBand),
+        description: bandHeroDesc(scoreBand),
+        note:       "Use gearIntensity.fullLabel as the primary framing. Do NOT upgrade or downgrade the day type; it was set by deterministic scoring logic.",
+      },
+    }),
 
     todaysPlannedTasks:
       tasks && tasks.length > 0 ? tasks : "No tasks provided",

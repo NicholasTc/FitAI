@@ -11,7 +11,7 @@
  *   rest          0–31    Rest today — minimal load, recovery priority
  */
 
-import type { DayType } from "@/types/today";
+import type { DayType, ReadinessReason } from "@/types/today";
 
 export type GuardrailLevel = "ok" | "moderate" | "avoid";
 
@@ -151,4 +151,112 @@ export function computeGuardrails(
   })();
 
   return { dayType, band, rows };
+}
+
+// ─── Intensity labeling ───────────────────────────────────────────────────────
+
+/**
+ * Two-word label for the intensity within the gear.
+ * Push/Recover are "Peak" or "Standard"; Maintain splits into "Strong" / "Steady".
+ */
+export function bandIntensityLabel(band: ScoreBand): string {
+  switch (band) {
+    case "push-peak":     return "Peak";
+    case "push":          return "Standard";
+    case "maintain-high": return "Strong";
+    case "maintain-low":  return "Steady";
+    case "recover":       return "Standard";
+    case "rest":          return "Low";
+  }
+}
+
+/** Full product label: "Push Day · Peak", "Maintain Day · Strong", etc. */
+export function bandFullLabel(band: ScoreBand): string {
+  switch (band) {
+    case "push-peak":     return "Push Day · Peak";
+    case "push":          return "Push Day · Standard";
+    case "maintain-high": return "Maintain Day · Strong";
+    case "maintain-low":  return "Maintain Day · Steady";
+    case "recover":       return "Recover Day";
+    case "rest":          return "Rest Day";
+  }
+}
+
+/** Gear label only — matches the 3-type day type. */
+export function bandGearLabel(band: ScoreBand): string {
+  switch (band) {
+    case "push-peak":
+    case "push":          return "Push Day";
+    case "maintain-high":
+    case "maintain-low":  return "Maintain Day";
+    case "recover":
+    case "rest":          return "Recover Day";
+  }
+}
+
+/** Single-sentence plan for the hero card — band-aware and specific. */
+export function bandHeroDesc(band: ScoreBand, deepWorkLabel = "Deep work"): string {
+  switch (band) {
+    case "push-peak":
+      return `All systems go. Stack your hardest efforts — training, ${deepWorkLabel.toLowerCase()}, and ambitious goals are all supported. Use the capacity intentionally.`;
+    case "push":
+      return `Push on your single top priority today — one hard workout or one ambitious work block. Stacking both is the risk; protect your margin for tomorrow.`;
+    case "maintain-high":
+      return `Solid productive day. One to two focused blocks and moderate training are realistic. Don't treat this as a Push — make today useful without making tomorrow expensive.`;
+    case "maintain-low":
+      return `Limited reserves. Pick your one highest-leverage task, keep training moderate, and decline anything optional. Minimum effective day — one win, then protect the rest.`;
+    case "recover":
+      return `Your system is asking for a lighter day. Light movement, easy tasks, and an early wind-down are the plan. You're not failing — you're investing in showing up tomorrow.`;
+    case "rest":
+      return `Genuine depletion today. Defer everything non-essential. Sleep, food, and hydration are the work. Full rest is the right call.`;
+  }
+}
+
+/** Brief one-liner for compact display (topbar chip, etc.) */
+export function bandOneLiner(band: ScoreBand): string {
+  switch (band) {
+    case "push-peak":     return "Use the capacity — don't waste it.";
+    case "push":          return "Push on your top priority; protect everything else.";
+    case "maintain-high": return "Make today useful; don't make tomorrow expensive.";
+    case "maintain-low":  return "One win, then protect the rest.";
+    case "recover":       return "You're investing in showing up tomorrow.";
+    case "rest":          return "Rest is the task today.";
+  }
+}
+
+// ─── Limiter / Enabler chips ──────────────────────────────────────────────────
+
+export interface LimiterEnabler {
+  limiter: { icon: string; text: string } | null;
+  enabler: { icon: string; text: string } | null;
+}
+
+/**
+ * Derive the primary limiter (most constraining negative signal) and
+ * enabler (most positive signal) from readiness.reasons.
+ *
+ * Picks the top-1 of each sentiment from the existing reasons array —
+ * no new computation required, just surfacing what already exists.
+ */
+export function deriveLimiterEnabler(reasons: ReadinessReason[]): LimiterEnabler {
+  // Negative sentiments = limiters; positive = enablers
+  const negatives = reasons.filter((r) => r.sentiment === "negative" || r.sentiment === "caution");
+  const positives = reasons.filter((r) => r.sentiment === "positive");
+
+  // Prefer "negative" over "caution" as the primary limiter
+  const limiterReason =
+    negatives.find((r) => r.sentiment === "negative") ??
+    negatives[0] ??
+    null;
+
+  const enablerReason = positives[0] ?? null;
+
+  return {
+    limiter: limiterReason
+      ? { icon: String(limiterReason.icon), text: limiterReason.title }
+      : null,
+    enabler: enablerReason
+      ? { icon: String(enablerReason.icon), text: enablerReason.title }
+      : null,
+  };
 }

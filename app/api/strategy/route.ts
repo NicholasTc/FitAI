@@ -15,6 +15,7 @@ import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/ai/aiPrompt";
 import { getGeminiModel } from "@/lib/ai/gemini";
 import { computeBaseline } from "@/lib/baseline";
 import { computeReadiness } from "@/lib/readiness";
+import { computeGuardrails } from "@/lib/guardrails";
 import { db } from "@/lib/db";
 import { loadSnapshots, loadLastWorkout } from "@/lib/sync";
 import type { CheckInData } from "@/types/today";
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
     : null;
 
   const readiness = computeReadiness(today, baseline, checkIn);
+  const guardrails = computeGuardrails(readiness.dayType, readiness.score, baseline.sleepMinutes);
 
   // ── Build prompt ────────────────────────────────────────────────────────
   const context = buildAiContext(
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
     tasks,
     lastWorkout,
     userProfile,
+    guardrails.band,
   );
   const userPrompt = buildUserPrompt(action, context, readiness.dayType);
 

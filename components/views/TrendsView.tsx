@@ -200,11 +200,13 @@ const DT_STYLES = {
 export default function TrendsView({ data }: TrendsViewProps) {
   const { history, baseline, readiness } = data;
 
-  const dates = history.map((s) => s.date);
-  const sleepVals = history.map((s) => s.sleepMinutes !== null ? s.sleepMinutes / 60 : null);
-  const rhrVals = history.map((s) => s.restingHr);
-  const hrvVals = history.map((s) => s.hrv);
-  const stepsVals = history.map((s) => s.steps !== null ? s.steps / 1000 : null);
+  // Use full history for averages/baseline, but clamp sparklines to last 7 days
+  const chartHistory = history.slice(-7);
+  const dates = chartHistory.map((s) => s.date);
+  const sleepVals = chartHistory.map((s) => s.sleepMinutes !== null ? s.sleepMinutes / 60 : null);
+  const rhrVals = chartHistory.map((s) => s.restingHr);
+  const hrvVals = chartHistory.map((s) => s.hrv);
+  const stepsVals = chartHistory.map((s) => s.steps !== null ? s.steps / 1000 : null);
 
   const fmtSleepAvg = (m: number | null) => {
     if (m === null) return "—";
@@ -239,6 +241,10 @@ export default function TrendsView({ data }: TrendsViewProps) {
   const rhrSt = rhrStatus(todaySnapFull, todayDate);
   const hrvSt = hrvStatus(todaySnapFull, todayDate);
   const stepsSt = stepsStatus(todaySnapFull, todayDate);
+
+  // Clamp to last 7 days for dots display — history may contain up to 28 days
+  // for baseline computation, but the dots section only shows the current week.
+  const recentHistory = history.slice(-7);
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -286,9 +292,9 @@ export default function TrendsView({ data }: TrendsViewProps) {
         <p className="mb-4 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
           7-day status history
         </p>
-        <div className="flex items-end justify-between gap-2">
-          {history.map((day, i) => {
-            const isToday = i === history.length - 1;
+        <div className="grid grid-cols-7 gap-1">
+          {recentHistory.map((day, i) => {
+            const isToday = i === recentHistory.length - 1;
             const dt = day.dayType;
             const style = dt ? DT_STYLES[dt] : null;
             const dayName = new Date(day.date + "T12:00:00").toLocaleDateString(
@@ -298,9 +304,9 @@ export default function TrendsView({ data }: TrendsViewProps) {
             const dayDate = day.date.slice(5).replace("-", "/");
 
             return (
-              <div key={day.date} className="flex flex-1 flex-col items-center gap-1.5">
+              <div key={day.date} className="flex flex-col items-center gap-1.5 min-w-0">
                 <div
-                  className="flex h-10 w-10 items-center justify-center rounded-[12px] text-[13px] font-bold transition"
+                  className="flex aspect-square w-full max-w-[44px] items-center justify-center rounded-[12px] text-[13px] font-bold transition"
                   style={
                     style
                       ? {

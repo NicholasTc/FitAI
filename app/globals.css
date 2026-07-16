@@ -15,3 +15,18 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/*
+ * iOS Safari auto-zooms the viewport when focusing a form control whose
+ * computed font-size is below 16px. Many FitAI inputs use 12.5–13.5px, which
+ * triggers this. On touch devices, force ≥16px so focus no longer zooms.
+ * Pinch-zoom remains available (we do NOT set maximum-scale / user-scalable=no).
+ * Refs: CSS-Tricks "16px or Larger Text Prevents iOS Form Zoom"
+ */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

@@ -66,16 +66,28 @@ async function upsertSnapshot(
 /**
  * Sync recent snapshots from Google Health API.
  * @param days — how many days back to fetch (default 7, max 90 for history backfill)
+ * @returns sync result so callers can surface failures instead of silent Pending
  */
 export async function syncUserSnapshots(
   userId: string,
   accessToken: string,
   today: string,
   days = SYNC_DAYS,
-): Promise<void> {
+): Promise<{ apiError: string | null; daysSynced: number; daysWithAnyData: number }> {
   const safeDays = Math.min(days, MAX_BACKFILL_DAYS);
-  const snapshots = await fetchRecentSnapshots(accessToken, today, safeDays);
+  const { snapshots, apiError } = await fetchRecentSnapshots(accessToken, today, safeDays);
   await Promise.all(snapshots.map((s) => upsertSnapshot(userId, s)));
+
+  const daysWithAnyData = snapshots.filter(
+    (s) =>
+      s.sleepMinutes !== null ||
+      s.restingHr !== null ||
+      s.hrv !== null ||
+      s.steps !== null ||
+      s.totalCalories !== null,
+  ).length;
+
+  return { apiError, daysSynced: snapshots.length, daysWithAnyData };
 }
 
 /**

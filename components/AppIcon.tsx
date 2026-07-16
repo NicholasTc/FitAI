@@ -25,6 +25,7 @@ import {
   IoFlameOutline,
   IoSettingsOutline,
   IoTimeOutline,
+  IoLogOutOutline,
 } from "react-icons/io5";
 
 export type { FitAIIconName } from "@/types/icons";
@@ -57,6 +58,7 @@ const ICONS: Record<
   settings: IoSettingsOutline,
   calories: IoFlameOutline,
   history: IoTimeOutline,
+  signout: IoLogOutOutline,
 };
 
 interface AppIconProps {

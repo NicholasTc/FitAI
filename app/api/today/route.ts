@@ -8,7 +8,7 @@
  *   - Computes readiness score and day type
  */
 
-import { auth } from "@/lib/auth";
+import { auth, hasHealthScopes } from "@/lib/auth";
 import { computeBaseline } from "@/lib/baseline";
 import { computeReadiness } from "@/lib/readiness";
 import { computeTrainingLoad, computeTrainingLoadFromManual, type ManualWorkoutSession } from "@/lib/trainingLoad";
@@ -56,16 +56,76 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("date") ??
     new Date().toISOString().slice(0, 10);
 
-  // 1. Sync fresh data (best-effort — don't fail the whole request if this fails)
-  if (session.accessToken) {
+  // 1. Sync fresh data — capture result so Pending is explained, not silent
+  let syncStatus: NonNullable<TodayState["syncStatus"]> = { ok: true };
+  const grantedScopes = session.grantedScopes;
+  // Only treat as missing_scopes when we know what Google granted and Health is absent.
+  // Old JWTs may lack grantedScopes until the user signs in again.
+  const scopesKnownMissing =
+    typeof grantedScopes === "string" &&
+    grantedScopes.length > 0 &&
+    !hasHealthScopes(grantedScopes);
+
+  if (!session.accessToken) {
+    syncStatus = {
+      ok: false,
+      code: "api_error",
+      message: "No Google access token. Sign out and sign in again.",
+      grantedScopes,
+    };
+  } else if (scopesKnownMissing) {
+    syncStatus = {
+      ok: false,
+      code: "missing_scopes",
+      message:
+        "Google did not grant Health API scopes. Add the googlehealth.* scopes on your Google Cloud OAuth consent screen, then sign out and sign in again.",
+      grantedScopes,
+    };
+  } else {
     const syncWindowStart = new Date(date);
     syncWindowStart.setDate(syncWindowStart.getDate() - 6);
     const syncSince = syncWindowStart.toISOString().slice(0, 10);
 
-    await Promise.allSettled([
+    const [snapResult] = await Promise.allSettled([
       syncUserSnapshots(session.user.id, session.accessToken, date),
       syncUserWorkouts(session.user.id, session.accessToken, syncSince, date),
     ]);
+
+    if (snapResult.status === "rejected") {
+      syncStatus = {
+        ok: false,
+        code: "api_error",
+        message:
+          snapResult.reason instanceof Error
+            ? snapResult.reason.message
+            : "Health sync failed",
+        grantedScopes,
+      };
+    } else if (snapResult.value.apiError) {
+      const err = snapResult.value.apiError.toLowerCase();
+      const looksLikeAuth =
+        err.includes("403") ||
+        err.includes("401") ||
+        err.includes("permission") ||
+        err.includes("scope") ||
+        err.includes("insufficient");
+      syncStatus = {
+        ok: false,
+        code: looksLikeAuth ? "missing_scopes" : "api_error",
+        message: looksLikeAuth
+          ? `Health API denied access (${snapResult.value.apiError}). Google likely did not grant Health scopes — check Cloud Console OAuth scopes, then sign out and sign in again.`
+          : snapResult.value.apiError,
+        grantedScopes,
+      };
+    } else if (snapResult.value.daysWithAnyData === 0) {
+      syncStatus = {
+        ok: false,
+        code: "empty",
+        message:
+          "Health API returned no data. Check that Fitbit is linked to Google Health and data has synced overnight.",
+        grantedScopes,
+      };
+    }
   }
 
   // 2. Load history (28 days for stable z-score baselines) + today + last workout
@@ -159,6 +219,7 @@ export async function GET(request: NextRequest) {
     checkIn,
     lastWorkout,
     settings,
+    syncStatus,
     snapshot: {
       sleepMinutes: today.sleepMinutes,
       sleepEfficiency: today.sleepEfficiency,

@@ -72,9 +72,28 @@ export async function GET() {
   let rawSnapshot = null;
   let rawError = null;
   try {
-    rawSnapshot = await fetchDaySnapshot(session.accessToken, localDate);
+    const result = await fetchDaySnapshot(session.accessToken, localDate);
+    rawSnapshot = result.snapshot;
+    rawError = result.apiError;
   } catch (e) {
     rawError = e instanceof Error ? e.message : String(e);
+  }
+
+  // Probe Google tokeninfo for scopes actually on the access token
+  let tokenInfo: {
+    scope?: string;
+    expires_in?: string;
+    error?: string;
+    error_description?: string;
+  } | null = null;
+  try {
+    const tiRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(session.accessToken)}`,
+      { cache: "no-store" },
+    );
+    tokenInfo = (await tiRes.json()) as typeof tokenInfo;
+  } catch (e) {
+    tokenInfo = { error: e instanceof Error ? e.message : String(e) };
   }
 
   // Fetch raw exercise data from the API for the last 7 days.
@@ -139,7 +158,18 @@ export async function GET() {
       tokenSecondsRemaining: tokenAge,
       tokenExpired: tokenAge !== null && tokenAge < 0,
       sessionError: session.error,
+      grantedScopesFromJwt: session.grantedScopes ?? null,
+      tokenInfoScopes: tokenInfo?.scope ?? null,
+      hasHealthScopes: (() => {
+        const scopes = tokenInfo?.scope ?? session.grantedScopes ?? "";
+        return [
+          "googlehealth.activity_and_fitness.readonly",
+          "googlehealth.health_metrics_and_measurements.readonly",
+          "googlehealth.sleep.readonly",
+        ].every((s) => scopes.includes(s));
+      })(),
     },
+    tokenInfo,
     rawSnapshot,
     rawError,
     rawWorkouts,

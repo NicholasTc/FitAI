@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     ? Math.min(Math.max(1, parseInt(daysParam, 10)), MAX_BACKFILL_DAYS)
     : 7;
 
-  await syncUserSnapshots(session.user.id, session.accessToken, date, days);
+  const result = await syncUserSnapshots(session.user.id, session.accessToken, date, days);
 
   const history = await loadSnapshots(session.user.id, date, days);
   const today = history.find((s) => s.date === date) ?? {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     totalCalories: null,
   };
 
-  const result = computeBaseline(history, today);
+  const baseline = computeBaseline(history, today);
 
-  return Response.json(result);
+  return Response.json({ ...baseline, sync: result });
 }

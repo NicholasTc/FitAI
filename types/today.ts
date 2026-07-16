@@ -134,4 +134,17 @@ export interface TodayState {
     hrv: number | null;
     steps: number | null;
   }>;
+  /**
+   * Why wearable metrics may be Pending. Null when sync looks healthy.
+   * code:
+   *  - missing_scopes: Google did not grant Health API scopes
+   *  - api_error: Health API returned an error (auth / permission / network)
+   *  - empty: API succeeded but returned no data for the window
+   */
+  syncStatus?: {
+    ok: boolean;
+    code?: "missing_scopes" | "api_error" | "empty";
+    message?: string;
+    grantedScopes?: string;
+  };
 }

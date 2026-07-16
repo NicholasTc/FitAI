@@ -1,15 +1,27 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
+/** Scopes we request. Must also be listed on the Google Cloud OAuth consent screen. */
+export const REQUIRED_HEALTH_SCOPES = [
+  "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
+  "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
+  "https://www.googleapis.com/auth/googlehealth.sleep.readonly",
+] as const;
+
 const GOOGLE_HEALTH_SCOPES = [
   "openid",
   "email",
   "profile",
   "https://www.googleapis.com/auth/googlehealth.profile.readonly",
-  "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
-  "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
-  "https://www.googleapis.com/auth/googlehealth.sleep.readonly",
+  ...REQUIRED_HEALTH_SCOPES,
 ].join(" ");
+
+/** True when the granted scope string includes all Health API read scopes we need. */
+export function hasHealthScopes(grantedScopes: string | undefined | null): boolean {
+  if (!grantedScopes) return false;
+  const set = new Set(grantedScopes.split(/\s+/).filter(Boolean));
+  return REQUIRED_HEALTH_SCOPES.every((s) => set.has(s));
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -21,6 +33,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           scope: GOOGLE_HEALTH_SCOPES,
           access_type: "offline",
           prompt: "consent",
+          // Do NOT set include_granted_scopes — mixing legacy fitness.* scopes
+          // with googlehealth.* can cause Health API data-plane rejections.
         },
       },
     }),
@@ -36,9 +50,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           ...token,
           accessToken: account.access_token,
-          refreshToken: account.refresh_token,
+          refreshToken: account.refresh_token ?? token.refreshToken,
           expiresAt:
             account.expires_at ?? Math.floor(Date.now() / 1000) + expiresIn,
+          // Google returns the scopes actually granted (may omit Health scopes
+          // if they aren't enabled on the Cloud Console consent screen).
+          grantedScopes: account.scope ?? "",
+          error: undefined,
         };
       }
 
@@ -87,6 +105,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       session.accessToken = token.accessToken as string | undefined;
       session.error = token.error as string | undefined;
+      session.grantedScopes = token.grantedScopes as string | undefined;
       if (session.user && token.sub) {
         session.user.id = token.sub;
       }

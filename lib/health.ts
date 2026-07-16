@@ -260,11 +260,12 @@ function normalizeSnapshot(
 
 /**
  * Fetch and normalize one day of health data from the Google Health API.
+ * Also returns the first API error seen (if any) so callers can surface sync failures.
  */
 export async function fetchDaySnapshot(
   accessToken: string,
   date: string,
-): Promise<DailySnapshot> {
+): Promise<{ snapshot: DailySnapshot; apiError: string | null }> {
   const [sleep, steps, rhr, hrv, activeMinutes, totalCalories] = await Promise.all([
     sleepList<SleepResponse>(accessToken, date),
     dailyRollUp<StepsRollup>(accessToken, "steps", date),
@@ -284,27 +285,44 @@ export async function fetchDaySnapshot(
     dailyRollUp<TotalCaloriesRollup>(accessToken, "total-calories", date),
   ]);
 
-  return normalizeSnapshot(date, sleep, steps, rhr, hrv, activeMinutes, totalCalories);
+  const apiError =
+    (!sleep.ok ? sleep.error : null) ??
+    (!steps.ok ? steps.error : null) ??
+    (!rhr.ok ? rhr.error : null) ??
+    (!hrv.ok ? hrv.error : null) ??
+    (!activeMinutes.ok ? activeMinutes.error : null) ??
+    (!totalCalories.ok ? totalCalories.error : null) ??
+    null;
+
+  return {
+    snapshot: normalizeSnapshot(date, sleep, steps, rhr, hrv, activeMinutes, totalCalories),
+    apiError,
+  };
 }
 
 /**
  * Fetch and normalize the last N days (including today).
- * Returns an array ordered oldest → newest.
+ * Returns an array ordered oldest → newest, plus the first API error if any.
  */
 export async function fetchRecentSnapshots(
   accessToken: string,
   today: string,
   days = 7,
-): Promise<DailySnapshot[]> {
+): Promise<{ snapshots: DailySnapshot[]; apiError: string | null }> {
   const dates: string[] = [];
   for (let i = days - 1; i >= 0; i--) {
     dates.push(subtractDays(today, i));
   }
 
-  const snapshots = await Promise.all(
+  const results = await Promise.all(
     dates.map((d) => fetchDaySnapshot(accessToken, d)),
   );
-  return snapshots;
+
+  const apiError = results.find((r) => r.apiError)?.apiError ?? null;
+  return {
+    snapshots: results.map((r) => r.snapshot),
+    apiError,
+  };
 }
 
 /** Returns today's local date as YYYY-MM-DD (server timezone — use client date when possible). */

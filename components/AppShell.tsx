@@ -1,6 +1,7 @@
 "use client";
 
 import { AppIcon, type FitAIIconName } from "@/components/AppIcon";
+import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import type { TodayState } from "@/types/today";
 import TodayView from "@/components/views/TodayView";
@@ -181,26 +182,35 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
           </nav>
         </div>
 
-        {/* Preferences (settings — sidebar only) */}
+        {/* Preferences (settings + sign out — sidebar only) */}
         <div className="px-3 pb-3">
           <p className="mb-1 px-2 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
             Preferences
           </p>
-          <button
-            onClick={() => { setView("settings"); setMobileNavOpen(false); }}
-            className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13.5px] font-medium transition-all ${
-              view === "settings"
-                ? "bg-[#eef3ff] text-[#4a7df6] shadow-[0_1px_6px_rgba(74,125,246,0.12)]"
-                : "text-[#63708f] hover:bg-[rgba(0,0,0,0.04)] hover:text-[#1b2040]"
-            }`}
-          >
-            <AppIcon
-              name="settings"
-              size={16}
-              className={view === "settings" ? "text-[#4a7df6]" : "text-current"}
-            />
-            Settings
-          </button>
+          <div className="flex flex-col gap-0.5">
+            <button
+              onClick={() => { setView("settings"); setMobileNavOpen(false); }}
+              className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13.5px] font-medium transition-all ${
+                view === "settings"
+                  ? "bg-[#eef3ff] text-[#4a7df6] shadow-[0_1px_6px_rgba(74,125,246,0.12)]"
+                  : "text-[#63708f] hover:bg-[rgba(0,0,0,0.04)] hover:text-[#1b2040]"
+              }`}
+            >
+              <AppIcon
+                name="settings"
+                size={16}
+                className={view === "settings" ? "text-[#4a7df6]" : "text-current"}
+              />
+              Settings
+            </button>
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13.5px] font-medium text-[#63708f] transition-all hover:bg-[rgba(224,95,60,0.06)] hover:text-[#e05f3c]"
+            >
+              <AppIcon name="signout" size={16} className="text-current" />
+              Sign out
+            </button>
+          </div>
         </div>
 
         {/* User */}

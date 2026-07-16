@@ -437,7 +437,7 @@ export default function TodayView({
   onGoToTrends,
   onGoToReflect,
 }: TodayViewProps) {
-  const { readiness, snapshot, baseline, checkIn, date, lastWorkout } = data;
+  const { readiness, snapshot, baseline, checkIn, date, lastWorkout, syncStatus } = data;
   const dt = readiness.dayType;
   const colors = dayTypeColor(dt);
   const label = dayTypeLabel(dt);
@@ -706,6 +706,29 @@ export default function TodayView({
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
+      {/* Sync failure — why Key Signals stay Pending */}
+      {syncStatus && !syncStatus.ok && (
+        <div className="rounded-2xl border border-[rgba(200,122,54,0.28)] bg-[#fff6ee] px-4 py-3 text-sm text-[#9a5a20]">
+          <p className="font-semibold">
+            {syncStatus.code === "missing_scopes"
+              ? "Health data not authorized"
+              : syncStatus.code === "empty"
+                ? "No wearable data returned"
+                : "Health sync failed"}
+          </p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-[#b07038]">
+            {syncStatus.message}
+          </p>
+          {syncStatus.code === "missing_scopes" && (
+            <p className="mt-2 text-[12px] text-[#b07038]">
+              In Google Cloud Console → APIs &amp; Services → OAuth consent screen → Data Access,
+              add the <code className="rounded bg-white/70 px-1">googlehealth.*.readonly</code> scopes,
+              save, then sign out and sign back in.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Baseline forming banner */}
       {baseline.status === "forming" && (
         <div className="flex items-center gap-3 rounded-2xl border border-[rgba(74,125,246,0.18)] bg-[#eef3ff] px-4 py-3 text-sm text-[#4a7df6]">

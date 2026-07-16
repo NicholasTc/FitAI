@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitAI — Daily Capacity · Sphere Home (proposal 7)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ══════════════════════════════════════════════════════════════════
+     FITAI · DAILY CAPACITY  —  home dashboard
+     Base: near-black.  Amber = capacity / action.  Restrained red for
+     depletion, calm teal for positive change. Green/red used only
+     semantically, never decoratively.
+     ══════════════════════════════════════════════════════════════════ */
+  :root {
+    --bg:        #060607;
+    --stage:     #0b0b0e;
+    --surface:   #131317;
+    --surface-2: #17171c;
+    --surface-3: #1d1d23;
+    --line:      rgba(255,255,255,0.065);
+    --line-2:    rgba(255,255,255,0.11);
+
+    --ink:      #f4f4f6;
+    --ink-soft: #a2a2ac;
+    --ink-dim:  #6c6c78;
+
+    --amber:      #ff9d3c;
+    --amber-hi:   #ffb45f;
+    --amber-deep: #ff6a2c;
+    --amber-ghost: rgba(255,157,60,0.10);
+    --amber-line:  rgba(255,157,60,0.30);
+
+    --red:  #ff5a4d;
+    --pos:  #34d6a6;   /* positive change (semantic) */
+    --neg:  #ff6455;   /* negative change (semantic) */
+
+    --font-display: "Sora", system-ui, sans-serif;
+    --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+    --r-xl: 26px;
+    --r-lg: 20px;
+    --r-md: 15px;
+    --r-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(120% 60% at 50% -8%, rgba(255,106,44,0.09), transparent 55%),
+      radial-gradient(90% 50% at 50% 108%, rgba(120,80,226,0.05), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 56px 20px 90px;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  ::selection { background: var(--amber); color: #100a04; }
+
+  /* ─── Dashboard panel (normal UI, no device chrome) ────────────── */
+  .dashboard {
+    width: 100%;
+    max-width: 460px;
+  }
+
+  /* ─── App header ───────────────────────────────────────────────── */
+  .apphead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2px 4px;
+  }
+  .apphead .date { font-size: 12.5px; color: var(--ink-dim); font-weight: 500; letter-spacing: 0.3px; }
+  .apphead .hello { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-top: 2px; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 15px;
+    color: #120c06;
+    background: linear-gradient(145deg, var(--amber-hi), var(--amber-deep));
+    box-shadow: 0 6px 16px -6px rgba(255,106,44,0.6);
+  }
+
+  /* ─── HERO · sphere ────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    height: 300px;
+    margin-top: 18px;
+  }
+  #sphere-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 1;
+  }
+  .hero-glow {
+    position: absolute;
+    left: 50%; top: 42%;
+    width: 210px; height: 210px;
+    transform: translate(-50%,-50%);
+    background: radial-gradient(circle, rgba(255,157,60,0.20), rgba(255,110,40,0.05) 50%, transparent 72%);
+    filter: blur(14px);
+    z-index: 0;
+    pointer-events: none;
+    animation: breathe 6s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%,100% { opacity: 0.7; transform: translate(-50%,-50%) scale(1); }
+    50%     { opacity: 1;    transform: translate(-50%,-50%) scale(1.05); }
+  }
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+  }
+  .hero-kicker {
+    margin-top: 2px;
+    font-size: 11px;
+    letter-spacing: 2.4px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .hero-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    text-align: center;
+  }
+  .hero-score-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+  }
+  .hero-score-row .n {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 44px;
+    letter-spacing: -1.5px;
+    color: #fff;
+  }
+  .hero-score-row .of100 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .hero-day {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.1px;
+    margin-top: 2px;
+  }
+  .hero-day .accent { color: var(--amber-hi); }
+  .hero-sub { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+
+  /* ─── generic section ──────────────────────────────────────────── */
+  .sec { margin-top: 22px; }
+  .sec-title {
+    font-size: 11px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 650;
+    margin-bottom: 11px;
+    padding-left: 1px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sec-title .more { color: var(--amber-hi); letter-spacing: 0.3px; text-transform: none; font-size: 12px; }
+
+  .card {
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+  }
+
+  /* ─── What changed strip ───────────────────────────────────────── */
+  .changed {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 9px;
+  }
+  .chg {
+    padding: 13px 11px 12px;
+    text-align: center;
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    position: relative;
+    overflow: hidden;
+  }
+  .chg .lbl { font-size: 11px; color: var(--ink-dim); font-weight: 550; letter-spacing: 0.3px; }
+  .chg .val { font-family: var(--font-display); font-size: 20px; font-weight: 700; margin-top: 5px; letter-spacing: -0.5px; }
+  .chg .d {
+    margin-top: 5px;
+    font-size: 11.5px;
+    font-weight: 650;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .up   { color: var(--pos); }
+  .down { color: var(--pos); } /* RHR down is good -> positive */
+
+  /* ─── AI summary ───────────────────────────────────────────────── */
+  .ai {
+    padding: 15px 16px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ai::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--amber-hi), var(--amber-deep));
+  }
+  .ai-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 9px;
+  }
+  .ai-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase;
+    font-weight: 700; color: var(--amber-hi);
+  }
+  .ai-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--amber-hi); box-shadow: 0 0 8px var(--amber); }
+  .ai p { font-size: 14px; line-height: 1.62; color: #d9d9df; }
+  .ai p b { color: #fff; font-weight: 650; }
+
+  /* ─── Key metrics ──────────────────────────────────────────────── */
+  .metric-lg {
+    padding: 16px 17px;
+    display: flex; align-items: center; gap: 15px;
+    margin-bottom: 10px;
+  }
+  .metric-lg .mi {
+    width: 46px; height: 46px; border-radius: 13px;
+    display: grid; place-items: center; flex-shrink: 0;
+    background: rgba(74,125,246,0.12); color: #7fa6ff;
+  }
+  .metric-lg .body { flex: 1; min-width: 0; }
+  .metric-lg .top { display: flex; align-items: baseline; justify-content: space-between; }
+  .metric-lg .name { font-size: 12.5px; color: var(--ink-soft); font-weight: 550; }
+  .metric-lg .big { font-family: var(--font-display); font-size: 27px; font-weight: 700; letter-spacing: -0.8px; }
+  .metric-lg .big small { font-size: 15px; color: var(--ink-soft); font-weight: 600; }
+  .metric-lg .meta { font-size: 11.5px; color: var(--ink-dim); margin-top: 2px; }
+  .pilld {
+    font-size: 12px; font-weight: 650; color: var(--pos);
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+
+  .metric-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric-sm { padding: 14px 15px; }
+  .metric-sm .top { display: flex; align-items: center; gap: 8px; }
+  .metric-sm .mi {
+    width: 30px; height: 30px; border-radius: 9px;
+    display: grid; place-items: center; flex-shrink: 0;
+  }
+  .metric-sm .name { font-size: 12px; color: var(--ink-soft); font-weight: 550; }
+  .metric-sm .big { font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -0.7px; margin-top: 11px; }
+  .metric-sm .big small { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+  .metric-sm .foot { display: flex; align-items: center; justify-content: space-between; margin-top: 7px; }
+  .metric-sm .meta { font-size: 10.5px; color: var(--ink-dim); }
+  .spark { display: block; }
+
+  .mi.hrv { background: rgba(120,80,226,0.14); color: #b79bff; }
+  .mi.rhr { background: rgba(255,90,77,0.13); color: #ff8a80; }
+
+  /* ─── Capacity cards ───────────────────────────────────────────── */
+  .cap { padding: 16px 17px; margin-bottom: 12px; }
+  .cap-head { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
+  .cap-ic {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: grid; place-items: center;
+    background: var(--amber-ghost); color: var(--amber-hi);
+  }
+  .cap-ttl { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-dim); font-weight: 650; }
+  .cap-verdict { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
+  .cap-verdict.good { color: var(--amber-hi); }
+  .cap-sub { font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); margin-top: 7px; }
+
+  /* intensity meter */
+  .meter { display: flex; gap: 4px; margin-top: 13px; }
+  .seg { flex: 1; height: 7px; border-radius: 4px; background: rgba(255,255,255,0.07); }
+  .seg.on { background: linear-gradient(90deg, var(--amber), var(--amber-deep)); }
+  .meter-tags { display: flex; justify-content: space-between; margin-top: 7px; font-size: 10.5px; color: var(--ink-dim); }
+
+  .cap-target {
+    margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12.5px;
+  }
+  .cap-target .k { color: var(--ink-dim); }
+  .cap-target .v { font-weight: 650; color: var(--ink); }
+
+  /* work blocks */
+  .blocks { display: flex; gap: 7px; margin-top: 4px; }
+  .blk { flex: 1; height: 40px; border-radius: 10px; border: 1px solid var(--line-2); display: grid; place-items: center; }
+  .blk.fill { background: linear-gradient(160deg, rgba(255,157,60,0.22), rgba(255,106,44,0.10)); border-color: var(--amber-line); }
+  .blk svg { opacity: 0.9; }
+  .blk.empty { opacity: 0.4; }
+  .work-nums { display: flex; align-items: baseline; gap: 8px; }
+  .work-nums .n { font-family: var(--font-display); font-size: 27px; font-weight: 700; letter-spacing: -0.7px; }
+  .work-nums .u { font-size: 12.5px; color: var(--ink-soft); }
+
+  /* ─── Trend preview ────────────────────────────────────────────── */
+  .trend { padding: 16px 17px 15px; }
+  .bars { display: flex; align-items: flex-end; justify-content: space-between; height: 78px; gap: 8px; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; border-radius: 5px 5px 3px 3px; background: rgba(255,255,255,0.10); }
+  .bar.today { background: linear-gradient(180deg, var(--amber-hi), var(--amber-deep)); box-shadow: 0 0 16px -4px var(--amber); }
+  .bar-day { font-size: 10px; color: var(--ink-dim); }
+  .bar-day.today { color: var(--amber-hi); font-weight: 700; }
+
+  /* ─── Bottom nav (static row, not fixed device chrome) ─────────── */
+  .tabbar {
+    margin-top: 28px;
+    padding: 12px 6px 0;
+    border-top: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ink-dim); flex: 1; }
+  .tab span { font-size: 9.5px; font-weight: 550; letter-spacing: 0.2px; }
+  .tab.active { color: var(--amber-hi); }
+  .tab-fab {
+    width: 46px; height: 46px; border-radius: 15px;
+    background: linear-gradient(150deg, var(--amber-hi), var(--amber-deep));
+    display: grid; place-items: center;
+    color: #120c06;
+    box-shadow: 0 10px 24px -8px rgba(255,106,44,0.7);
+    margin-top: -18px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+  <div class="dashboard">
+
+    <!-- header -->
+    <div class="apphead">
+      <div>
+        <div class="date">Thursday · Jul 16</div>
+        <div class="hello">Good morning, Nicholas</div>
+      </div>
+      <div class="avatar">N</div>
+    </div>
+
+    <!-- HERO -->
+    <div class="hero" id="hero">
+      <div class="hero-glow"></div>
+      <canvas id="sphere-canvas"></canvas>
+      <div class="hero-overlay">
+        <div class="hero-kicker">Today’s Capacity</div>
+      </div>
+      <div class="hero-bottom">
+        <div class="hero-score-row"><span class="n">84</span><span class="of100">/100</span></div>
+        <div class="hero-day">Ready to <span class="accent">Push</span></div>
+        <div class="hero-sub">▲ 14 vs yesterday · one hard effort supported</div>
+      </div>
+    </div>
+
+    <!-- WHAT CHANGED -->
+    <div class="sec">
+      <div class="sec-title">What changed since yesterday</div>
+      <div class="changed">
+        <div class="chg">
+          <div class="lbl">Sleep</div>
+          <div class="val">7<span style="font-size:14px;color:var(--ink-soft)">h</span>42<span style="font-size:14px;color:var(--ink-soft)">m</span></div>
+          <div class="d up"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M5 1 9 7H1z" fill="currentColor"/></svg>52m</div>
+        </div>
+        <div class="chg">
+          <div class="lbl">HRV</div>
+          <div class="val">68<span style="font-size:14px;color:var(--ink-soft)"> ms</span></div>
+          <div class="d up"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M5 1 9 7H1z" fill="currentColor"/></svg>12 ms</div>
+        </div>
+        <div class="chg">
+          <div class="lbl">Resting HR</div>
+          <div class="val">52<span style="font-size:14px;color:var(--ink-soft)"> bpm</span></div>
+          <div class="d down"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M5 9 1 3h8z" fill="currentColor"/></svg>3 bpm</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI SUMMARY -->
+    <div class="sec">
+      <div class="card ai">
+        <div class="ai-head">
+          <span class="ai-badge"><span class="ai-dot"></span>FitAI Summary</span>
+        </div>
+        <p>Readiness climbed <b>14 points</b>. You slept <b>52 min longer</b>, HRV rose to <b>68 ms</b>, and resting HR dropped to <b>52 bpm</b> — recovery is high and yesterday’s load was light. Your body is primed for a hard effort. Spend it on <b>one</b> priority, not three.</p>
+      </div>
+    </div>
+
+    <!-- KEY METRICS -->
+    <div class="sec">
+      <div class="sec-title">Key signals <span class="more">Details ›</span></div>
+
+      <!-- Sleep — most important supporting metric, full width -->
+      <div class="card metric-lg">
+        <div class="mi">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="body">
+          <div class="top">
+            <span class="name">Sleep</span>
+            <span class="pilld"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M5 1 9 7H1z" fill="currentColor"/></svg>52m</span>
+          </div>
+          <div class="big">7h 42m</div>
+          <div class="meta">93% efficiency · 1h 38m deep · 7-day avg 6h 50m</div>
+        </div>
+      </div>
+
+      <div class="metric-row">
+        <!-- HRV -->
+        <div class="card metric-sm">
+          <div class="top">
+            <div class="mi hrv"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M2 12h4l2-6 4 12 2.5-8 1.5 2H22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="name">HRV</span>
+          </div>
+          <div class="big">68<small> ms</small></div>
+          <div class="foot">
+            <span class="meta">avg 58</span>
+            <svg class="spark" width="58" height="22" viewBox="0 0 58 22" fill="none"><polyline points="1,17 11,15 21,16 31,11 41,13 51,6 57,3" stroke="#b79bff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="57" cy="3" r="2.2" fill="#b79bff"/></svg>
+          </div>
+        </div>
+        <!-- RHR -->
+        <div class="card metric-sm">
+          <div class="top">
+            <div class="mi rhr"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 20S3.5 14.5 3.5 8.8A4.3 4.3 0 0 1 12 6a4.3 4.3 0 0 1 8.5 2.8C20.5 14.5 12 20 12 20Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+            <span class="name">Resting HR</span>
+          </div>
+          <div class="big">52<small> bpm</small></div>
+          <div class="foot">
+            <span class="meta">avg 55</span>
+            <svg class="spark" width="58" height="22" viewBox="0 0 58 22" fill="none"><polyline points="1,6 11,8 21,7 31,11 41,10 51,14 57,17" stroke="#ff8a80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="57" cy="17" r="2.2" fill="#ff8a80"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRAINING CAPACITY -->
+    <div class="sec">
+      <div class="sec-title">Today’s plan</div>
+      <div class="card cap">
+        <div class="cap-head">
+          <div class="cap-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6.5 6.5v11M17.5 6.5v11M4 9h2.5M17.5 9H20M4 15h2.5M17.5 15H20M6.5 12h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+          <span class="cap-ttl">Training capacity</span>
+        </div>
+        <div class="cap-verdict good">Hard session supported</div>
+        <div class="cap-sub">Acute load is low and recovery is high — a genuinely hard workout is well supported. Just don’t stack it with a big work day.</div>
+        <div class="meter">
+          <div class="seg on"></div><div class="seg on"></div><div class="seg on"></div><div class="seg on"></div><div class="seg"></div>
+        </div>
+        <div class="meter-tags"><span>Easy</span><span>Moderate</span><span style="color:var(--amber-hi);font-weight:650">Hard ◄</span><span>Max</span></div>
+        <div class="cap-target">
+          <span class="k">Suggested</span>
+          <span class="v">60–90 min · RPE 7–8</span>
+        </div>
+      </div>
+
+      <!-- WORK CAPACITY -->
+      <div class="card cap">
+        <div class="cap-head">
+          <div class="cap-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 7h16v12H4zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+          <span class="cap-ttl">Work capacity</span>
+        </div>
+        <div class="work-nums">
+          <span class="n" style="color:var(--amber-hi)">2</span><span class="u">deep-work blocks</span>
+          <span class="n" style="margin-left:auto">~5</span><span class="u">focused hours</span>
+        </div>
+        <div class="blocks">
+          <div class="blk fill"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v9l5 3" stroke="#ffb45f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="8.5" stroke="#ffb45f" stroke-width="1.6" opacity="0.6"/></svg></div>
+          <div class="blk fill"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v9l5 3" stroke="#ffb45f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="8.5" stroke="#ffb45f" stroke-width="1.6" opacity="0.6"/></svg></div>
+          <div class="blk empty"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="#6c6c78" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        </div>
+        <div class="cap-sub">Protect your morning for the hardest task — that’s your highest-quality block. Keep admin / comms under 90 min.</div>
+      </div>
+    </div>
+
+    <!-- TREND PREVIEW -->
+    <div class="sec">
+      <div class="sec-title">7-day readiness <span class="more">Trends ›</span></div>
+      <div class="card trend">
+        <div class="bars">
+          <div class="bar-wrap"><div class="bar" style="height:52%"></div><div class="bar-day">Fri</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:58%"></div><div class="bar-day">Sat</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:48%"></div><div class="bar-day">Sun</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:70%"></div><div class="bar-day">Mon</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:60%"></div><div class="bar-day">Tue</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:70%"></div><div class="bar-day">Wed</div></div>
+          <div class="bar-wrap"><div class="bar today" style="height:92%"></div><div class="bar-day today">Today</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- bottom nav -->
+    <div class="tabbar">
+      <div class="tab active">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <span>Home</span>
+      </div>
+      <div class="tab">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 16l5-5 4 3 6-7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Trends</span>
+      </div>
+      <div class="tab-fab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></div>
+      <div class="tab">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 4h14v16l-7-3-7 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <span>Reflect</span>
+      </div>
+      <div class="tab">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span>Profile</span>
+      </div>
+    </div>
+
+  </div><!-- /dashboard -->
+
+  <!-- ── Three.js ambient capacity sphere — clean glossy marble ────── -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  (function () {
+    var canvas = document.getElementById('sphere-canvas');
+    var hero = document.getElementById('hero');
+    if (!window.THREE || !canvas) { return; }
+
+    // readiness drives the sphere's glow warmth only — surface stays smooth
+    var READINESS = 84 / 100;
+
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    camera.position.set(0, 0, 4.6);
+
+    var group = new THREE.Group();
+    scene.add(group);
+
+    // Very small single-octave noise, just enough to feel "alive" —
+    // the surface should read as a smooth glossy marble, not a blob.
+    var SNOISE = [
+      'vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x,289.0);}',
+      'vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}',
+      'float snoise(vec3 v){',
+      '  const vec2 C = vec2(1.0/6.0, 1.0/3.0);',
+      '  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);',
+      '  vec3 i  = floor(v + dot(v, C.yyy));',
+      '  vec3 x0 = v - i + dot(i, C.xxx);',
+      '  vec3 g = step(x0.yzx, x0.xyz);',
+      '  vec3 l = 1.0 - g;',
+      '  vec3 i1 = min(g.xyz, l.zxy);',
+      '  vec3 i2 = max(g.xyz, l.zxy);',
+      '  vec3 x1 = x0 - i1 + 1.0 * C.xxx;',
+      '  vec3 x2 = x0 - i2 + 2.0 * C.xxx;',
+      '  vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;',
+      '  i = mod(i, 289.0);',
+      '  vec4 p = permute(permute(permute(',
+      '           i.z + vec4(0.0, i1.z, i2.z, 1.0))',
+      '         + i.y + vec4(0.0, i1.y, i2.y, 1.0))',
+      '         + i.x + vec4(0.0, i1.x, i2.x, 1.0));',
+      '  float n_ = 1.0/7.0;',
+      '  vec3 ns = n_ * D.wyz - D.xzx;',
+      '  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);',
+      '  vec4 x_ = floor(j * ns.z);',
+      '  vec4 y_ = floor(j - 7.0 * x_);',
+      '  vec4 x = x_ * ns.x + ns.yyyy;',
+      '  vec4 y = y_ * ns.x + ns.yyyy;',
+      '  vec4 h = 1.0 - abs(x) - abs(y);',
+      '  vec4 b0 = vec4(x.xy, y.xy);',
+      '  vec4 b1 = vec4(x.zw, y.zw);',
+      '  vec4 s0 = floor(b0)*2.0 + 1.0;',
+      '  vec4 s1 = floor(b1)*2.0 + 1.0;',
+      '  vec4 sh = -step(h, vec4(0.0));',
+      '  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;',
+      '  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;',
+      '  vec3 p0 = vec3(a0.xy, h.x);',
+      '  vec3 p1 = vec3(a0.zw, h.y);',
+      '  vec3 p2 = vec3(a1.xy, h.z);',
+      '  vec3 p3 = vec3(a1.zw, h.w);',
+      '  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));',
+      '  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;',
+      '  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);',
+      '  m = m * m;',
+      '  return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));',
+      '}'
+    ].join('\n');
+
+    var uniforms = {
+      uTime:      { value: 0 },
+      uAmp:       { value: 0.006 + READINESS * 0.006 }, // near-flat — smooth marble
+      uColorDark: { value: new THREE.Color(0x7a3f16) },  // shadow side
+      uColorBase: { value: new THREE.Color(0xff9d3c) },  // body
+      uColorHi:   { value: new THREE.Color(0xffe9c4) }   // highlight
+    };
+
+    var vert = [
+      'uniform float uTime;',
+      'uniform float uAmp;',
+      'varying vec3 vNormal;',
+      'varying vec3 vView;',
+      SNOISE,
+      'void main(){',
+      '  float t = uTime * 0.12;',
+      '  vec3 dir = normalize(position);',
+      '  float n = snoise(dir * 0.7 + vec3(0.0, t, 0.0));',
+      '  float breathe = 0.01 * sin(uTime * 0.6);',
+      '  float disp = n * uAmp + breathe;',
+      '  vec3 newPos = position + normal * disp;',
+      '  vNormal = normalize(normalMatrix * normal);',
+      '  vec4 mv = modelViewMatrix * vec4(newPos, 1.0);',
+      '  vView = -mv.xyz;',
+      '  gl_Position = projectionMatrix * mv;',
+      '}'
+    ].join('\n');
+
+    // Glossy-marble shading: fixed key light + soft specular highlight +
+    // gentle fresnel rim. Reads as a clean solid sphere, not a data blob.
+    var frag = [
+      'uniform vec3 uColorDark;',
+      'uniform vec3 uColorBase;',
+      'uniform vec3 uColorHi;',
+      'varying vec3 vNormal;',
+      'varying vec3 vView;',
+      'void main(){',
+      '  vec3 N = normalize(vNormal);',
+      '  vec3 V = normalize(vView);',
+      '  vec3 L = normalize(vec3(-0.5, 0.62, 0.85));',
+      '  float diff = max(dot(N, L), 0.0);',
+      '  vec3 H = normalize(L + V);',
+      '  float spec = pow(max(dot(N, H), 0.0), 46.0);',
+      '  float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.4);',
+      '  vec3 col = mix(uColorDark, uColorBase, smoothstep(0.05, 0.75, diff));',
+      '  col = mix(col, uColorHi, smoothstep(0.6, 1.0, diff) * 0.55);',
+      '  col += spec * 0.85;',
+      '  col = mix(col, uColorHi, fres * 0.30);',
+      '  gl_FragColor = vec4(col, 1.0);',
+      '}'
+    ].join('\n');
+
+    var geo = new THREE.IcosahedronGeometry(1.05, 64);
+    var mat = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vert, fragmentShader: frag });
+    var sphere = new THREE.Mesh(geo, mat);
+    group.add(sphere);
+
+    // faint outer halo shell — soft edge glow only, no lumpiness
+    var haloMat = new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: new THREE.Color(0xff9d3c) } },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+      depthWrite: false,
+      vertexShader: [
+        'varying vec3 vNormal;',
+        'varying vec3 vView;',
+        'void main(){',
+        '  vNormal = normalize(normalMatrix * normal);',
+        '  vec4 mv = modelViewMatrix * vec4(position, 1.0);',
+        '  vView = -mv.xyz;',
+        '  gl_Position = projectionMatrix * mv;',
+        '}'
+      ].join('\n'),
+      fragmentShader: [
+        'uniform vec3 uColor;',
+        'varying vec3 vNormal;',
+        'varying vec3 vView;',
+        'void main(){',
+        '  vec3 N = normalize(vNormal);',
+        '  vec3 V = normalize(vView);',
+        '  float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.6);',
+        '  gl_FragColor = vec4(uColor, fres * 0.55);',
+        '}'
+      ].join('\n')
+    });
+    var halo = new THREE.Mesh(new THREE.IcosahedronGeometry(1.24, 16), haloMat);
+    group.add(halo);
+
+    // ambient pointer parallax (not draggable — subtle tilt only)
+    var tx = 0, ty = 0, cx = 0, cy = 0;
+    hero.addEventListener('pointermove', function (e) {
+      var r = hero.getBoundingClientRect();
+      tx = ((e.clientX - r.left) / r.width - 0.5) * 0.35;
+      ty = ((e.clientY - r.top) / r.height - 0.5) * 0.35;
+    });
+    hero.addEventListener('pointerleave', function () { tx = 0; ty = 0; });
+
+    function resize() {
+      var w = hero.clientWidth, h = hero.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    var clock = new THREE.Clock();
+    function tick() {
+      var t = clock.getElapsedTime();
+      uniforms.uTime.value = t;
+      group.rotation.y += 0.0009;
+      cx += (tx - cx) * 0.05;
+      cy += (ty - cy) * 0.05;
+      group.rotation.x = -cy;
+      group.rotation.z = cx * 0.3;
+      camera.position.x = cx * 0.4;
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+    tick();
+  })();
+  </script>
+
+</body>
+</html>

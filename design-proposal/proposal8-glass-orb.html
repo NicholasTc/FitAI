@@ -137,10 +137,14 @@
     position: absolute;
     top: 119px; left: 50%;
     transform: translate(-50%, -50%);
-    width: 300px; height: 300px;
+    width: 380px; height: 380px;
     z-index: 0;
-    fill: #d7e8bf;
     pointer-events: none;
+    animation: haloBreathe 7s ease-in-out infinite;
+  }
+  @keyframes haloBreathe {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; }
   }
   .orb-wrap {
     position: absolute;
@@ -152,11 +156,11 @@
   /* narrow yellow-green bloom spilling onto the background at the base */
   .orb-glow {
     position: absolute;
-    left: 50%; bottom: 20px;
+    left: 50%; bottom: -12px;
     transform: translateX(-50%);
-    width: 128px; height: 58px;
-    background: radial-gradient(ellipse at 50% 46%,
-      rgba(216,252,120,0.6), rgba(150,220,60,0.12) 52%, transparent 76%);
+    width: 150px; height: 68px;
+    background: radial-gradient(ellipse at 50% 50%,
+      rgba(240,255,160,0.7), rgba(160,225,66,0.22) 42%, rgba(90,160,60,0.05) 64%, transparent 78%);
     filter: blur(13px);
     animation: orbBreathe 6s ease-in-out infinite;
     pointer-events: none;
@@ -172,42 +176,46 @@
     border-radius: 50%;
     overflow: hidden;
     background:
-      /* 1 · narrow luminous crescent at the very bottom center */
-      radial-gradient(ellipse 52% 30% at 50% 103%,
-        rgba(230,255,150,0.95) 0%, rgba(158,230,66,0.5) 24%, rgba(80,160,48,0.14) 46%, transparent 62%),
-      /* 2 · faint green reflection climbing the lower sides only */
-      radial-gradient(ellipse 104% 88% at 50% 138%,
-        rgba(110,190,66,0.16) 0%, rgba(70,140,50,0.05) 40%, transparent 60%),
+      /* 1 · concentrated luminous pool at the very bottom */
+      radial-gradient(ellipse 44% 18% at 50% 103%,
+        rgba(244,255,180,0.9) 0%, rgba(178,240,86,0.42) 36%, rgba(96,180,60,0.08) 62%, transparent 76%),
+      /* 2 · faint green shell light low on the sides */
+      radial-gradient(ellipse 108% 96% at 50% 140%,
+        rgba(110,190,66,0.10) 0%, rgba(70,140,50,0.03) 44%, transparent 60%),
       /* 3a · crisp cool reflection catching the top edge */
-      radial-gradient(ellipse 44% 15% at 50% 3%,
-        rgba(222,236,246,0.38) 0%, rgba(180,205,222,0.10) 55%, transparent 74%),
-      /* 3b · cool blue-white tint along the upper shell */
-      radial-gradient(ellipse 76% 42% at 50% -12%,
-        rgba(150,190,214,0.30) 0%, rgba(90,124,150,0.08) 44%, transparent 66%),
-      /* 4 · near-black translucent body */
-      radial-gradient(circle at 50% 40%,
-        #0a1411 0%, #081210 42%, #060d0c 68%, #050a0b 100%);
+      radial-gradient(ellipse 40% 12% at 50% 2%,
+        rgba(214,232,246,0.30) 0%, rgba(180,205,222,0.07) 55%, transparent 74%),
+      /* 3b · whisper of cool tint high in the glass */
+      radial-gradient(ellipse 80% 40% at 50% -14%,
+        rgba(104,156,186,0.16) 0%, rgba(80,120,150,0.05) 46%, transparent 64%),
+      /* 4 · deep near-black body — interior stays dark, light lives at the shell */
+      radial-gradient(circle at 50% 42%,
+        #0a1210 0%, #081110 44%, #060e0f 70%, #050b0d 100%);
     box-shadow:
-      inset 0 -14px 26px rgba(150,230,72,0.20),   /* subtle base ambient */
-      inset 0 20px 40px rgba(0,0,0,0.60),          /* upper interior darkening */
-      inset 0 0 34px 8px rgba(0,0,0,0.50),         /* internal edge shadow — refraction */
-      inset 0 3px 2px rgba(200,222,238,0.16),      /* top sheen line */
-      0 0 26px rgba(110,170,80,0.10);              /* faint outer halo */
+      inset 0 -14px 24px rgba(150,230,72,0.18),    /* inner shell reflection at the base */
+      inset 0 30px 52px rgba(0,0,0,0.66),          /* upper interior darkening */
+      inset 0 0 46px 12px rgba(0,0,0,0.52),        /* internal edge shadow — refraction */
+      inset 0 2px 3px rgba(205,230,245,0.2),       /* top sheen line */
+      0 0 18px 0 rgba(125,195,85,0.10),            /* tight ambient halo */
+      0 14px 44px -6px rgba(160,235,80,0.38),      /* concentrated bloom below */
+      0 -6px 22px -10px rgba(95,155,195,0.08);     /* faint cool cast upward */
   }
   /* thin, crisp, semi-transparent rim — blue-white on top, green at the base */
   .orb-rim {
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    padding: 1.2px;
+    padding: 1.8px;
     background: conic-gradient(from 0deg,
-      rgba(198,224,244,0.72) 0deg,
-      rgba(150,190,180,0.20) 55deg,
-      rgba(120,170,110,0.14) 108deg,
-      rgba(206,248,150,0.85) 180deg,
-      rgba(120,170,110,0.14) 252deg,
-      rgba(150,190,180,0.20) 305deg,
-      rgba(198,224,244,0.72) 360deg);
+      rgba(172,216,242,0.9) 0deg,
+      rgba(132,186,186,0.35) 52deg,
+      rgba(126,192,112,0.48) 105deg,
+      rgba(228,255,155,1) 168deg,
+      rgba(248,255,210,1) 180deg,
+      rgba(228,255,155,1) 192deg,
+      rgba(126,192,112,0.48) 255deg,
+      rgba(132,186,186,0.35) 308deg,
+      rgba(172,216,242,0.9) 360deg);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
             mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
@@ -215,16 +223,61 @@
     pointer-events: none;
     z-index: 2;
   }
+  /* wide soft fresnel band hugging the inside of the edge — the "glass" */
+  .orb-fresnel {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg,
+      rgba(150,208,238,0.8) 0deg,
+      rgba(110,170,185,0.2) 38deg,
+      rgba(108,196,88,0.45) 85deg,
+      rgba(198,252,110,0.85) 150deg,
+      rgba(244,255,178,1) 180deg,
+      rgba(198,252,110,0.85) 210deg,
+      rgba(108,196,88,0.45) 275deg,
+      rgba(110,170,185,0.2) 322deg,
+      rgba(150,208,238,0.8) 360deg);
+    -webkit-mask: radial-gradient(closest-side, transparent 84%, rgba(0,0,0,0.5) 92%, #000 97%, #000 100%);
+            mask: radial-gradient(closest-side, transparent 84%, rgba(0,0,0,0.5) 92%, #000 97%, #000 100%);
+    filter: blur(2px);
+    z-index: 1;
+    animation: fresnelBreathe 6s ease-in-out infinite;
+  }
+  @keyframes fresnelBreathe {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; }
+  }
+  /* outer ring bloom — the shell's light bleeding past the edge */
+  .orb-ring-glow {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg,
+      rgba(120,180,210,0.14) 0deg,
+      rgba(90,150,160,0.04) 42deg,
+      rgba(110,200,80,0.26) 100deg,
+      rgba(196,250,104,0.55) 158deg,
+      rgba(248,255,190,0.95) 180deg,
+      rgba(196,250,104,0.55) 202deg,
+      rgba(110,200,80,0.26) 260deg,
+      rgba(90,150,160,0.04) 318deg,
+      rgba(120,180,210,0.14) 360deg);
+    -webkit-mask: radial-gradient(closest-side, transparent 76%, #000 86%, #000 91%, transparent 97%);
+            mask: radial-gradient(closest-side, transparent 76%, #000 86%, #000 91%, transparent 97%);
+    filter: blur(6px);
+    animation: fresnelBreathe 6s ease-in-out infinite;
+    pointer-events: none;
+  }
   /* broad blue-white specular reflection on the upper-left, following the curve */
   .orb::before {
     content: "";
     position: absolute;
-    left: 14%; top: 7%;
-    width: 54%; height: 30%;
-    transform: rotate(-20deg);
-    background: radial-gradient(ellipse at 42% 40%,
-      rgba(202,224,240,0.42), rgba(202,224,240,0.06) 54%, transparent 72%);
-    filter: blur(5px);
+    left: 18%; top: 2.5%;
+    width: 64%; height: 17%;
+    background: radial-gradient(ellipse at 50% 20%,
+      rgba(202,228,244,0.34), rgba(202,228,244,0.05) 58%, transparent 76%);
+    filter: blur(4px);
     border-radius: 50%;
     z-index: 1;
   }
@@ -234,10 +287,10 @@
     position: absolute;
     left: 50%; bottom: 1%;
     transform: translateX(-50%);
-    width: 44%; height: 20%;
+    width: 42%; height: 15%;
     background: radial-gradient(ellipse at 50% 100%,
-      rgba(246,255,176,0.98), rgba(184,242,84,0.45) 44%, transparent 72%);
-    filter: blur(3px);
+      rgba(252,255,216,1), rgba(196,248,96,0.55) 42%, transparent 70%);
+    filter: blur(2.5px);
     border-radius: 50%;
     z-index: 1;
   }
@@ -492,161 +545,12 @@
 
           <!-- HERO · glass orb -->
           <div class="hero">
-            <svg class="orb-halo" viewBox="0 0 300 300" aria-hidden="true">
-<circle cx="280.5" cy="83.4" r="0.43" opacity="0.14"/>
-<circle cx="40.9" cy="206.7" r="0.47" opacity="0.28"/>
-<circle cx="17.2" cy="139.4" r="0.42" opacity="0.24"/>
-<circle cx="40.6" cy="81.4" r="0.74" opacity="0.23"/>
-<circle cx="157.2" cy="33.7" r="0.63" opacity="0.3"/>
-<circle cx="253.5" cy="211.8" r="0.56" opacity="0.31"/>
-<circle cx="194.9" cy="47.9" r="0.43" opacity="0.29"/>
-<circle cx="130.0" cy="273.3" r="0.53" opacity="0.25"/>
-<circle cx="104.2" cy="277.8" r="0.44" opacity="0.22"/>
-<circle cx="113.1" cy="16.2" r="0.59" opacity="0.21"/>
-<circle cx="27.8" cy="69.5" r="0.74" opacity="0.11"/>
-<circle cx="55.7" cy="204.8" r="0.74" opacity="0.41"/>
-<circle cx="267.0" cy="111.0" r="0.66" opacity="0.26"/>
-<circle cx="265.3" cy="131.3" r="0.43" opacity="0.32"/>
-<circle cx="197.9" cy="287.4" r="0.44" opacity="0.14"/>
-<circle cx="209.7" cy="258.1" r="0.55" opacity="0.32"/>
-<circle cx="41.3" cy="189.4" r="0.68" opacity="0.38"/>
-<circle cx="105.0" cy="40.8" r="0.69" opacity="0.33"/>
-<circle cx="166.9" cy="27.0" r="0.69" opacity="0.23"/>
-<circle cx="71.7" cy="65.3" r="0.69" opacity="0.3"/>
-<circle cx="254.5" cy="117.1" r="0.59" opacity="0.33"/>
-<circle cx="38.3" cy="105.1" r="0.65" opacity="0.24"/>
-<circle cx="225.1" cy="67.3" r="0.46" opacity="0.35"/>
-<circle cx="53.1" cy="201.2" r="0.57" opacity="0.39"/>
-<circle cx="29.6" cy="119.8" r="0.5" opacity="0.32"/>
-<circle cx="271.4" cy="223.2" r="0.67" opacity="0.17"/>
-<circle cx="59.9" cy="80.1" r="0.52" opacity="0.31"/>
-<circle cx="261.9" cy="121.0" r="0.55" opacity="0.37"/>
-<circle cx="27.2" cy="167.3" r="0.5" opacity="0.23"/>
-<circle cx="173.1" cy="260.9" r="0.44" opacity="0.34"/>
-<circle cx="221.2" cy="62.1" r="0.49" opacity="0.41"/>
-<circle cx="77.4" cy="68.5" r="0.5" opacity="0.35"/>
-<circle cx="141.3" cy="32.8" r="0.5" opacity="0.27"/>
-<circle cx="261.1" cy="84.5" r="0.74" opacity="0.28"/>
-<circle cx="194.8" cy="249.4" r="0.66" opacity="0.37"/>
-<circle cx="118.3" cy="29.3" r="0.69" opacity="0.28"/>
-<circle cx="53.3" cy="87.5" r="0.43" opacity="0.38"/>
-<circle cx="60.1" cy="65.9" r="0.55" opacity="0.27"/>
-<circle cx="72.2" cy="41.1" r="0.51" opacity="0.24"/>
-<circle cx="297.8" cy="132.7" r="0.53" opacity="0.13"/>
-<circle cx="203.2" cy="54.7" r="0.65" opacity="0.4"/>
-<circle cx="40.8" cy="125.5" r="0.42" opacity="0.33"/>
-<circle cx="25.7" cy="211.0" r="0.55" opacity="0.17"/>
-<circle cx="214.3" cy="272.5" r="0.59" opacity="0.19"/>
-<circle cx="36.2" cy="205.6" r="0.74" opacity="0.27"/>
-<circle cx="51.0" cy="196.4" r="0.54" opacity="0.35"/>
-<circle cx="252.2" cy="188.3" r="0.74" opacity="0.4"/>
-<circle cx="116.8" cy="24.6" r="0.46" opacity="0.25"/>
-<circle cx="265.7" cy="198.8" r="0.59" opacity="0.23"/>
-<circle cx="259.8" cy="199.7" r="0.62" opacity="0.28"/>
-<circle cx="52.6" cy="57.8" r="0.59" opacity="0.19"/>
-<circle cx="124.0" cy="268.5" r="0.5" opacity="0.34"/>
-<circle cx="285.2" cy="169.0" r="0.72" opacity="0.17"/>
-<circle cx="95.4" cy="14.2" r="0.44" opacity="0.16"/>
-<circle cx="258.0" cy="129.1" r="0.43" opacity="0.31"/>
-<circle cx="187.3" cy="22.9" r="0.62" opacity="0.22"/>
-<circle cx="132.7" cy="273.7" r="0.71" opacity="0.24"/>
-<circle cx="137.4" cy="17.5" r="1.23" opacity="0.54"/>
-<circle cx="172.3" cy="257.1" r="0.74" opacity="0.3"/>
-<circle cx="199.2" cy="24.6" r="0.6" opacity="0.23"/>
-<circle cx="77.7" cy="66.5" r="0.52" opacity="0.37"/>
-<circle cx="6.9" cy="138.8" r="0.7" opacity="0.13"/>
-<circle cx="90.2" cy="265.2" r="0.47" opacity="0.27"/>
-<circle cx="181.2" cy="44.0" r="0.6" opacity="0.43"/>
-<circle cx="60.3" cy="72.2" r="0.68" opacity="0.31"/>
-<circle cx="27.5" cy="121.2" r="0.68" opacity="0.3"/>
-<circle cx="137.2" cy="275.6" r="0.73" opacity="0.3"/>
-<circle cx="183.8" cy="266.9" r="0.43" opacity="0.26"/>
-<circle cx="272.2" cy="180.0" r="0.67" opacity="0.29"/>
-<circle cx="221.4" cy="251.8" r="0.56" opacity="0.23"/>
-<circle cx="251.8" cy="100.3" r="0.56" opacity="0.38"/>
-<circle cx="14.5" cy="167.1" r="0.63" opacity="0.19"/>
-<circle cx="137.9" cy="39.6" r="0.73" opacity="0.29"/>
-<circle cx="235.5" cy="44.5" r="0.44" opacity="0.22"/>
-<circle cx="167.3" cy="23.7" r="0.73" opacity="0.27"/>
-<circle cx="248.5" cy="99.8" r="0.59" opacity="0.36"/>
-<circle cx="272.4" cy="112.6" r="0.62" opacity="0.29"/>
-<circle cx="41.8" cy="228.2" r="0.52" opacity="0.19"/>
-<circle cx="265.1" cy="157.9" r="0.43" opacity="0.33"/>
-<circle cx="64.1" cy="266.8" r="0.7" opacity="0.13"/>
-<circle cx="268.1" cy="138.9" r="0.49" opacity="0.26"/>
-<circle cx="58.6" cy="56.2" r="0.72" opacity="0.27"/>
-<circle cx="92.9" cy="12.7" r="0.45" opacity="0.13"/>
-<circle cx="146.6" cy="16.9" r="0.59" opacity="0.22"/>
-<circle cx="214.2" cy="61.6" r="0.51" opacity="0.41"/>
-<circle cx="238.7" cy="229.2" r="0.44" opacity="0.33"/>
-<circle cx="88.0" cy="258.4" r="0.66" opacity="0.28"/>
-<circle cx="230.5" cy="41.8" r="0.66" opacity="0.19"/>
-<circle cx="14.6" cy="146.1" r="0.66" opacity="0.23"/>
-<circle cx="205.7" cy="39.9" r="0.42" opacity="0.28"/>
-<circle cx="129.0" cy="7.4" r="0.55" opacity="0.13"/>
-<circle cx="247.1" cy="65.0" r="0.41" opacity="0.28"/>
-<circle cx="52.6" cy="99.0" r="0.61" opacity="0.4"/>
-<circle cx="189.2" cy="44.0" r="0.46" opacity="0.36"/>
-<circle cx="24.9" cy="204.5" r="0.47" opacity="0.19"/>
-<circle cx="267.9" cy="151.2" r="0.7" opacity="0.28"/>
-<circle cx="205.1" cy="52.2" r="0.62" opacity="0.32"/>
-<circle cx="41.6" cy="122.1" r="0.4" opacity="0.33"/>
-<circle cx="141.6" cy="41.2" r="0.51" opacity="0.37"/>
-<circle cx="74.3" cy="70.8" r="0.49" opacity="0.4"/>
-<circle cx="270.0" cy="222.5" r="0.58" opacity="0.19"/>
-<circle cx="254.7" cy="181.1" r="0.4" opacity="0.37"/>
-<circle cx="50.9" cy="51.0" r="1.06" opacity="0.57"/>
-<circle cx="54.4" cy="97.3" r="0.73" opacity="0.38"/>
-<circle cx="80.1" cy="29.7" r="0.69" opacity="0.18"/>
-<circle cx="266.5" cy="221.5" r="0.51" opacity="0.23"/>
-<circle cx="67.8" cy="70.0" r="0.48" opacity="0.3"/>
-<circle cx="240.5" cy="88.7" r="0.54" opacity="0.38"/>
-<circle cx="98.0" cy="16.3" r="0.43" opacity="0.15"/>
-<circle cx="199.1" cy="15.3" r="1.22" opacity="0.54"/>
-<circle cx="136.0" cy="41.6" r="0.73" opacity="0.33"/>
-<circle cx="208.8" cy="249.5" r="0.45" opacity="0.38"/>
-<circle cx="140.0" cy="3.3" r="0.46" opacity="0.14"/>
-<circle cx="260.2" cy="167.1" r="0.48" opacity="0.32"/>
-<circle cx="74.9" cy="243.5" r="0.59" opacity="0.33"/>
-<circle cx="201.8" cy="277.1" r="0.56" opacity="0.19"/>
-<circle cx="256.9" cy="204.3" r="0.73" opacity="0.35"/>
-<circle cx="78.5" cy="263.9" r="0.64" opacity="0.2"/>
-<circle cx="226.4" cy="72.2" r="0.56" opacity="0.42"/>
-<circle cx="69.1" cy="73.0" r="0.41" opacity="0.39"/>
-<circle cx="174.2" cy="35.9" r="0.6" opacity="0.28"/>
-<circle cx="36.0" cy="130.7" r="0.64" opacity="0.3"/>
-<circle cx="89.1" cy="258.5" r="0.51" opacity="0.25"/>
-<circle cx="101.9" cy="261.1" r="0.65" opacity="0.29"/>
-<circle cx="40.5" cy="96.8" r="0.46" opacity="0.3"/>
-<circle cx="38.8" cy="228.5" r="0.75" opacity="0.17"/>
-<circle cx="259.8" cy="159.5" r="0.43" opacity="0.39"/>
-<circle cx="247.1" cy="210.2" r="1.07" opacity="0.72"/>
-<circle cx="133.8" cy="33.9" r="0.6" opacity="0.36"/>
-<circle cx="85.0" cy="247.2" r="0.64" opacity="0.28"/>
-<circle cx="48.9" cy="204.5" r="0.44" opacity="0.36"/>
-<circle cx="114.3" cy="27.7" r="1.28" opacity="0.72"/>
-<circle cx="150.0" cy="12.6" r="0.41" opacity="0.17"/>
-<circle cx="159.0" cy="258.7" r="0.53" opacity="0.4"/>
-<circle cx="138.2" cy="9.3" r="0.53" opacity="0.2"/>
-<circle cx="253.5" cy="207.0" r="0.64" opacity="0.3"/>
-<circle cx="212.7" cy="30.9" r="0.49" opacity="0.22"/>
-<circle cx="72.2" cy="34.2" r="0.73" opacity="0.19"/>
-<circle cx="64.8" cy="72.6" r="0.52" opacity="0.37"/>
-<circle cx="210.0" cy="49.9" r="0.48" opacity="0.31"/>
-<circle cx="27.5" cy="199.2" r="0.46" opacity="0.24"/>
-<circle cx="27.9" cy="137.6" r="0.7" opacity="0.3"/>
-<circle cx="85.9" cy="46.6" r="0.55" opacity="0.31"/>
-<circle cx="48.8" cy="191.6" r="0.42" opacity="0.3"/>
-<circle cx="159.4" cy="41.1" r="1.08" opacity="0.7"/>
-<circle cx="71.4" cy="64.2" r="0.64" opacity="0.36"/>
-<circle cx="209.8" cy="58.7" r="0.68" opacity="0.35"/>
-<circle cx="238.7" cy="85.8" r="0.62" opacity="0.35"/>
-<circle cx="209.1" cy="41.9" r="0.46" opacity="0.31"/>
-<circle cx="263.6" cy="161.3" r="1.09" opacity="0.58"/>
-            </svg>
+            <svg class="orb-halo" viewBox="0 0 380 380" aria-hidden="true"><g id="halo"></g></svg>
             <div class="orb-wrap">
               <div class="orb-glow"></div>
+              <div class="orb-ring-glow"></div>
               <div class="orb">
+                <div class="orb-fresnel"></div>
                 <div class="orb-rim"></div>
               </div>
             </div>
@@ -748,6 +652,46 @@
       <span>Profile</span>
     </div>
   </nav>
+
+  <script>
+    // Radial dot field: concentric rings, lit by the orb — brighter and warmer
+    // toward the bottom (near the light), cooler and dimmer toward the top.
+    (function () {
+      var g = document.getElementById("halo");
+      var NS = "http://www.w3.org/2000/svg";
+      var CX = 190, CY = 190;
+      var rings = [
+        { r: 112, n: 42, s: 1.0 },
+        { r: 126, n: 48, s: 0.85 },
+        { r: 142, n: 54, s: 0.68 },
+        { r: 160, n: 58, s: 0.52 },
+        { r: 180, n: 62, s: 0.38 }
+      ];
+      rings.forEach(function (ring, ri) {
+        for (var i = 0; i < ring.n; i++) {
+          var a = (i / ring.n) * Math.PI * 2 + ri * 0.35 + (Math.random() - 0.5) * 0.07;
+          var r = ring.r + (Math.random() - 0.5) * 7;
+          var bottom = (1 + Math.sin(a)) / 2;          /* 1 at bottom, 0 at top */
+          var hue = 205 - 125 * bottom;                /* cool blue top → warm lime bottom */
+          var op = ring.s * (0.24 + 0.62 * bottom) * (0.6 + Math.random() * 0.4);
+          var rad = (0.45 + Math.random() * 0.75) * (0.72 + 0.5 * bottom);
+          if (Math.random() < 0.04) { rad += 0.7; op = Math.min(1, op + 0.25); }
+          var c = document.createElementNS(NS, "circle");
+          c.setAttribute("cx", (CX + r * Math.cos(a)).toFixed(1));
+          c.setAttribute("cy", (CY + r * Math.sin(a)).toFixed(1));
+          c.setAttribute("r", rad.toFixed(2));
+          c.setAttribute("fill", "hsl(" + hue.toFixed(0) + ", 55%, 76%)");
+          c.setAttribute("opacity", op.toFixed(2));
+          g.appendChild(c);
+        }
+      });
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.querySelectorAll(".orb-halo, .orb-glow, .orb-fresnel, .orb-ring-glow").forEach(function (el) {
+          el.style.animation = "none";
+        });
+      }
+    })();
+  </script>
 
 </body>
 </html>

@@ -290,54 +290,143 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
   ];
 
   return (
-    <div className="app-dark min-h-screen">
-      <div className="relative mx-auto min-h-screen w-full max-w-[440px] px-[18px] pb-[104px]">
-        {/* Top bar */}
-        <header className="relative flex min-h-[48px] items-center justify-center pb-2 pt-3.5">
-          {!isRoot && (
-            <button
-              onClick={() => go(VIEW_TAB[view])}
-              className="absolute left-[-8px] top-1/2 -translate-y-1/2 p-2 text-[#9aa398]"
-              aria-label="Back"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
-          <div className="text-center">
-            <h1 className="text-[17px] font-bold tracking-[-0.1px] text-[#f4f6f2]">
-              {VIEW_TITLE[view]}
-            </h1>
-            {view === "home" && (
-              <p className="text-[11.5px] text-[#6d766b]">
-                {dateLabel}
-                {dayLabel && <span className="text-[#b7ec4a]"> · {dayLabel}</span>}
-              </p>
-            )}
-          </div>
-          {view === "home" && (
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="absolute right-[-8px] top-1/2 -translate-y-1/2 p-2 text-[#9aa398]"
-              aria-label="Menu"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="5" cy="12" r="1.7" />
-                <circle cx="12" cy="12" r="1.7" />
-                <circle cx="19" cy="12" r="1.7" />
-              </svg>
-            </button>
-          )}
-        </header>
+    <div className="app-dark min-h-screen lg:flex">
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+      <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] px-3 py-5 lg:flex">
+        <div className="flex items-center gap-2.5 px-3 pb-6">
+          <div className="orb-sm h-8 w-8" />
+          <span className="text-[17px] font-bold tracking-[-0.2px] text-[#f4f6f2]">FitAI</span>
+        </div>
 
-        {/* Content */}
-        <main>{renderContent()}</main>
+        <nav className="flex flex-col gap-1">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => go(tab.id)}
+                className={`flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13.5px] font-medium transition ${active ? "bg-[rgba(183,236,74,0.1)] text-[#b7ec4a]" : "text-[#9aa398] hover:bg-[rgba(255,255,255,0.04)] hover:text-[#f4f6f2]"}`}
+              >
+                <span className="[&_svg]:h-[18px] [&_svg]:w-[18px]">{tab.icon}</span>
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <p className="mb-1 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6d766b]">
+          More
+        </p>
+        <nav className="flex flex-col gap-0.5">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => go(item.id)}
+              className={`flex items-center rounded-[12px] px-3 py-2 text-[13px] font-medium transition ${view === item.id ? "text-[#b7ec4a]" : "text-[#9aa398] hover:bg-[rgba(255,255,255,0.04)] hover:text-[#f4f6f2]"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="mt-auto border-t border-[rgba(255,255,255,0.06)] pt-3">
+          <div className="flex items-center gap-3 px-2 pb-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#b7ec4a] to-[#8fd12a] text-[14px] font-bold text-[#0c1004]">
+              {userInitial}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-semibold text-[#f4f6f2]">{userName}</p>
+              <p className="text-[11px] text-[#6d766b]">
+                {data?.baseline.daysWithData ?? 0}/7 day baseline
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="flex w-full items-center rounded-[12px] px-3 py-2 text-left text-[13px] font-medium text-[#ef5b5b] transition hover:bg-[rgba(239,91,91,0.08)]"
+          >
+            Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main column ─────────────────────────────────────────────── */}
+      <div className="min-w-0 flex-1">
+        <div className="relative mx-auto w-full max-w-[440px] px-[18px] pb-[104px] lg:max-w-[1120px] lg:px-10 lg:pb-14">
+          {/* Mobile top bar */}
+          <header className="relative flex min-h-[48px] items-center justify-center pb-2 pt-3.5 lg:hidden">
+            {!isRoot && (
+              <button
+                onClick={() => go(VIEW_TAB[view])}
+                className="absolute left-[-8px] top-1/2 -translate-y-1/2 p-2 text-[#9aa398]"
+                aria-label="Back"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
+            <div className="text-center">
+              <h1 className="text-[17px] font-bold tracking-[-0.1px] text-[#f4f6f2]">
+                {VIEW_TITLE[view]}
+              </h1>
+              {view === "home" && (
+                <p className="text-[11.5px] text-[#6d766b]">
+                  {dateLabel}
+                  {dayLabel && <span className="text-[#b7ec4a]"> · {dayLabel}</span>}
+                </p>
+              )}
+            </div>
+            {view === "home" && (
+              <button
+                onClick={() => setMenuOpen(true)}
+                className="absolute right-[-8px] top-1/2 -translate-y-1/2 p-2 text-[#9aa398]"
+                aria-label="Menu"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="5" cy="12" r="1.7" />
+                  <circle cx="12" cy="12" r="1.7" />
+                  <circle cx="19" cy="12" r="1.7" />
+                </svg>
+              </button>
+            )}
+          </header>
+
+          {/* Desktop header */}
+          <header className="hidden items-end justify-between pb-6 pt-8 lg:flex">
+            <div>
+              {!isRoot && (
+                <button
+                  onClick={() => go(VIEW_TAB[view])}
+                  className="mb-2 flex items-center gap-1.5 text-[12.5px] font-medium text-[#9aa398] transition hover:text-[#f4f6f2]"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Back
+                </button>
+              )}
+              <p className="text-[12.5px] text-[#6d766b]">{dateLabel}</p>
+              <h1 className="mt-0.5 text-[26px] font-bold tracking-[-0.4px] text-[#f4f6f2]">
+                {VIEW_TITLE[view]}
+              </h1>
+            </div>
+            {dayLabel && (
+              <span className="flex items-center gap-2 rounded-full border border-[rgba(183,236,74,0.28)] bg-[rgba(183,236,74,0.07)] px-3.5 py-1.5 text-[12.5px] font-semibold text-[#b7ec4a]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#b7ec4a]" />
+                {dayLabel}
+              </span>
+            )}
+          </header>
+
+          {/* Content */}
+          <main>{renderContent()}</main>
+        </div>
       </div>
 
-      {/* Overflow menu */}
+      {/* Overflow menu — mobile only */}
       {menuOpen && (
-        <div className="fixed inset-0 z-[60]" onClick={() => setMenuOpen(false)}>
+        <div className="fixed inset-0 z-[60] lg:hidden" onClick={() => setMenuOpen(false)}>
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
           <div
             className="app-dark absolute bottom-0 left-1/2 w-full max-w-[440px] -translate-x-1/2 rounded-t-[22px] border-t border-[rgba(255,255,255,0.1)] bg-[#0b0d10] p-4 pb-[calc(20px+env(safe-area-inset-bottom,0px))]"
@@ -377,8 +466,8 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
         </div>
       )}
 
-      {/* Bottom tab bar */}
-      <nav className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-[440px] -translate-x-1/2 items-center justify-around border-t border-[rgba(255,255,255,0.06)] bg-[rgba(7,9,7,0.9)] px-1.5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom,0px))] backdrop-blur-xl">
+      {/* Bottom tab bar — mobile only */}
+      <nav className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-[440px] -translate-x-1/2 items-center justify-around border-t border-[rgba(255,255,255,0.06)] bg-[rgba(7,9,7,0.9)] px-1.5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom,0px))] backdrop-blur-xl lg:hidden">
         {tabs.map((tab) => {
           const active = activeTab === tab.id;
           return (

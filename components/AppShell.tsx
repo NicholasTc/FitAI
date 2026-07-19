@@ -1,9 +1,11 @@
 "use client";
 
-import { AppIcon, type FitAIIconName } from "@/components/AppIcon";
 import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import type { TodayState } from "@/types/today";
+import { dayTypeLabel } from "@/lib/readiness";
+import HomeView from "@/components/views/HomeView";
+import PendingScreen from "@/components/views/PendingScreen";
 import TodayView from "@/components/views/TodayView";
 import CheckInView from "@/components/views/CheckInView";
 import TrendsView from "@/components/views/TrendsView";
@@ -13,53 +15,79 @@ import SettingsView from "@/components/views/SettingsView";
 import WorkoutLogView from "@/components/views/WorkoutLogView";
 import HistoryView from "@/components/views/HistoryView";
 
-type ViewId = "today" | "checkin" | "trends" | "reflect" | "week" | "workout" | "history" | "settings";
+type ViewId =
+  | "home"
+  | "trends"
+  | "health"
+  | "coach"
+  | "profile"
+  | "checkin"
+  | "reflect"
+  | "week"
+  | "workout"
+  | "history"
+  | "settings"
+  | "legacy";
 
-const VIEW_LABELS: Record<ViewId, string> = {
-  today: "Today",
-  checkin: "Check-In",
-  trends: "Trends",
-  reflect: "Reflect",
-  week: "This Week",
-  workout: "Log Workout",
-  history: "History",
-  settings: "Settings",
-};
-
-function Spinner() {
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <svg
-        className="h-6 w-6 animate-spin text-[#4a7df6]"
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-      </svg>
-      <span className="ml-3 text-sm text-[#63708f]">Syncing health data…</span>
-    </div>
-  );
-}
+type TabId = "home" | "trends" | "health" | "coach" | "profile";
 
 interface AppShellProps {
   userName: string;
   userInitial: string;
 }
 
+// Views that require the /api/today payload before they can render.
+const NEEDS_DATA: ViewId[] = ["home", "trends", "health", "coach", "checkin", "reflect", "legacy"];
+
+const VIEW_TITLE: Record<ViewId, string> = {
+  home: "Today",
+  trends: "Trends",
+  health: "Health",
+  coach: "Coach",
+  profile: "Profile",
+  checkin: "Morning Check-In",
+  reflect: "Reflect",
+  week: "This Week",
+  workout: "Log Workout",
+  history: "History",
+  settings: "Settings",
+  legacy: "Full Dashboard",
+};
+
+// Which primary tab is highlighted for each (possibly sub-) view.
+const VIEW_TAB: Record<ViewId, TabId> = {
+  home: "home",
+  checkin: "home",
+  legacy: "home",
+  trends: "trends",
+  week: "trends",
+  history: "trends",
+  health: "health",
+  coach: "coach",
+  reflect: "coach",
+  profile: "profile",
+  settings: "profile",
+  workout: "profile",
+};
+
+// Views reachable from a bottom tab (rest are sub-screens with a back button).
+const TAB_ROOTS: ViewId[] = ["home", "trends", "health", "coach", "profile"];
+
+function DarkSpinner() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center gap-3 text-[#9aa398]">
+      <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-[#b7ec4a] border-t-transparent" />
+      <span className="text-sm">Syncing health data…</span>
+    </div>
+  );
+}
+
 export default function AppShell({ userName, userInitial }: AppShellProps) {
-  const [view, setView] = useState<ViewId>("today");
+  const [view, setView] = useState<ViewId>("home");
   const [data, setData] = useState<TodayState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const today = new Date();
   const dateLabel = today.toLocaleDateString("en-US", {
@@ -92,283 +120,278 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // After check-in submission, re-fetch so readiness updates
   function onCheckInComplete() {
     fetchData();
-    setView("today");
+    setView("home");
   }
 
-  const dayType = data?.readiness.dayType;
-  const dayTypeChipStyle =
-    dayType === "push"
-      ? "bg-[#fff3f0] text-[#e05f3c] border border-[rgba(224,95,60,0.22)]"
-      : dayType === "maintain"
-        ? "bg-[#ecfaf6] text-[#009e83] border border-[rgba(0,158,131,0.22)]"
-        : dayType === "recover"
-          ? "bg-[#f4f0ff] text-[#7850e2] border border-[rgba(120,80,226,0.22)]"
-          : "bg-[#f4f5fb] text-[#63708f]";
-  const dayTypeLabel =
-    dayType === "push"
-      ? "Push Day"
-      : dayType === "maintain"
-        ? "Maintain Day"
-        : dayType === "recover"
-          ? "Recover Day"
-          : "Syncing…";
+  function go(next: ViewId) {
+    setView(next);
+    setMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
 
-  // Nav items
-  const navItems: { id: ViewId; icon: FitAIIconName; label: string }[] = [
-    { id: "today",   icon: "today",   label: "Today" },
-    { id: "checkin", icon: "checkin", label: "Check-In" },
-    { id: "trends",  icon: "trends",  label: "Trends" },
-    { id: "reflect", icon: "reflect", label: "Reflect" },
-    { id: "week",    icon: "week",    label: "This Week" },
-    { id: "history", icon: "history", label: "History" },
-    { id: "workout", icon: "workout", label: "Log Workout" },
+  const activeTab = VIEW_TAB[view];
+  const isRoot = TAB_ROOTS.includes(view);
+  const needsData = NEEDS_DATA.includes(view);
+
+  const dayLabel = data ? dayTypeLabel(data.readiness.dayType) : "";
+
+  function renderContent() {
+    if (needsData && loading) return <DarkSpinner />;
+    if (needsData && error) {
+      return (
+        <div className="mt-6 rounded-2xl border border-[rgba(239,91,91,0.3)] bg-[rgba(239,91,91,0.08)] p-5 text-sm text-[#ef8b8b]">
+          {error}
+          <button className="ml-3 underline" onClick={fetchData}>
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    switch (view) {
+      case "home":
+        return data ? (
+          <HomeView
+            data={data}
+            onGoToCheckIn={() => go("checkin")}
+            onOpenHealth={() => go("health")}
+            onOpenCoach={() => go("coach")}
+          />
+        ) : null;
+
+      case "trends":
+        return data ? <TrendsView data={data} /> : null;
+
+      case "health":
+        return (
+          <PendingScreen
+            phase="Redesign · Phase 3"
+            title="Health"
+            description="Your full metric breakdown, sleep detail and AI metric explainers are being rebuilt in the glass-orb style. They're still live on the current dashboard."
+            actionLabel="Open current health metrics"
+            onAction={() => go("legacy")}
+          />
+        );
+
+      case "coach":
+        return (
+          <PendingScreen
+            phase="Redesign · Phase 4"
+            title="Coach"
+            description="Your AI strategy, guidance and chat are being rebuilt in the glass-orb style. They're still live on the current dashboard."
+            actionLabel="Open current AI coach"
+            onAction={() => go("legacy")}
+          />
+        );
+
+      case "profile":
+        return <SettingsView />;
+
+      case "checkin":
+        return data ? (
+          <CheckInView
+            date={dateKey}
+            dateLabel={dateLabel}
+            existing={data.checkIn}
+            onComplete={onCheckInComplete}
+          />
+        ) : null;
+
+      case "reflect":
+        return data ? (
+          <ReflectionView date={dateKey} dateLabel={dateLabel} dayTypeLabel={dayLabel} />
+        ) : null;
+
+      case "week":
+        return <WeeklyView />;
+
+      case "workout":
+        return <WorkoutLogView />;
+
+      case "history":
+        return <HistoryView />;
+
+      case "settings":
+        return <SettingsView />;
+
+      case "legacy":
+        return data ? (
+          <TodayView
+            data={data}
+            onGoToCheckIn={() => go("checkin")}
+            onGoToTrends={() => go("trends")}
+            onGoToReflect={() => go("reflect")}
+          />
+        ) : null;
+    }
+  }
+
+  const menuItems: { id: ViewId; label: string }[] = [
+    { id: "legacy", label: "Full dashboard (current)" },
+    { id: "workout", label: "Log workout" },
+    { id: "history", label: "History" },
+    { id: "week", label: "This week" },
+    { id: "reflect", label: "Evening reflection" },
+    { id: "settings", label: "Settings" },
   ];
 
-  function NavContent() {
-    return (
-      <>
-        {/* Brand */}
-        <div className="flex items-center gap-3 px-4 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#4a7df6] to-[#7850e2] shadow-[0_4px_12px_rgba(74,125,246,0.35)]">
-            <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-              <path
-                d="M9 2L11.5 7H16L12.5 10.5L14 15.5L9 12.5L4 15.5L5.5 10.5L2 7H6.5L9 2Z"
-                fill="white"
-                opacity="0.9"
-              />
-            </svg>
-          </div>
-          <span className="font-[family-name:var(--font-display)] text-[17px] font-bold tracking-tight text-[#1b2040]">
-            FitAI
-          </span>
-        </div>
+  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    {
+      id: "home",
+      label: "Home",
+      icon: (
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+          <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "trends",
+      label: "Trends",
+      icon: (
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+          <path d="M4 16l5-5 4 3 6-7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M15 7h4v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "health",
+      label: "Health",
+      icon: (
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+          <path d="M12 20S3.5 14.5 3.5 8.8A4.3 4.3 0 0 1 12 6a4.3 4.3 0 0 1 8.5 2.8C20.5 14.5 12 20 12 20Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+          <path d="M7 12h3l1.4-2.6L13.5 13l1.2-1.8H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "coach",
+      label: "Coach",
+      icon: (
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3l1.8 5.4L19.5 10l-5.7 1.6L12 17l-1.8-5.4L4.5 10l5.7-1.6z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" fill="currentColor" />
+        </svg>
+      ),
+    },
+    {
+      id: "profile",
+      label: "Profile",
+      icon: (
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.7" />
+          <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+  ];
 
-        {/* Nav groups */}
-        <div className="flex-1 px-3 pb-4">
-          <p className="mb-1 px-2 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
-            Main
-          </p>
-          <nav className="flex flex-col gap-0.5">
-            {navItems.map((item) => (
+  return (
+    <div className="app-dark min-h-screen">
+      <div className="relative mx-auto min-h-screen w-full max-w-[440px] px-[18px] pb-[104px]">
+        {/* Top bar */}
+        <header className="relative flex min-h-[48px] items-center justify-center pb-2 pt-3.5">
+          {!isRoot && (
+            <button
+              onClick={() => go(VIEW_TAB[view])}
+              className="absolute left-[-8px] top-1/2 -translate-y-1/2 p-2 text-[#9aa398]"
+              aria-label="Back"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+          <div className="text-center">
+            <h1 className="text-[17px] font-bold tracking-[-0.1px] text-[#f4f6f2]">
+              {VIEW_TITLE[view]}
+            </h1>
+            {view === "home" && (
+              <p className="text-[11.5px] text-[#6d766b]">
+                {dateLabel}
+                {dayLabel && <span className="text-[#b7ec4a]"> · {dayLabel}</span>}
+              </p>
+            )}
+          </div>
+          {view === "home" && (
+            <button
+              onClick={() => setMenuOpen(true)}
+              className="absolute right-[-8px] top-1/2 -translate-y-1/2 p-2 text-[#9aa398]"
+              aria-label="Menu"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="5" cy="12" r="1.7" />
+                <circle cx="12" cy="12" r="1.7" />
+                <circle cx="19" cy="12" r="1.7" />
+              </svg>
+            </button>
+          )}
+        </header>
+
+        {/* Content */}
+        <main>{renderContent()}</main>
+      </div>
+
+      {/* Overflow menu */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-[60]" onClick={() => setMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+          <div
+            className="app-dark absolute bottom-0 left-1/2 w-full max-w-[440px] -translate-x-1/2 rounded-t-[22px] border-t border-[rgba(255,255,255,0.1)] bg-[#0b0d10] p-4 pb-[calc(20px+env(safe-area-inset-bottom,0px))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[rgba(255,255,255,0.15)]" />
+            <div className="flex items-center gap-3 px-2 pb-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#b7ec4a] to-[#8fd12a] text-[14px] font-bold text-[#0c1004]">
+                {userInitial}
+              </div>
+              <div>
+                <p className="text-[13.5px] font-semibold text-[#f4f6f2]">{userName}</p>
+                <p className="text-[11px] text-[#6d766b]">
+                  {data?.baseline.daysWithData ?? 0}/7 day baseline
+                </p>
+              </div>
+            </div>
+            {menuItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => {
-                  setView(item.id);
-                  setMobileNavOpen(false);
-                }}
-                className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13.5px] font-medium transition-all ${
-                  view === item.id
-                    ? "bg-[#eef3ff] text-[#4a7df6] shadow-[0_1px_6px_rgba(74,125,246,0.12)]"
-                    : "text-[#63708f] hover:bg-[rgba(0,0,0,0.04)] hover:text-[#1b2040]"
-                }`}
+                onClick={() => go(item.id)}
+                className="flex w-full items-center justify-between rounded-[12px] px-3 py-3 text-left text-[14px] text-[#f4f6f2] transition hover:bg-[rgba(255,255,255,0.05)]"
               >
-                <AppIcon
-                  name={item.icon}
-                  size={16}
-                  className={view === item.id ? "text-[#4a7df6]" : "text-current"}
-                />
                 {item.label}
-                {item.id === "checkin" && !data?.checkIn && (
-                  <span className="ml-auto h-2 w-2 rounded-full bg-[#4a7df6]" />
-                )}
-                {item.id === "reflect" && (
-                  <span className="ml-auto h-2 w-2 rounded-full bg-[#7850e2]" />
-                )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-[#6d766b]">
+                  <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             ))}
-          </nav>
-        </div>
-
-        {/* Preferences (settings + sign out — sidebar only) */}
-        <div className="px-3 pb-3">
-          <p className="mb-1 px-2 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#9ea8c4]">
-            Preferences
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <button
-              onClick={() => { setView("settings"); setMobileNavOpen(false); }}
-              className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13.5px] font-medium transition-all ${
-                view === "settings"
-                  ? "bg-[#eef3ff] text-[#4a7df6] shadow-[0_1px_6px_rgba(74,125,246,0.12)]"
-                  : "text-[#63708f] hover:bg-[rgba(0,0,0,0.04)] hover:text-[#1b2040]"
-              }`}
-            >
-              <AppIcon
-                name="settings"
-                size={16}
-                className={view === "settings" ? "text-[#4a7df6]" : "text-current"}
-              />
-              Settings
-            </button>
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13.5px] font-medium text-[#63708f] transition-all hover:bg-[rgba(224,95,60,0.06)] hover:text-[#e05f3c]"
+              className="mt-1 flex w-full items-center rounded-[12px] px-3 py-3 text-left text-[14px] text-[#ef5b5b] transition hover:bg-[rgba(239,91,91,0.08)]"
             >
-              <AppIcon name="signout" size={16} className="text-current" />
               Sign out
             </button>
           </div>
         </div>
-
-        {/* User */}
-        <div className="border-t border-[rgba(148,162,218,0.14)] px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#4a7df6] to-[#7850e2] text-[13px] font-bold text-white">
-              {userInitial}
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-[#1b2040]">{userName}</p>
-              <p className="text-[11px] text-[#9ea8c4]">
-                {data?.baseline.daysWithData ?? 0}/7 day baseline
-              </p>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <div className="flex min-h-screen">
-      {/* Sidebar — desktop */}
-      <aside className="hidden w-[220px] flex-shrink-0 flex-col border-r border-[rgba(148,162,218,0.14)] bg-[rgba(255,255,255,0.85)] backdrop-blur-xl lg:flex">
-        <NavContent />
-      </aside>
-
-      {/* Mobile nav overlay */}
-      {mobileNavOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-[rgba(27,32,64,0.3)] backdrop-blur-sm lg:hidden"
-          onClick={() => setMobileNavOpen(false)}
-        />
       )}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[rgba(148,162,218,0.14)] bg-white transition-transform duration-300 lg:hidden ${mobileNavOpen ? "translate-x-0" : "-translate-x-full"}`}
-      >
-        <NavContent />
-      </aside>
 
-      {/* Main */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="sticky top-0 z-30 flex h-[60px] items-center gap-4 border-b border-[rgba(148,162,218,0.14)] bg-[rgba(238,240,249,0.92)] px-4 backdrop-blur-xl sm:px-6">
-          {/* Mobile hamburger */}
-          <button
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#63708f] hover:bg-[rgba(0,0,0,0.06)] lg:hidden"
-            onClick={() => setMobileNavOpen(true)}
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <rect y="3" width="18" height="1.8" rx="1" fill="currentColor" />
-              <rect y="8.1" width="18" height="1.8" rx="1" fill="currentColor" />
-              <rect y="13.2" width="18" height="1.8" rx="1" fill="currentColor" />
-            </svg>
-          </button>
-
-          <div className="flex-1">
-            <p className="text-[11.5px] text-[#9ea8c4]">{dateLabel}</p>
-            <p className="font-[family-name:var(--font-display)] text-[15px] font-bold leading-tight text-[#1b2040]">
-              {VIEW_LABELS[view]}
-            </p>
-          </div>
-
-          {data && (
-            <div
-              className={`hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold sm:flex ${dayTypeChipStyle}`}
+      {/* Bottom tab bar */}
+      <nav className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-[440px] -translate-x-1/2 items-center justify-around border-t border-[rgba(255,255,255,0.06)] bg-[rgba(7,9,7,0.9)] px-1.5 pt-3 pb-[calc(14px+env(safe-area-inset-bottom,0px))] backdrop-blur-xl">
+        {tabs.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => go(tab.id)}
+              className={`flex flex-col items-center gap-1 px-2 py-0.5 transition-colors ${active ? "text-[#b7ec4a]" : "text-[#6d766b]"}`}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-              {dayTypeLabel}
-            </div>
-          )}
-        </header>
-
-        {/* Content — extra bottom padding on mobile so island doesn't cover content */}
-        <main className="flex-1 overflow-y-auto p-4 pb-24 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8">
-          {/* These views are always available — no health data needed */}
-          {view === "settings" && <SettingsView />}
-          {view === "workout"  && <WorkoutLogView />}
-          {view === "history"  && <HistoryView />}
-          {view !== "settings" && view !== "workout" && view !== "history" && loading && <Spinner />}
-          {view !== "settings" && view !== "workout" && view !== "history" && error && !loading && (
-            <div className="rounded-2xl bg-red-50 p-5 text-sm text-red-600">
-              {error}
-              <button
-                className="ml-3 underline"
-                onClick={fetchData}
-              >
-                Retry
-              </button>
-            </div>
-          )}
-          {view !== "settings" && view !== "workout" && view !== "history" && !loading && !error && data && (
-            <>
-              {view === "today" && (
-                <TodayView
-                  data={data}
-                  onGoToCheckIn={() => setView("checkin")}
-                  onGoToTrends={() => setView("trends")}
-                  onGoToReflect={() => setView("reflect")}
-                />
-              )}
-              {view === "checkin" && (
-                <CheckInView
-                  date={dateKey}
-                  dateLabel={dateLabel}
-                  existing={data.checkIn}
-                  onComplete={onCheckInComplete}
-                />
-              )}
-              {view === "trends" && <TrendsView data={data} />}
-              {view === "reflect" && (
-                <ReflectionView
-                  date={dateKey}
-                  dateLabel={dateLabel}
-                  dayTypeLabel={dayTypeLabel}
-                />
-              )}
-              {view === "week" && <WeeklyView />}
-            </>
-          )}
-        </main>
-      </div>
-
-      {/* Floating island nav — mobile / tablet only (lg+ uses sidebar) */}
-      <nav className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 lg:hidden">
-        <div className="flex items-center gap-1 rounded-full border border-[rgba(148,162,218,0.18)] bg-white/90 px-3 py-2.5 shadow-[0_8px_32px_rgba(27,32,64,0.14),0_2px_8px_rgba(27,32,64,0.08)] backdrop-blur-xl">
-          {navItems.map((item) => {
-            const isActive = view === item.id;
-            const hasDot =
-              (item.id === "checkin" && !data?.checkIn) ||
-              item.id === "reflect";
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setView(item.id);
-                  setMobileNavOpen(false);
-                }}
-                title={item.label}
-                className={`relative flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
-                  isActive
-                    ? "bg-[#4a7df6] shadow-[0_2px_10px_rgba(74,125,246,0.35)]"
-                    : "hover:bg-[rgba(74,125,246,0.07)]"
-                }`}
-              >
-                <AppIcon
-                  name={item.icon}
-                  size={19}
-                  className={isActive ? "text-white" : "text-[#63708f]"}
-                />
-                {hasDot && !isActive && (
-                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-[#4a7df6]" />
-                )}
-              </button>
-            );
-          })}
-        </div>
+              {tab.icon}
+              <span className="text-[10px] font-semibold">{tab.label}</span>
+            </button>
+          );
+        })}
       </nav>
     </div>
   );

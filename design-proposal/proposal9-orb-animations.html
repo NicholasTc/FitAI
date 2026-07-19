@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitAI — Orb idle animation lab (proposal 9)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* ══════════════════════════════════════════════════════════════════
+     ORB IDLE ANIMATION LAB — five candidate idle behaviors, all driven
+     by the readiness score. Pick a mode, drag the score, watch how the
+     motion changes character.  The orb itself is the proposal-8 orb.
+     ══════════════════════════════════════════════════════════════════ */
+  :root {
+    --bg:      #05070a;
+    --card:    #0b0d10;
+    --line:    rgba(255,255,255,0.07);
+    --ink:      #f4f6f2;
+    --ink-soft: #9aa398;
+    --ink-dim:  #6d766b;
+    --lime:     #b7ec4a;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* score-driven variables — set from JS */
+    --energy: 0.875;        /* brightness multiplier, 0.5 → 1 */
+    --level: 75;            /* liquid fill %, = score */
+    --breDur: 6.2s;         /* breathing cycle */
+    --orbitDur: 18s;        /* orbit period */
+    --pulseT: 6.6s;         /* pulse interval */
+    --sweepDur: 15.5s;      /* sheen sweep period */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 26px 18px 60px;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+  .head { text-align: center; }
+  .head h1 { font-size: 17px; font-weight: 700; }
+  .head p { font-size: 12.5px; color: var(--ink-dim); margin-top: 3px; }
+
+  /* ─── Mode chips ──────────────────────────────────────────────── */
+  .modes {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 18px;
+  }
+  .mode-chip {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 14px;
+    transition: all 0.15s ease;
+  }
+  .mode-chip:hover { color: var(--ink); border-color: rgba(255,255,255,0.16); }
+  .mode-chip.on {
+    color: #0a0d06;
+    background: var(--lime);
+    border-color: var(--lime);
+  }
+  .mode-desc {
+    margin-top: 12px;
+    max-width: 420px;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    min-height: 38px;
+  }
+  .mode-desc b { color: var(--lime); font-weight: 600; }
+
+  /* ─── Stage ───────────────────────────────────────────────────── */
+  .stage {
+    position: relative;
+    width: 380px;
+    height: 360px;
+    margin-top: 4px;
+  }
+  .orb-halo {
+    position: absolute;
+    top: 174px; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 380px; height: 380px;
+    z-index: 0;
+    pointer-events: none;
+    animation: haloBreathe 7s ease-in-out infinite;
+  }
+  @keyframes haloBreathe {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; }
+  }
+  .orb-wrap {
+    position: absolute;
+    top: 71px; left: 50%;
+    margin-left: -103px;
+    width: 206px; height: 206px;
+    z-index: 1;
+    filter: brightness(var(--energy)) saturate(calc(0.7 + 0.3 * var(--energy)));
+    transition: filter 0.5s ease;
+  }
+  .orb-glow {
+    position: absolute;
+    left: 50%; bottom: -12px;
+    transform: translateX(-50%);
+    width: 150px; height: 68px;
+    background: radial-gradient(ellipse at 50% 50%,
+      rgba(240,255,160,0.7), rgba(160,225,66,0.22) 42%, rgba(90,160,60,0.05) 64%, transparent 78%);
+    filter: blur(13px);
+    animation: orbBreathe 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes orbBreathe {
+    0%,100% { opacity: 0.8; transform: translateX(-50%) scale(1); }
+    50%     { opacity: 1;   transform: translateX(-50%) scale(1.05); }
+  }
+  .orb-ring-glow {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg,
+      rgba(120,180,210,0.14) 0deg,
+      rgba(90,150,160,0.04) 42deg,
+      rgba(110,200,80,0.26) 100deg,
+      rgba(196,250,104,0.55) 158deg,
+      rgba(248,255,190,0.95) 180deg,
+      rgba(196,250,104,0.55) 202deg,
+      rgba(110,200,80,0.26) 260deg,
+      rgba(90,150,160,0.04) 318deg,
+      rgba(120,180,210,0.14) 360deg);
+    -webkit-mask: radial-gradient(closest-side, transparent 76%, #000 86%, #000 91%, transparent 97%);
+            mask: radial-gradient(closest-side, transparent 76%, #000 86%, #000 91%, transparent 97%);
+    filter: blur(6px);
+    animation: fresnelBreathe 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .orb {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 44% 18% at 50% 103%,
+        rgba(244,255,180,0.9) 0%, rgba(178,240,86,0.42) 36%, rgba(96,180,60,0.08) 62%, transparent 76%),
+      radial-gradient(ellipse 108% 96% at 50% 140%,
+        rgba(110,190,66,0.10) 0%, rgba(70,140,50,0.03) 44%, transparent 60%),
+      radial-gradient(ellipse 40% 12% at 50% 2%,
+        rgba(214,232,246,0.30) 0%, rgba(180,205,222,0.07) 55%, transparent 74%),
+      radial-gradient(ellipse 80% 40% at 50% -14%,
+        rgba(104,156,186,0.16) 0%, rgba(80,120,150,0.05) 46%, transparent 64%),
+      radial-gradient(circle at 50% 42%,
+        #0a1210 0%, #081110 44%, #060e0f 70%, #050b0d 100%);
+    box-shadow:
+      inset 0 -14px 24px rgba(150,230,72,0.18),
+      inset 0 30px 52px rgba(0,0,0,0.66),
+      inset 0 0 46px 12px rgba(0,0,0,0.52),
+      inset 0 2px 3px rgba(205,230,245,0.2),
+      0 0 18px 0 rgba(125,195,85,0.10),
+      0 14px 44px -6px rgba(160,235,80,0.38),
+      0 -6px 22px -10px rgba(95,155,195,0.08);
+  }
+  .orb-fresnel {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg,
+      rgba(150,208,238,0.8) 0deg,
+      rgba(110,170,185,0.2) 38deg,
+      rgba(108,196,88,0.45) 85deg,
+      rgba(198,252,110,0.85) 150deg,
+      rgba(244,255,178,1) 180deg,
+      rgba(198,252,110,0.85) 210deg,
+      rgba(108,196,88,0.45) 275deg,
+      rgba(110,170,185,0.2) 322deg,
+      rgba(150,208,238,0.8) 360deg);
+    -webkit-mask: radial-gradient(closest-side, transparent 84%, rgba(0,0,0,0.5) 92%, #000 97%, #000 100%);
+            mask: radial-gradient(closest-side, transparent 84%, rgba(0,0,0,0.5) 92%, #000 97%, #000 100%);
+    filter: blur(2px);
+    z-index: 1;
+    animation: fresnelBreathe 6s ease-in-out infinite;
+  }
+  @keyframes fresnelBreathe {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; }
+  }
+  .orb-rim {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    padding: 1.8px;
+    background: conic-gradient(from 0deg,
+      rgba(172,216,242,0.9) 0deg,
+      rgba(132,186,186,0.35) 52deg,
+      rgba(126,192,112,0.48) 105deg,
+      rgba(228,255,155,1) 168deg,
+      rgba(248,255,210,1) 180deg,
+      rgba(228,255,155,1) 192deg,
+      rgba(126,192,112,0.48) 255deg,
+      rgba(132,186,186,0.35) 308deg,
+      rgba(172,216,242,0.9) 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .orb::before {
+    content: "";
+    position: absolute;
+    left: 18%; top: 2.5%;
+    width: 64%; height: 17%;
+    background: radial-gradient(ellipse at 50% 20%,
+      rgba(202,228,244,0.34), rgba(202,228,244,0.05) 58%, transparent 76%);
+    filter: blur(4px);
+    border-radius: 50%;
+    z-index: 1;
+  }
+  .orb::after {
+    content: "";
+    position: absolute;
+    left: 50%; bottom: 1%;
+    transform: translateX(-50%);
+    width: 42%; height: 15%;
+    background: radial-gradient(ellipse at 50% 100%,
+      rgba(252,255,216,1), rgba(196,248,96,0.55) 42%, transparent 70%);
+    filter: blur(2.5px);
+    border-radius: 50%;
+    z-index: 1;
+  }
+  .orb-score {
+    position: absolute;
+    top: 71px; left: 0; right: 0;
+    height: 206px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    pointer-events: none;
+    padding-bottom: 18px;
+  }
+  .orb-score .lbl {
+    font-size: 10px;
+    letter-spacing: 3.2px;
+    font-weight: 600;
+    color: rgba(206,216,208,0.56);
+    text-transform: uppercase;
+  }
+  .orb-score .num {
+    font-size: 54px;
+    font-weight: 600;
+    letter-spacing: -1.5px;
+    color: #f3f7f0;
+    line-height: 1.05;
+    margin-top: 2px;
+    text-shadow: 0 2px 24px rgba(0,0,0,0.5);
+  }
+  .orb-score .status {
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    margin-top: 4px;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MODE A · BREATHE — resting-organism metaphor.
+     Higher readiness = slower, deeper, calmer breaths.
+     ══════════════════════════════════════════════════════════════════ */
+  [data-mode="breathe"] .orb-glow      { animation: breatheGlow var(--breDur) ease-in-out infinite; }
+  [data-mode="breathe"] .orb-ring-glow { animation: breatheRing var(--breDur) ease-in-out infinite; }
+  [data-mode="breathe"] .orb-fresnel   { animation: breatheFres var(--breDur) ease-in-out infinite; }
+  @keyframes breatheGlow {
+    0%,100% { opacity: 0.62; transform: translateX(-50%) scale(0.94); }
+    50%     { opacity: 1;    transform: translateX(-50%) scale(1.1); }
+  }
+  @keyframes breatheRing {
+    0%,100% { opacity: 0.68; transform: scale(0.992); }
+    50%     { opacity: 1;    transform: scale(1.016); }
+  }
+  @keyframes breatheFres {
+    0%,100% { opacity: 0.7; }
+    50%     { opacity: 1; }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MODE B · CAPACITY LIQUID — the glow behaves like an energy liquid
+     whose level IS the readiness score; the surface drifts slowly.
+     ══════════════════════════════════════════════════════════════════ */
+  .orb-liquid {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    display: none;
+    z-index: 0;
+  }
+  [data-mode="liquid"] .orb-liquid { display: block; }
+  .orb-liquid .fill {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: calc(var(--level) * 1%);
+    background: linear-gradient(180deg,
+      rgba(190,245,100,0.13) 0%,
+      rgba(140,210,70,0.045) 26%,
+      rgba(120,190,60,0.03) 68%,
+      rgba(190,245,100,0.09) 100%);
+  }
+  .orb-liquid .fill::before {
+    content: "";
+    position: absolute;
+    top: -1px; left: 6%; right: 6%;
+    height: 2.5px;
+    background: linear-gradient(90deg,
+      transparent, rgba(222,255,140,0.5) 22%, rgba(222,255,140,0.5) 78%, transparent);
+    filter: blur(0.6px);
+  }
+  .orb-liquid .wave {
+    position: absolute;
+    left: -30%;
+    width: 160%; height: 26px;
+    top: calc(100% - var(--level) * 1% - 13px);
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 50%, rgba(210,250,120,0.16), transparent 70%);
+    filter: blur(6px);
+    animation: waveX 13s ease-in-out infinite alternate;
+  }
+  .orb-liquid .wave.w2 {
+    animation-duration: 19s;
+    animation-direction: alternate-reverse;
+    opacity: 0.7;
+  }
+  @keyframes waveX {
+    from { transform: translateX(-6%); }
+    to   { transform: translateX(6%); }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MODE C · ORBIT SPARK — a single ember of energy circles the shell.
+     Higher readiness = faster, brighter orbit (more energy in the tank).
+     ══════════════════════════════════════════════════════════════════ */
+  .orbiter {
+    position: absolute;
+    inset: -5px;
+    display: none;
+    animation: orbSpin var(--orbitDur) linear infinite;
+    pointer-events: none;
+  }
+  [data-mode="orbit"] .orbiter { display: block; }
+  @keyframes orbSpin { to { transform: rotate(360deg); } }
+  .spark {
+    position: absolute;
+    top: -2px; left: 50%;
+    margin-left: -3px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #f4ffd0 0%, #cdf380 55%, rgba(160,230,80,0) 78%);
+    box-shadow:
+      0 0 10px 2px rgba(200,250,110,0.8),
+      0 0 22px 6px rgba(160,230,80,0.35);
+  }
+  .spark::before {
+    content: "";
+    position: absolute;
+    right: 100%; top: 50%;
+    transform: translateY(-50%);
+    width: 46px; height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(200,250,110,0.5));
+    border-radius: 2px;
+    filter: blur(1px);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MODE D · PULSE ECHO — a faint ring of light leaves the shell like a
+     calm heartbeat. Higher readiness = slower, calmer pulse (low RHR).
+     ══════════════════════════════════════════════════════════════════ */
+  .pulse {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    display: none;
+    pointer-events: none;
+    border: 1.5px solid rgba(190,245,110,0.55);
+    opacity: 0;
+  }
+  [data-mode="pulse"] .pulse { display: block; animation: pulseWave var(--pulseT) cubic-bezier(0.2,0.6,0.4,1) infinite; }
+  [data-mode="pulse"] .pulse.p2 { animation-delay: calc(var(--pulseT) / -2); }
+  @keyframes pulseWave {
+    0%   { transform: scale(1);    opacity: 0; }
+    6%   { opacity: 0.5; }
+    50%  { transform: scale(1.17); opacity: 0; }
+    100% { transform: scale(1.17); opacity: 0; }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MODE E · GLASS SHEEN — a specular highlight slowly travels around
+     the rim, like light moving across glass. Faster when readier.
+     ══════════════════════════════════════════════════════════════════ */
+  .orb-sheen {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    display: none;
+    background: conic-gradient(from 0deg,
+      transparent 0deg, transparent 336deg,
+      rgba(230,250,255,0.55) 351deg, transparent 360deg);
+    -webkit-mask: radial-gradient(closest-side, transparent 84%, #000 93%, #000 100%);
+            mask: radial-gradient(closest-side, transparent 84%, #000 93%, #000 100%);
+    filter: blur(2px);
+    z-index: 2;
+  }
+  [data-mode="sheen"] .orb-sheen { display: block; animation: orbSpin var(--sweepDur) linear infinite; }
+
+  /* ─── Score controls ──────────────────────────────────────────── */
+  .controls {
+    width: 100%;
+    max-width: 420px;
+    margin-top: 6px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 18px;
+  }
+  .controls .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .controls .lab {
+    font-size: 10.5px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 650;
+  }
+  .presets { display: flex; gap: 6px; }
+  .preset {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 4px 10px;
+    transition: all 0.15s ease;
+  }
+  .preset:hover { color: var(--ink); }
+  .preset.on { color: #0a0d06; background: var(--lime); border-color: var(--lime); }
+  input[type="range"] {
+    width: 100%;
+    margin-top: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--lime) calc(var(--level) * 1%), rgba(255,255,255,0.1) 0);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--lime);
+    box-shadow: 0 0 12px rgba(183,236,74,0.6);
+    cursor: pointer;
+  }
+  .motion-note {
+    margin-top: 14px;
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <h1>Orb idle animations</h1>
+    <p>Five candidates · all driven by the readiness score</p>
+  </div>
+
+  <div class="modes" id="modes">
+    <button class="mode-chip on" data-m="breathe">A · Breathe</button>
+    <button class="mode-chip" data-m="liquid">B · Capacity liquid</button>
+    <button class="mode-chip" data-m="orbit">C · Orbit spark</button>
+    <button class="mode-chip" data-m="pulse">D · Pulse echo</button>
+    <button class="mode-chip" data-m="sheen">E · Glass sheen</button>
+  </div>
+  <p class="mode-desc" id="mode-desc"></p>
+
+  <!-- STAGE -->
+  <div class="stage" data-mode="breathe" id="stage">
+    <svg class="orb-halo" viewBox="0 0 380 380" aria-hidden="true"><g id="halo"></g></svg>
+    <div class="orb-wrap">
+      <div class="orb-glow"></div>
+      <div class="orb-ring-glow"></div>
+      <div class="pulse"></div>
+      <div class="pulse p2"></div>
+      <div class="orbiter"><div class="spark"></div></div>
+      <div class="orb">
+        <div class="orb-liquid">
+          <div class="fill"></div>
+          <div class="wave"></div>
+          <div class="wave w2"></div>
+        </div>
+        <div class="orb-fresnel"></div>
+        <div class="orb-sheen"></div>
+        <div class="orb-rim"></div>
+      </div>
+    </div>
+    <div class="orb-score">
+      <div class="lbl">Readiness</div>
+      <div class="num" id="score-num">75</div>
+      <div class="status" id="score-status">Good</div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="row">
+      <span class="lab">Readiness score</span>
+      <div class="presets" id="presets">
+        <button class="preset" data-s="32">32</button>
+        <button class="preset" data-s="55">55</button>
+        <button class="preset on" data-s="75">75</button>
+        <button class="preset" data-s="92">92</button>
+      </div>
+    </div>
+    <input type="range" id="score" min="0" max="100" value="75" />
+    <p class="motion-note">All modes idle at &lt; 10% opacity change and multi-second cycles — ambient, not attention-seeking. Every animation is disabled under <code>prefers-reduced-motion</code>.</p>
+  </div>
+
+<script>
+  // ── halo dot field (same as proposal 8) ─────────────────────────
+  (function () {
+    var g = document.getElementById("halo");
+    var NS = "http://www.w3.org/2000/svg";
+    var CX = 190, CY = 190;
+    var rings = [
+      { r: 112, n: 42, s: 1.0 },
+      { r: 126, n: 48, s: 0.85 },
+      { r: 142, n: 54, s: 0.68 },
+      { r: 160, n: 58, s: 0.52 },
+      { r: 180, n: 62, s: 0.38 }
+    ];
+    rings.forEach(function (ring, ri) {
+      for (var i = 0; i < ring.n; i++) {
+        var a = (i / ring.n) * Math.PI * 2 + ri * 0.35 + (Math.random() - 0.5) * 0.07;
+        var r = ring.r + (Math.random() - 0.5) * 7;
+        var bottom = (1 + Math.sin(a)) / 2;
+        var hue = 205 - 125 * bottom;
+        var op = ring.s * (0.24 + 0.62 * bottom) * (0.6 + Math.random() * 0.4);
+        var rad = (0.45 + Math.random() * 0.75) * (0.72 + 0.5 * bottom);
+        if (Math.random() < 0.04) { rad += 0.7; op = Math.min(1, op + 0.25); }
+        var c = document.createElementNS(NS, "circle");
+        c.setAttribute("cx", (CX + r * Math.cos(a)).toFixed(1));
+        c.setAttribute("cy", (CY + r * Math.sin(a)).toFixed(1));
+        c.setAttribute("r", rad.toFixed(2));
+        c.setAttribute("fill", "hsl(" + hue.toFixed(0) + ", 55%, 76%)");
+        c.setAttribute("opacity", op.toFixed(2));
+        g.appendChild(c);
+      }
+    });
+  })();
+
+  // ── mode + score wiring ─────────────────────────────────────────
+  (function () {
+    var stage = document.getElementById("stage");
+    var slider = document.getElementById("score");
+    var num = document.getElementById("score-num");
+    var statusEl = document.getElementById("score-status");
+    var descEl = document.getElementById("mode-desc");
+    var root = document.documentElement.style;
+
+    var DESCS = {
+      breathe: "The shell light swells and settles like slow breathing. <b>Higher readiness → slower, deeper, calmer breaths</b>; a tired body breathes shallow and quick.",
+      liquid:  "The glow is an energy liquid — <b>its level is your score</b>. At 92 the glass is nearly full; at 32 only a shallow pool glows at the base. The surface drifts like a calm liquid.",
+      orbit:   "A single ember of energy circles the shell, trailing light. <b>Higher readiness → a faster, brighter orbit</b> — visible energy in the tank.",
+      pulse:   "A faint ring of light leaves the shell and dissolves, like a resting heartbeat. <b>Higher readiness → slower, calmer pulses</b> (your resting HR, visualized).",
+      sheen:   "A specular highlight slowly travels around the glass rim. The most subtle option — pure material realism. <b>Higher readiness → a livelier sweep.</b>"
+    };
+
+    function status(s) {
+      if (s >= 85) return { t: "Peak", c: "#a9e35c" };
+      if (s >= 70) return { t: "Good", c: "#a9e35c" };
+      if (s >= 50) return { t: "Fair", c: "#d9c05a" };
+      return { t: "Low", c: "#e08a5a" };
+    }
+
+    function apply() {
+      var s = +slider.value;
+      num.textContent = s;
+      var st = status(s);
+      statusEl.textContent = st.t;
+      statusEl.style.color = st.c;
+
+      root.setProperty("--energy", (0.5 + 0.5 * s / 100).toFixed(3));
+      root.setProperty("--level", s);
+      root.setProperty("--breDur", (2.4 + 0.05 * s).toFixed(2) + "s");
+      root.setProperty("--orbitDur", (30 - 0.16 * s).toFixed(1) + "s");
+      root.setProperty("--pulseT", (2.5 + 0.055 * s).toFixed(2) + "s");
+      root.setProperty("--sweepDur", (26 - 0.14 * s).toFixed(1) + "s");
+
+      document.querySelectorAll(".preset").forEach(function (p) {
+        p.classList.toggle("on", +p.dataset.s === s);
+      });
+    }
+
+    function setMode(m) {
+      stage.dataset.mode = m;
+      descEl.innerHTML = DESCS[m];
+      document.querySelectorAll(".mode-chip").forEach(function (c) {
+        c.classList.toggle("on", c.dataset.m === m);
+      });
+    }
+
+    document.getElementById("modes").addEventListener("click", function (e) {
+      var b = e.target.closest(".mode-chip");
+      if (b) setMode(b.dataset.m);
+    });
+    document.getElementById("presets").addEventListener("click", function (e) {
+      var b = e.target.closest(".preset");
+      if (b) { slider.value = b.dataset.s; apply(); }
+    });
+    slider.addEventListener("input", apply);
+
+    var q = new URLSearchParams(location.search);
+    var qm = q.get("mode"), qs = q.get("s");
+    setMode(DESCS[qm] ? qm : "breathe");
+    if (qs !== null && qs >= 0 && qs <= 100) slider.value = qs;
+    apply();
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      var kill = document.createElement("style");
+      kill.textContent = "*, *::before, *::after { animation: none !important; }";
+      document.head.appendChild(kill);
+    }
+  })();
+</script>
+</body>
+</html>

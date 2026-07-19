@@ -536,6 +536,23 @@ export function readinessLabel(score: number): string {
   return "Rest today";
 }
 
+/**
+ * One-word readiness quality shown inside the glass orb.
+ * Mirrors the banding used across the app (matches proposal8 mock copy).
+ */
+export function readinessWord(score: number): string {
+  if (score >= 85) return "Peak";
+  if (score >= 75) return "Good";
+  if (score >= 65) return "Steady";
+  if (score >= 50) return "Fair";
+  return "Low";
+}
+
+/** Whether the orb status word should read as a caution (amber) rather than lime. */
+export function readinessCaution(score: number): boolean {
+  return score < 65;
+}
+
 export function ringGradient(dt: DayType): { start: string; end: string } {
   switch (dt) {
     case "push":     return { start: "#ff9a6c", end: "#e05f3c" };

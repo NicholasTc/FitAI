@@ -16,6 +16,18 @@ interface ReadinessOrbProps {
    * count-up (used on sub-screens that show e.g. "7h 32m" instead of a score).
    */
   bigValue?: React.ReactNode;
+  /**
+   * Skip the concentric particle halo. Used for orbs shown alongside the main
+   * Home hero (e.g. Stimulus Reserve on Health) so they read as a distinct,
+   * smaller instrument rather than a second hero.
+   */
+  hideHalo?: boolean;
+  /**
+   * Render an animated liquid level inside the glass shell, filled to `score`%,
+   * instead of relying only on the numeric readout. Used for capacity/reserve
+   * style metrics where "how full" is the primary thing being communicated.
+   */
+  liquid?: boolean;
 }
 
 const prefersReducedMotion = () =>
@@ -33,14 +45,17 @@ export default function ReadinessOrb({
   status,
   caution,
   bigValue,
+  hideHalo,
+  liquid,
 }: ReadinessOrbProps) {
   const haloRef = useRef<SVGGElement | null>(null);
   const [display, setDisplay] = useState(() =>
     prefersReducedMotion() ? score : 0,
   );
 
-  // Generate the concentric particle halo once.
+  // Generate the concentric particle halo once (skipped entirely when hidden).
   useEffect(() => {
+    if (hideHalo) return;
     const g = haloRef.current;
     if (!g || g.childNodes.length > 0) return;
     const NS = "http://www.w3.org/2000/svg";
@@ -98,17 +113,48 @@ export default function ReadinessOrb({
     return () => cancelAnimationFrame(raf);
   }, [score, bigValue]);
 
+  // Liquid fill level — animates 0 → score independently of the number
+  // counter above (bigValue usages skip that counter, but still want the fill).
+  const [liquidLevel, setLiquidLevel] = useState(0);
+  useEffect(() => {
+    if (!liquid) return;
+    if (prefersReducedMotion()) {
+      setLiquidLevel(score);
+      return;
+    }
+    const raf = requestAnimationFrame(() => setLiquidLevel(score));
+    return () => cancelAnimationFrame(raf);
+  }, [liquid, score]);
+
   const numMid = bigValue === undefined && String(score).length >= 3;
 
   return (
-    <div className="hero">
-      <svg className="orb-halo" viewBox="0 0 380 380" aria-hidden="true">
-        <g ref={haloRef} />
-      </svg>
+    <div className={hideHalo ? "hero hero-compact" : "hero"}>
+      {!hideHalo && (
+        <svg className="orb-halo" viewBox="0 0 380 380" aria-hidden="true">
+          <g ref={haloRef} />
+        </svg>
+      )}
       <div className="orb-wrap">
         <div className="orb-glow" />
         <div className="orb-ring-glow" />
         <div className="orb">
+          {liquid && (
+            <div
+              className={`orb-liquid${caution ? " caution" : ""}`}
+              style={{ height: `${Math.max(0, Math.min(100, liquidLevel))}%` }}
+            >
+              <div className="orb-liquid-surface">
+                <svg viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M0,10 C25,0 75,0 100,10 C125,20 175,20 200,10 C225,0 275,0 300,10 C325,20 375,20 400,10 L400,20 L0,20 Z" />
+                </svg>
+                <svg viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M0,10 C25,0 75,0 100,10 C125,20 175,20 200,10 C225,0 275,0 300,10 C325,20 375,20 400,10 L400,20 L0,20 Z" />
+                </svg>
+              </div>
+              <div className="orb-liquid-body" />
+            </div>
+          )}
           <div className="orb-fresnel" />
           <div className="orb-rim" />
         </div>

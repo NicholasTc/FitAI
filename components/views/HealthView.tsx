@@ -784,6 +784,8 @@ export default function HealthView({ data }: HealthViewProps) {
               label="Reserve"
               status={`${reserve.reservePct}%`}
               caution={reserve.reservePct < 55}
+              hideHalo
+              liquid
               bigValue={
                 <span className="text-[42px] font-bold tracking-tight text-[#f4f6f2]">
                   {reserve.reservePct}

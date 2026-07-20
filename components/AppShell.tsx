@@ -6,7 +6,7 @@ import type { TodayState } from "@/types/today";
 import { dayTypeLabel } from "@/lib/readiness";
 import HomeView from "@/components/views/HomeView";
 import HealthView from "@/components/views/HealthView";
-import PendingScreen from "@/components/views/PendingScreen";
+import CoachView from "@/components/views/CoachView";
 import TodayView from "@/components/views/TodayView";
 import CheckInView from "@/components/views/CheckInView";
 import TrendsView from "@/components/views/TrendsView";
@@ -169,15 +169,7 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
         return data ? <HealthView data={data} /> : null;
 
       case "coach":
-        return (
-          <PendingScreen
-            phase="Redesign · Phase 4"
-            title="Coach"
-            description="Your AI strategy, guidance and chat are being rebuilt in the glass-orb style. They're still live on the current dashboard."
-            actionLabel="Open current AI coach"
-            onAction={() => go("legacy")}
-          />
-        );
+        return data ? <CoachView data={data} onGoToCheckIn={() => go("checkin")} /> : null;
 
       case "profile":
         return <SettingsView />;

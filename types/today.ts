@@ -86,6 +86,9 @@ export interface UserSettings {
   sex:      "male" | "female" | null;
   heightCm: number | null; // cm
   weightKg: number | null; // kg
+  // Weekly cardio targets (minutes)
+  weeklyModerateTargetMin: number;
+  weeklyVigorousTargetMin: number;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -97,6 +100,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   sex:      null,
   heightCm: null,
   weightKg: null,
+  weeklyModerateTargetMin: 150,
+  weeklyVigorousTargetMin: 75,
 };
 
 export interface TodayState {

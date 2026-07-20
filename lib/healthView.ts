@@ -14,7 +14,6 @@
  * exists, and fall back to neutral copy when the baseline is still forming.
  */
 
-import { readinessWord } from "@/lib/readiness";
 import type { TodayState } from "@/types/today";
 
 export type Tone = "good" | "warn" | "neutral";
@@ -33,7 +32,7 @@ export interface HealthMetric {
 }
 
 export interface RecoverySignal {
-  key: "sleepQuality" | "recovery" | "energy" | "stress";
+  key: "sleepQuality" | "physical" | "cognitive" | "energy" | "stress";
   label: string;
   /** 0–100 score; null when the underlying signal is missing (e.g. no check-in). */
   score: number | null;
@@ -43,6 +42,8 @@ export interface RecoverySignal {
   note: string;
   /** True when the signal comes from the subjective morning check-in. */
   subjective: boolean;
+  /** Optional "driven by" lines for physical/cognitive recovery. */
+  drivenBy?: string[];
 }
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
@@ -220,8 +221,6 @@ export function buildRecoverySignals(state: TodayState): RecoverySignal[] {
       ? Math.round((sleepSub.score / sleepSub.maxPts) * 100)
       : null;
 
-  const recoveryScore = Math.round(readiness.score);
-
   const energy = checkIn ? checkIn.energyLevel * 10 : null;
   const stress = checkIn ? checkIn.stressLevel * 10 : null;
 
@@ -233,15 +232,6 @@ export function buildRecoverySignals(state: TodayState): RecoverySignal[] {
       quality: sleepQuality === null ? "No data" : bandWord(sleepQuality),
       tone: sleepQuality === null ? "neutral" : scoreTone(sleepQuality),
       note: "Sleep sub-score",
-      subjective: false,
-    },
-    {
-      key: "recovery",
-      label: "Recovery",
-      score: recoveryScore,
-      quality: readinessWord(recoveryScore),
-      tone: scoreTone(recoveryScore),
-      note: "Readiness engine",
       subjective: false,
     },
     {

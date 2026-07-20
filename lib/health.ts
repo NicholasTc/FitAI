@@ -240,6 +240,26 @@ interface TotalCaloriesRollup {
   }>;
 }
 
+interface TimeInHeartRateZoneValue {
+  heartRateZone?: string; // FAT_BURN | CARDIO | PEAK
+  duration?: string; // protobuf Duration e.g. "3600s"
+}
+
+interface TimeInHeartRateZoneRollup {
+  rollupDataPoints?: Array<{
+    civilStartTime?: CivilDateTime;
+    timeInHeartRateZone?: {
+      timeInHeartRateZones?: TimeInHeartRateZoneValue[];
+    };
+  }>;
+}
+
+export interface ZoneMinutes {
+  fatBurnMin: number | null;
+  cardioMin: number | null;
+  peakMin: number | null;
+}
+
 // ─── Coercion helpers ─────────────────────────────────────────────────────────
 
 function toInt(v: Num): number | null {
@@ -254,6 +274,36 @@ function toFloat(v: Num): number | null {
   return isNaN(n) ? null : n;
 }
 
+/** Parse Google protobuf Duration ("3600s" / "3.5s") to whole minutes. */
+function durationToMinutes(duration: string | undefined): number | null {
+  if (!duration) return null;
+  const m = /^(-?\d+(?:\.\d+)?)s$/i.exec(duration.trim());
+  if (!m) return null;
+  const secs = parseFloat(m[1]!);
+  if (!Number.isFinite(secs) || secs < 0) return null;
+  return Math.round(secs / 60);
+}
+
+function parseZoneMinutesFromRollup(
+  point: NonNullable<TimeInHeartRateZoneRollup["rollupDataPoints"]>[number] | undefined,
+): ZoneMinutes {
+  const empty: ZoneMinutes = { fatBurnMin: null, cardioMin: null, peakMin: null };
+  if (!point) return empty;
+  const zones = point.timeInHeartRateZone?.timeInHeartRateZones ?? [];
+  let fatBurnMin: number | null = null;
+  let cardioMin: number | null = null;
+  let peakMin: number | null = null;
+  for (const z of zones) {
+    const mins = durationToMinutes(z.duration);
+    if (mins === null) continue;
+    const key = (z.heartRateZone ?? "").toUpperCase();
+    if (key === "FAT_BURN") fatBurnMin = (fatBurnMin ?? 0) + mins;
+    else if (key === "CARDIO") cardioMin = (cardioMin ?? 0) + mins;
+    else if (key === "PEAK") peakMin = (peakMin ?? 0) + mins;
+  }
+  return { fatBurnMin, cardioMin, peakMin };
+}
+
 // ─── Normalization ────────────────────────────────────────────────────────────
 
 function normalizeSnapshot(
@@ -264,6 +314,7 @@ function normalizeSnapshot(
   hrv: FetchResult<HrvResponse>,
   activeMinutes: FetchResult<ActiveMinutesRollup>,
   totalCalories: FetchResult<TotalCaloriesRollup>,
+  zones: FetchResult<TimeInHeartRateZoneRollup> | ZoneMinutes | null,
 ): DailySnapshot {
   const sleepPoint = sleep.data?.dataPoints?.[0]?.sleep;
   const sleepSummary = sleepPoint?.summary;
@@ -294,6 +345,13 @@ function normalizeSnapshot(
   const rawKcal = toFloat(calPoint?.kcalSum);
   const totalCal = rawKcal !== null && rawKcal > 500 ? Math.round(rawKcal) : null;
 
+  let zoneMins: ZoneMinutes = { fatBurnMin: null, cardioMin: null, peakMin: null };
+  if (zones && "ok" in zones) {
+    zoneMins = parseZoneMinutesFromRollup(zones.data?.rollupDataPoints?.[0]);
+  } else if (zones) {
+    zoneMins = zones;
+  }
+
   return {
     date,
     sleepMinutes: minutesAsleep,
@@ -301,11 +359,15 @@ function normalizeSnapshot(
     sleepDeepMin: stageMinutes("DEEP"),
     sleepRemMin: stageMinutes("REM"),
     sleepLightMin: stageMinutes("LIGHT"),
+    sleepAwakeMin: toInt(sleepSummary?.minutesAwake),
     restingHr: toFloat(rhrPoint?.beatsPerMinute),
     hrv: toFloat(hrvPoint?.averageHeartRateVariabilityMilliseconds),
     steps: toInt(stepsPoint?.countSum),
     activeMinutes: toInt(activePoint?.activeMinutesSum),
     totalCalories: totalCal,
+    fatBurnMin: zoneMins.fatBurnMin,
+    cardioMin: zoneMins.cardioMin,
+    peakMin: zoneMins.peakMin,
   };
 }
 
@@ -344,10 +406,16 @@ export async function fetchDaySnapshot(
     ),
   ]);
 
-  const [steps, activeMinutes, totalCalories] = await Promise.all([
+  const [steps, activeMinutes, totalCalories, zones] = await Promise.all([
     dailyRollUp<StepsRollup>(userId, accessToken, "steps", date),
     dailyRollUp<ActiveMinutesRollup>(userId, accessToken, "active-minutes", date),
     dailyRollUp<TotalCaloriesRollup>(userId, accessToken, "total-calories", date),
+    dailyRollUp<TimeInHeartRateZoneRollup>(
+      userId,
+      accessToken,
+      "time-in-heart-rate-zone",
+      date,
+    ),
   ]);
 
   const apiError =
@@ -357,10 +425,20 @@ export async function fetchDaySnapshot(
     (!steps.ok ? steps.error : null) ??
     (!activeMinutes.ok ? activeMinutes.error : null) ??
     (!totalCalories.ok ? totalCalories.error : null) ??
+    (!zones.ok ? zones.error : null) ??
     null;
 
   return {
-    snapshot: normalizeSnapshot(date, sleep, steps, rhr, hrv, activeMinutes, totalCalories),
+    snapshot: normalizeSnapshot(
+      date,
+      sleep,
+      steps,
+      rhr,
+      hrv,
+      activeMinutes,
+      totalCalories,
+      zones,
+    ),
     apiError,
   };
 }
@@ -493,7 +571,7 @@ async function fetchSnapshotsRangeBatched(
     })(),
   ]);
 
-  const [stepsRes, activeRes, calRes] = await Promise.all([
+  const [stepsRes, activeRes, calRes, zonesRes] = await Promise.all([
     fetchRollupByDate<NonNullable<StepsRollup["rollupDataPoints"]>[number]>(
       userId,
       accessToken,
@@ -518,6 +596,14 @@ async function fetchSnapshotsRangeBatched(
       endInclusive,
       constrainedRollupMaxDays,
     ),
+    fetchRollupByDate<NonNullable<TimeInHeartRateZoneRollup["rollupDataPoints"]>[number]>(
+      userId,
+      accessToken,
+      "time-in-heart-rate-zone",
+      start,
+      endInclusive,
+      defaultRangeMaxDays,
+    ),
   ]);
 
   const apiError =
@@ -527,6 +613,7 @@ async function fetchSnapshotsRangeBatched(
     stepsRes.error ??
     activeRes.error ??
     calRes.error ??
+    zonesRes.error ??
     null;
 
   const snapshots = dates.map((date) => {
@@ -536,6 +623,7 @@ async function fetchSnapshotsRangeBatched(
     const stepsPt = stepsRes.byDate.get(date);
     const activePt = activeRes.byDate.get(date);
     const calPt = calRes.byDate.get(date);
+    const zonePt = zonesRes.byDate.get(date);
 
     return normalizeSnapshot(
       date,
@@ -549,6 +637,7 @@ async function fetchSnapshotsRangeBatched(
       okResult<TotalCaloriesRollup>({
         rollupDataPoints: calPt ? [calPt] : [],
       }),
+      parseZoneMinutesFromRollup(zonePt),
     );
   });
 

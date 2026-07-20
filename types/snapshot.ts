@@ -9,6 +9,7 @@ export interface DailySnapshot {
   sleepDeepMin: number | null;
   sleepRemMin: number | null;
   sleepLightMin: number | null;
+  sleepAwakeMin: number | null;
 
   // Cardiac
   restingHr: number | null; // bpm
@@ -18,6 +19,11 @@ export interface DailySnapshot {
   steps: number | null;
   activeMinutes: number | null;
   totalCalories: number | null; // kcal
+
+  // Google Health time-in-heart-rate-zone (FAT_BURN / CARDIO / PEAK)
+  fatBurnMin: number | null;
+  cardioMin: number | null;
+  peakMin: number | null;
 }
 
 // Seven-day (or longer) rolling baselines.
@@ -67,4 +73,25 @@ export interface DailyBaseline {
   };
   // Past 7 days ordered oldest → newest (for sparklines).
   history: DailySnapshot[];
+}
+
+/** Empty snapshot for a date — all wearable fields null. */
+export function emptySnapshot(date: string): DailySnapshot {
+  return {
+    date,
+    sleepMinutes: null,
+    sleepEfficiency: null,
+    sleepDeepMin: null,
+    sleepRemMin: null,
+    sleepLightMin: null,
+    sleepAwakeMin: null,
+    restingHr: null,
+    hrv: null,
+    steps: null,
+    activeMinutes: null,
+    totalCalories: null,
+    fatBurnMin: null,
+    cardioMin: null,
+    peakMin: null,
+  };
 }

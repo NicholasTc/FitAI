@@ -48,6 +48,14 @@ import type { WeeklyBaseline } from "@/types/snapshot";
 import type { DailySnapshot } from "@/types/snapshot";
 import type { TrainingLoadResult } from "@/lib/trainingLoad";
 import { getHrvAbsoluteThresholds, type UserProfile } from "@/lib/bmr";
+import {
+  canUseZScore,
+  clamp,
+  MIN_SD_HRV,
+  MIN_SD_RHR,
+  zToScore,
+  zToScoreInverted,
+} from "@/lib/physiology";
 
 // ─── Options ─────────────────────────────────────────────────────────────────
 
@@ -62,10 +70,6 @@ export interface ReadinessOptions {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
-}
-
 function scoreSlider(value: number, max = 10, weight = 10): number {
   return (value / max) * weight;
 }
@@ -73,32 +77,6 @@ function scoreSlider(value: number, max = 10, weight = 10): number {
 function isToday(date: string | undefined): boolean {
   if (!date) return false;
   return date === new Date().toLocaleDateString("en-CA");
-}
-
-// ─── Phase 2: z-score gates ───────────────────────────────────────────────────
-
-// Minimum sample count before z-scoring activates for a metric.
-const Z_SCORE_MIN_DAYS = 14;
-// Minimum SD values to ensure variability is real (not measurement noise).
-const MIN_SD_HRV      = 3.0;  // ms  — Fitbit HRV is noisy at < 3ms SD
-const MIN_SD_RHR      = 0.8;  // bpm — sub-1bpm SD means essentially no variability
-const MIN_SD_SLEEP    = 15;   // min — < 15min SD means sleep is very consistent
-
-function canUseZScore(n: number, sd: number | null, minSd: number): boolean {
-  return n >= Z_SCORE_MIN_DAYS && sd !== null && sd >= minSd;
-}
-
-/**
- * Maps z-score to 0–maxPts. Higher z → more pts.
- * z = +2 → maxPts, z = 0 → 50%, z = −2 → 0.
- */
-function zToScore(z: number, maxPts: number): number {
-  return clamp(Math.round(((z + 2) / 4) * maxPts), 0, maxPts);
-}
-
-/** Inverted: lower z → more pts. Used for RHR (lower is better). */
-function zToScoreInverted(z: number, maxPts: number): number {
-  return zToScore(-z, maxPts);
 }
 
 // ─── Subjective scoring ───────────────────────────────────────────────────────

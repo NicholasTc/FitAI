@@ -143,8 +143,9 @@ export async function GET() {
     const today = history.find((s) => s.date === localDate) ?? {
       date: localDate,
       sleepMinutes: null, sleepEfficiency: null, sleepDeepMin: null,
-      sleepRemMin: null, sleepLightMin: null,
+      sleepRemMin: null, sleepLightMin: null, sleepAwakeMin: null,
       restingHr: null, hrv: null, steps: null, activeMinutes: null, totalCalories: null,
+      fatBurnMin: null, cardioMin: null, peakMin: null,
     };
     computedBaseline = computeBaseline(history, today);
   }

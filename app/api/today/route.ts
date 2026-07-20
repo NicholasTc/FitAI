@@ -37,11 +37,15 @@ const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
   sleepDeepMin: null,
   sleepRemMin: null,
   sleepLightMin: null,
+  sleepAwakeMin: null,
   restingHr: null,
   hrv: null,
   steps: null,
   activeMinutes: null,
   totalCalories: null,
+  fatBurnMin: null,
+  cardioMin: null,
+  peakMin: null,
 });
 
 export async function GET(request: NextRequest) {
@@ -200,6 +204,12 @@ export async function GET(request: NextRequest) {
         sex:             (rawSettings.sex as "male" | "female" | null) ?? null,
         heightCm:        rawSettings.heightCm,
         weightKg:        rawSettings.weightKg,
+        weeklyModerateTargetMin:
+          rawSettings.weeklyModerateTargetMin ??
+          DEFAULT_SETTINGS.weeklyModerateTargetMin,
+        weeklyVigorousTargetMin:
+          rawSettings.weeklyVigorousTargetMin ??
+          DEFAULT_SETTINGS.weeklyVigorousTargetMin,
       }
     : DEFAULT_SETTINGS;
 

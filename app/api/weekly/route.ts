@@ -35,11 +35,15 @@ const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
   sleepDeepMin: null,
   sleepRemMin: null,
   sleepLightMin: null,
+  sleepAwakeMin: null,
   restingHr: null,
   hrv: null,
   steps: null,
   activeMinutes: null,
   totalCalories: null,
+  fatBurnMin: null,
+  cardioMin: null,
+  peakMin: null,
 });
 
 export async function GET(request: NextRequest) {

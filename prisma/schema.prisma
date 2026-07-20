@@ -21,6 +21,7 @@ model DailyHealthSnapshot {
   sleepDeepMin    Int?   // deep stage minutes
   sleepRemMin     Int?   // REM stage minutes
   sleepLightMin   Int?   // light stage minutes
+  sleepAwakeMin   Int?   // awake / interruption minutes within sleep period
 
   // Cardiac
   restingHr Float? // resting HR bpm
@@ -30,6 +31,11 @@ model DailyHealthSnapshot {
   steps         Int?   // step count
   activeMinutes Int?   // active minutes
   totalCalories Float? // total kcal burned (resting + active)
+
+  // Google Health time-in-heart-rate-zone (FAT_BURN / CARDIO / PEAK)
+  fatBurnMin Int?
+  cardioMin  Int?
+  peakMin    Int?
 
   syncedAt DateTime @default(now()) @updatedAt
 
@@ -51,6 +57,10 @@ model WorkoutSession {
   isManual        Boolean @default(false)
   rpe             Int?    // 1–10 Rate of Perceived Exertion (Foster 2001)
   sessionLoad     Int?    // computed: rpe × durationMinutes (arbitrary units)
+
+  // Post-workout two-tap check-in (Feature 4)
+  feltDifficulty       Int?    // 1–10 how hard it felt
+  perceivedPerformance String? // "below" | "as_expected" | "above"
 
   // API sync fields (optional for manual logs)
   startTime String? // ISO datetime string
@@ -99,6 +109,10 @@ model UserSettings {
   sex      String? // "male" | "female"
   heightCm Float?  // centimetres (100–250)
   weightKg Float?  // kilograms (20–300)
+
+  // Weekly cardio targets (WHO-style defaults; minutes)
+  weeklyModerateTargetMin Int @default(150) // Fat Burn / moderate
+  weeklyVigorousTargetMin Int @default(75)  // Cardio + Peak / vigorous
 
   updatedAt DateTime @updatedAt
 }

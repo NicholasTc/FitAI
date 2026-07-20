@@ -17,6 +17,8 @@ function rowToSettings(row: {
   sex: string | null;
   heightCm: number | null;
   weightKg: number | null;
+  weeklyModerateTargetMin?: number;
+  weeklyVigorousTargetMin?: number;
 }): UserSettings {
   return {
     wakeTime:        row.wakeTime,
@@ -27,6 +29,10 @@ function rowToSettings(row: {
     sex:             (row.sex as "male" | "female" | null) ?? null,
     heightCm:        row.heightCm,
     weightKg:        row.weightKg,
+    weeklyModerateTargetMin:
+      row.weeklyModerateTargetMin ?? DEFAULT_SETTINGS.weeklyModerateTargetMin,
+    weeklyVigorousTargetMin:
+      row.weeklyVigorousTargetMin ?? DEFAULT_SETTINGS.weeklyVigorousTargetMin,
   };
 }
 
@@ -73,6 +79,18 @@ export async function PATCH(request: NextRequest) {
   if (body.weightKg !== undefined && body.weightKg !== null && (body.weightKg < 20 || body.weightKg > 300)) {
     return NextResponse.json({ error: "Weight must be 20–300 kg" }, { status: 400 });
   }
+  if (
+    body.weeklyModerateTargetMin !== undefined &&
+    (body.weeklyModerateTargetMin < 0 || body.weeklyModerateTargetMin > 1000)
+  ) {
+    return NextResponse.json({ error: "Moderate target must be 0–1000 min" }, { status: 400 });
+  }
+  if (
+    body.weeklyVigorousTargetMin !== undefined &&
+    (body.weeklyVigorousTargetMin < 0 || body.weeklyVigorousTargetMin > 1000)
+  ) {
+    return NextResponse.json({ error: "Vigorous target must be 0–1000 min" }, { status: 400 });
+  }
 
   const row = await db.userSettings.upsert({
     where: { userId: session.user.id },
@@ -85,6 +103,12 @@ export async function PATCH(request: NextRequest) {
       ...(body.sex      !== undefined && { sex:      body.sex }),
       ...(body.heightCm !== undefined && { heightCm: body.heightCm }),
       ...(body.weightKg !== undefined && { weightKg: body.weightKg }),
+      ...(body.weeklyModerateTargetMin !== undefined && {
+        weeklyModerateTargetMin: body.weeklyModerateTargetMin,
+      }),
+      ...(body.weeklyVigorousTargetMin !== undefined && {
+        weeklyVigorousTargetMin: body.weeklyVigorousTargetMin,
+      }),
     },
     create: {
       userId:          session.user.id,
@@ -96,6 +120,10 @@ export async function PATCH(request: NextRequest) {
       sex:             body.sex      ?? null,
       heightCm:        body.heightCm ?? null,
       weightKg:        body.weightKg ?? null,
+      weeklyModerateTargetMin:
+        body.weeklyModerateTargetMin ?? DEFAULT_SETTINGS.weeklyModerateTargetMin,
+      weeklyVigorousTargetMin:
+        body.weeklyVigorousTargetMin ?? DEFAULT_SETTINGS.weeklyVigorousTargetMin,
     },
   });
 

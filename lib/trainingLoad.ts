@@ -206,3 +206,67 @@ export function computeTrainingLoadFromManual(
     usedManualData: true,
   };
 }
+
+/**
+ * Zone-minute strain proxy: Fat Burn × 1 + Cardio × 2 + Peak × 3.
+ * Prefer this over plain activeMinutes when zone data exists.
+ */
+function dailyZoneStrain(s: DailySnapshot): number | null {
+  const hasZone =
+    s.fatBurnMin !== null || s.cardioMin !== null || s.peakMin !== null;
+  if (!hasZone) return null;
+  return (s.fatBurnMin ?? 0) * 1 + (s.cardioMin ?? 0) * 2 + (s.peakMin ?? 0) * 3;
+}
+
+/**
+ * ACWR from zone minutes (Feature 3). Falls back to insufficient-data when
+ * zone history is too sparse — callers should then use activeMinutes / manual.
+ */
+export function computeTrainingLoadFromZones(
+  priorHistory: DailySnapshot[],
+): TrainingLoadResult {
+  const chronicWindow = priorHistory.slice(-28);
+  const chronicValues = chronicWindow
+    .map(dailyZoneStrain)
+    .filter((v): v is number => v !== null);
+
+  if (chronicValues.length < 14) {
+    return { ...INSUFFICIENT, method: "insufficient-data" };
+  }
+
+  const acuteWindow = priorHistory.slice(-7);
+  const acuteValues = acuteWindow
+    .map(dailyZoneStrain)
+    .filter((v): v is number => v !== null);
+
+  if (acuteValues.length < 3) return INSUFFICIENT;
+
+  const acuteAvg = avg(acuteValues);
+  const chronicAvg = avg(chronicValues);
+  if (chronicAvg < 1) return INSUFFICIENT;
+
+  const ratio = acuteAvg / chronicAvg;
+
+  let modifier: number;
+  if (ratio > 1.5) {
+    modifier = -10;
+  } else if (ratio > 1.2) {
+    modifier = -Math.round(((ratio - 1.2) / 0.3) * 6 + 4);
+  } else if (ratio >= 0.8) {
+    modifier = 0;
+  } else if (ratio >= 0.5) {
+    modifier = Math.round(((0.8 - ratio) / 0.3) * 5);
+  } else {
+    modifier = 5;
+  }
+
+  return {
+    modifier: clamp(modifier, -10, 10),
+    method: "acute-chronic",
+    acuteAvg,
+    chronicAvg,
+    ratio,
+    usedManualData: false,
+  };
+}
+

@@ -10,10 +10,15 @@ import {
 } from "@/lib/healthView";
 import type { HealthInsightRequest } from "@/app/api/health-insight/route";
 import { readinessWord } from "@/lib/readiness";
+import { computeWorkoutImpact } from "@/lib/postWorkout";
 import HistoryView from "@/components/views/HistoryView";
 import WorkoutLogView from "@/components/views/WorkoutLogView";
+import ReadinessOrb from "@/components/orb/ReadinessOrb";
 import type { TodayState } from "@/types/today";
+import type { HealthDetailResponse } from "@/types/healthDetail";
 import type { TrendPoint, TrendsRange, TrendsResponse } from "@/types/trends";
+
+const WEARABLE_DISMISS_KEY = "fitai:dismissedWearableImpact";
 
 interface HealthViewProps {
   data: TodayState;
@@ -63,10 +68,16 @@ const SIGNAL_ICON: Record<RecoverySignal["key"], React.ReactNode> = {
       <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
     </svg>
   ),
-  recovery: (
+  physical: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
       <path d="M12 21a9 9 0 1 0-9-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
       <path d="M3 12l2.5-2.5L8 12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  cognitive: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 8v4l2.5 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
   energy: (
@@ -282,34 +293,72 @@ function SignalCard({ signal }: { signal: RecoverySignal }) {
   const dash = signal.score === null ? 0 : (pct / 100) * C;
 
   return (
-    <div className="gcard flex items-center gap-3 p-[14px_14px]">
-      <div className="relative h-[52px] w-[52px] shrink-0">
-        <svg width="52" height="52" viewBox="0 0 52 52" className="-rotate-90">
-          <circle cx="26" cy="26" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
-          {signal.score !== null && (
-            <circle
-              cx="26"
-              cy="26"
-              r={R}
-              fill="none"
-              stroke={ringColor}
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeDasharray={`${dash} ${C}`}
-            />
-          )}
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[#7f8a7c]">
-          {SIGNAL_ICON[signal.key]}
+    <div className="gcard flex flex-col gap-2 p-[14px_14px]">
+      <div className="flex items-center gap-3">
+        <div className="relative h-[52px] w-[52px] shrink-0">
+          <svg width="52" height="52" viewBox="0 0 52 52" className="-rotate-90">
+            <circle cx="26" cy="26" r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="4" />
+            {signal.score !== null && (
+              <circle
+                cx="26"
+                cy="26"
+                r={R}
+                fill="none"
+                stroke={ringColor}
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={`${dash} ${C}`}
+              />
+            )}
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[#7f8a7c]">
+            {SIGNAL_ICON[signal.key]}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <div className="text-[10px] font-[650] uppercase tracking-[0.9px] text-[#6d766b]">{signal.label}</div>
+          <div className="mt-0.5 text-[17px] font-bold leading-none text-[#f4f6f2]">
+            {signal.score === null ? "—" : signal.score}
+            {signal.score !== null && <span className="text-[11px] font-medium text-[#6d766b]">/100</span>}
+          </div>
+          <div className={`mt-1 text-[11px] font-semibold ${TONE_TEXT[signal.tone]}`}>{signal.quality}</div>
+        </div>
+      </div>
+      {signal.drivenBy && signal.drivenBy.length > 0 && (
+        <p className="text-[10.5px] leading-snug text-[#6d766b]">
+          Driven by: {signal.drivenBy.join(" · ")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ProgressBar({
+  label,
+  value,
+  target,
+  pct,
+  color,
+}: {
+  label: string;
+  value: number;
+  target: number;
+  pct: number;
+  color: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[12.5px] font-semibold text-[#f4f6f2]">{label}</span>
+        <span className="text-[11.5px] text-[#9aa398]">
+          {value} / {target} min
         </span>
       </div>
-      <div className="min-w-0">
-        <div className="text-[10px] font-[650] uppercase tracking-[0.9px] text-[#6d766b]">{signal.label}</div>
-        <div className="mt-0.5 text-[17px] font-bold leading-none text-[#f4f6f2]">
-          {signal.score === null ? "—" : signal.score}
-          {signal.score !== null && <span className="text-[11px] font-medium text-[#6d766b]">/100</span>}
-        </div>
-        <div className={`mt-1 text-[11px] font-semibold ${TONE_TEXT[signal.tone]}`}>{signal.quality}</div>
+      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+        <div
+          className="h-full rounded-full transition-[width]"
+          style={{ width: `${Math.min(100, pct)}%`, background: color }}
+        />
       </div>
     </div>
   );
@@ -467,6 +516,9 @@ export default function HealthView({ data }: HealthViewProps) {
   const [trends, setTrends] = useState<TrendsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<HealthDetailResponse | null>(null);
+  const [wearableDismissed, setWearableDismissed] = useState(false);
+  const [wearableFeedbackSaved, setWearableFeedbackSaved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -494,13 +546,119 @@ export default function HealthView({ data }: HealthViewProps) {
     };
   }, [range, data.date]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/health-detail?date=${data.date}`)
+      .then((res) => (res.ok ? (res.json() as Promise<HealthDetailResponse>) : null))
+      .then((json) => {
+        if (!cancelled && json) setDetail(json);
+      })
+      .catch(() => {
+        /* non-blocking */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [data.date]);
+
   const metrics = useMemo(() => buildHealthMetrics(data), [data]);
-  const signals = useMemo(() => buildRecoverySignals(data), [data]);
+  const baseSignals = useMemo(() => buildRecoverySignals(data), [data]);
+  const signals = useMemo(() => {
+    if (!detail) return baseSignals;
+    const bandTone = (band: string): Tone =>
+      band === "strong" ? "good" : band === "low" ? "warn" : "neutral";
+    const physical: RecoverySignal = {
+      key: "physical",
+      label: "Physical recovery",
+      score: detail.recovery.physical.score,
+      quality: detail.recovery.physical.label,
+      tone: bandTone(detail.recovery.physical.band),
+      note: "Estimated state",
+      subjective: false,
+      drivenBy: detail.recovery.physical.drivenBy,
+    };
+    const cognitive: RecoverySignal = {
+      key: "cognitive",
+      label: "Cognitive recovery",
+      score: detail.recovery.cognitive.score,
+      quality: detail.recovery.cognitive.label,
+      tone: bandTone(detail.recovery.cognitive.band),
+      note: "Estimated state",
+      subjective: false,
+      drivenBy: detail.recovery.cognitive.drivenBy,
+    };
+    return [physical, cognitive, ...baseSignals.filter((s) => s.key !== "sleepQuality")];
+  }, [baseSignals, detail]);
+
   const hrvMetric = metrics.find((m) => m.key === "hrv")!;
   const rhrMetric = metrics.find((m) => m.key === "rhr")!;
 
   const points = trends?.points ?? [];
   const anyCheckIn = signals.some((s) => s.subjective && s.score !== null);
+  const reserve = detail?.reserve;
+  const zones = detail?.zones;
+  const plan = detail?.weeklyPlan;
+  const todayTotal =
+    zones && zones.today.totalZoneMin > 0 ? zones.today.totalZoneMin : 1;
+
+  const pendingWearable = detail?.pendingWearableWorkout ?? null;
+  const showWearableBanner = useMemo(() => {
+    if (!pendingWearable || !reserve || wearableDismissed || wearableFeedbackSaved) {
+      return false;
+    }
+    if (typeof window === "undefined") return false;
+    try {
+      const dismissed = window.localStorage.getItem(WEARABLE_DISMISS_KEY);
+      if (dismissed === pendingWearable.id) return false;
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }, [pendingWearable, reserve, wearableDismissed, wearableFeedbackSaved]);
+
+  const wearableImpact =
+    showWearableBanner && pendingWearable && reserve
+      ? computeWorkoutImpact(
+          {
+            durationMinutes: pendingWearable.durationMinutes,
+            rpe: pendingWearable.rpe,
+          },
+          { reservePct: reserve.reservePct },
+        )
+      : null;
+
+  function dismissWearableBanner() {
+    if (pendingWearable) {
+      try {
+        window.localStorage.setItem(WEARABLE_DISMISS_KEY, pendingWearable.id);
+      } catch {
+        /* ignore */
+      }
+    }
+    setWearableDismissed(true);
+  }
+
+  async function saveWearableFeedback(patch: {
+    feltDifficulty?: number;
+    perceivedPerformance?: string;
+  }) {
+    if (!pendingWearable) return;
+    try {
+      await fetch("/api/workout", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pendingWearable.id, ...patch }),
+      });
+      setWearableFeedbackSaved(true);
+      try {
+        window.localStorage.setItem(WEARABLE_DISMISS_KEY, pendingWearable.id);
+      } catch {
+        /* ignore */
+      }
+    } catch {
+      /* non-blocking */
+    }
+  }
 
   return (
     <div className="screen-in mx-auto max-w-[900px]">
@@ -527,12 +685,215 @@ export default function HealthView({ data }: HealthViewProps) {
         </div>
       )}
 
+      {wearableImpact && pendingWearable && (
+        <div className="mt-3 gcard p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[13px] font-bold text-[#f4f6f2]">
+                Synced workout · {pendingWearable.typeLabel}
+              </p>
+              <p className="mt-1 text-[12px] text-[#9aa398]">{wearableImpact.summary}</p>
+              <p className="mt-1 text-[11px] text-[#6d766b]">
+                {pendingWearable.date} · {pendingWearable.durationMinutes} min
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={dismissWearableBanner}
+              className="text-[11px] text-[#6d766b] hover:text-[#9aa398]"
+            >
+              Dismiss
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] px-2.5 py-2 text-center">
+              <p className="text-[10px] uppercase tracking-wide text-[#6d766b]">Stimulus</p>
+              <p className="mt-0.5 text-[15px] font-bold text-[#f4f6f2]">
+                {wearableImpact.stimulusReceived}
+              </p>
+            </div>
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] px-2.5 py-2 text-center">
+              <p className="text-[10px] uppercase tracking-wide text-[#6d766b]">Reserve</p>
+              <p className="mt-0.5 text-[13px] font-bold text-[#b7ec4a]">
+                {wearableImpact.reserveBefore}% → {wearableImpact.reserveAfter}%
+              </p>
+            </div>
+            <div className="rounded-[10px] border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] px-2.5 py-2 text-center">
+              <p className="text-[10px] uppercase tracking-wide text-[#6d766b]">Band</p>
+              <p className="mt-0.5 text-[12px] font-bold text-[#e8b45a]">
+                {wearableImpact.bandLabel}
+              </p>
+            </div>
+          </div>
+          {!wearableFeedbackSaved && (
+            <div className="mt-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
+              <p className="text-[12px] font-semibold text-[#f4f6f2]">
+                Quick check-in (optional)
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {[3, 5, 7, 9].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => void saveWearableFeedback({ feltDifficulty: n })}
+                    className="rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-[11.5px] text-[#c8d0c2] hover:border-[rgba(183,236,74,0.35)] hover:text-[#b7ec4a]"
+                  >
+                    {n}/10
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {(
+                  [
+                    ["below", "Below"],
+                    ["as_expected", "As expected"],
+                    ["above", "Above"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      void saveWearableFeedback({ perceivedPerformance: value })
+                    }
+                    className="rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-[11.5px] text-[#c8d0c2] hover:border-[rgba(183,236,74,0.35)] hover:text-[#b7ec4a]"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Top metric grid */}
       <div className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {metrics.map((m) => (
           <MetricTile key={m.key} metric={m} />
         ))}
       </div>
+
+      {/* Stimulus Reserve */}
+      {reserve && (
+        <>
+          <div className="section-label">Stimulus Reserve</div>
+          <div className="gcard flex flex-col items-center gap-3 p-5 lg:flex-row lg:items-center lg:gap-6 lg:p-6">
+            <ReadinessOrb
+              score={reserve.reservePct}
+              label="Reserve"
+              status={`${reserve.reservePct}%`}
+              caution={reserve.reservePct < 55}
+              bigValue={
+                <span className="text-[42px] font-bold tracking-tight text-[#f4f6f2]">
+                  {reserve.reservePct}
+                  <span className="text-[18px] font-semibold text-[#9aa398]">%</span>
+                </span>
+              }
+            />
+            <div className="min-w-0 flex-1 text-center lg:text-left">
+              <p className="text-[14px] font-semibold leading-snug text-[#f4f6f2]">
+                {reserve.capacityCopy}
+              </p>
+              <p className="mt-2 text-[13px] leading-snug text-[#9aa398]">
+                {reserve.suggestionCopy}
+              </p>
+              <p className="mt-3 text-[10.5px] leading-snug text-[#6d766b]">
+                {reserve.disclaimer}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Cardio zones */}
+      {zones && (
+        <>
+          <div className="section-label">Cardio zones</div>
+          <div className="gcard p-4">
+            <p className="text-[11px] font-[650] uppercase tracking-[1.1px] text-[#6d766b]">
+              Today · Fat Burn / Cardio / Peak
+            </p>
+            <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+              <div
+                style={{
+                  width: `${(zones.today.fatBurnMin / todayTotal) * 100}%`,
+                  background: "#58c27a",
+                }}
+              />
+              <div
+                style={{
+                  width: `${(zones.today.cardioMin / todayTotal) * 100}%`,
+                  background: "#e8b45a",
+                }}
+              />
+              <div
+                style={{
+                  width: `${(zones.today.peakMin / todayTotal) * 100}%`,
+                  background: "#ef5b5b",
+                }}
+              />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-[#9aa398]">
+              <span>
+                <span className="text-[#58c27a]">●</span> Fat Burn {zones.today.fatBurnMin}m
+              </span>
+              <span>
+                <span className="text-[#e8b45a]">●</span> Cardio {zones.today.cardioMin}m
+              </span>
+              <span>
+                <span className="text-[#ef5b5b]">●</span> Peak {zones.today.peakMin}m
+              </span>
+            </div>
+            <div className="mt-4 flex flex-col gap-3">
+              <ProgressBar
+                label="Fat Burn (moderate)"
+                value={zones.weekTotals.moderateMin}
+                target={zones.targets.weeklyModerateTargetMin}
+                pct={zones.progress.moderatePct}
+                color="#58c27a"
+              />
+              <ProgressBar
+                label="Cardio + Peak (vigorous)"
+                value={zones.weekTotals.vigorousMin}
+                target={zones.targets.weeklyVigorousTargetMin}
+                pct={zones.progress.vigorousPct}
+                color="#e8b45a"
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* This week plan */}
+      {plan && (
+        <>
+          <div className="section-label">This week</div>
+          <div className="gcard p-4">
+            <p className="text-[13px] font-semibold text-[#f4f6f2]">{plan.summary}</p>
+            <div className="mt-3 flex flex-col gap-1.5">
+              {plan.days.map((d) => (
+                <div
+                  key={d.date}
+                  className="flex items-center justify-between rounded-[10px] border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.03)] px-3 py-2"
+                >
+                  <span className="text-[12px] font-semibold text-[#9aa398]">
+                    {d.weekday}
+                    {d.date === data.date ? " · Today" : ""}
+                  </span>
+                  <span
+                    className={`text-[12.5px] font-medium ${
+                      d.completed ? "text-[#b7ec4a]" : "text-[#f4f6f2]"
+                    }`}
+                  >
+                    {d.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* HRV + Resting HR trend cards */}
       <div className={`mt-3 grid gap-3 transition-opacity lg:grid-cols-2 ${loading ? "opacity-60" : "opacity-100"}`}>

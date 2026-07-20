@@ -57,11 +57,15 @@ export async function POST(request: NextRequest) {
     sleepDeepMin: null,
     sleepRemMin: null,
     sleepLightMin: null,
+    sleepAwakeMin: null,
     restingHr: null,
     hrv: null,
     steps: null,
     activeMinutes: null,
     totalCalories: null,
+    fatBurnMin: null,
+    cardioMin: null,
+    peakMin: null,
   };
 
   const baseline = computeBaseline(history, today);

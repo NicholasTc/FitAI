@@ -7,6 +7,7 @@ import { dayTypeLabel } from "@/lib/readiness";
 import HomeView from "@/components/views/HomeView";
 import HealthView from "@/components/views/HealthView";
 import CoachView from "@/components/views/CoachView";
+import ProfileView from "@/components/views/ProfileView";
 import TodayView from "@/components/views/TodayView";
 import CheckInView from "@/components/views/CheckInView";
 import TrendsView from "@/components/views/TrendsView";
@@ -38,7 +39,7 @@ interface AppShellProps {
 }
 
 // Views that require the /api/today payload before they can render.
-const NEEDS_DATA: ViewId[] = ["home", "trends", "health", "coach", "checkin", "reflect", "legacy"];
+const NEEDS_DATA: ViewId[] = ["home", "trends", "health", "coach", "profile", "checkin", "reflect", "legacy"];
 
 const VIEW_TITLE: Record<ViewId, string> = {
   home: "Today",
@@ -172,7 +173,15 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
         return data ? <CoachView data={data} onGoToCheckIn={() => go("checkin")} /> : null;
 
       case "profile":
-        return <SettingsView />;
+        return data ? (
+          <ProfileView
+            data={data}
+            userName={userName}
+            userInitial={userInitial}
+            onOpenSettings={() => go("settings")}
+            onSignOut={() => signOut({ callbackUrl: "/" })}
+          />
+        ) : null;
 
       case "checkin":
         return data ? (

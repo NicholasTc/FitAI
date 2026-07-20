@@ -2,8 +2,8 @@
  * GET /api/today
  *
  * Returns the full TodayState for the requesting user:
- *   - Syncs last 7 days from Google Health API
- *   - Loads today's snapshot + history
+ *   - Loads today's snapshot + history from DB immediately
+ *   - Schedules Google Health sync in the background when due
  *   - Loads today's check-in (if any)
  *   - Computes readiness score and day type
  */
@@ -14,16 +14,21 @@ import { computeReadiness } from "@/lib/readiness";
 import { computeTrainingLoad, computeTrainingLoadFromManual, type ManualWorkoutSession } from "@/lib/trainingLoad";
 import { recordScoreAudit } from "@/lib/scoreAudit";
 import {
+  GOOGLE_HEALTH_LOG_PREFIX,
+  GOOGLE_HEALTH_SYNC,
+} from "@/lib/googleHealth/config";
+import { homeSyncCooldownRemainingMs } from "@/lib/googleHealth/homeCooldown";
+import {
   loadSnapshots,
-  syncUserSnapshots,
-  syncUserWorkouts,
+  syncUserHealth,
   loadLastWorkout,
+  snapshotWindowStats,
 } from "@/lib/sync";
 import { db } from "@/lib/db";
 import type { CheckInData, TodayState, UserSettings } from "@/types/today";
 import { DEFAULT_SETTINGS } from "@/types/today";
 import type { DailySnapshot } from "@/types/snapshot";
-import { type NextRequest, NextResponse } from "next/server";
+import { after, type NextRequest, NextResponse } from "next/server";
 
 const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
   date,
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("date") ??
     new Date().toISOString().slice(0, 10);
 
-  // 1. Sync fresh data — capture result so Pending is explained, not silent
+  // 1. Auth / scope gates + optional background sync (do not block first paint)
   let syncStatus: NonNullable<TodayState["syncStatus"]> = { ok: true };
   const grantedScopes = session.grantedScopes;
   // Only treat as missing_scopes when we know what Google granted and Health is absent.
@@ -65,6 +70,8 @@ export async function GET(request: NextRequest) {
     typeof grantedScopes === "string" &&
     grantedScopes.length > 0 &&
     !hasHealthScopes(grantedScopes);
+
+  const windowStats = await snapshotWindowStats(session.user.id, date, 7);
 
   if (!session.accessToken) {
     syncStatus = {
@@ -81,48 +88,83 @@ export async function GET(request: NextRequest) {
         "Google did not grant Health API scopes. Add the googlehealth.* scopes on your Google Cloud OAuth consent screen, then sign out and sign in again.",
       grantedScopes,
     };
-  } else {
-    const syncWindowStart = new Date(date);
-    syncWindowStart.setDate(syncWindowStart.getDate() - 6);
-    const syncSince = syncWindowStart.toISOString().slice(0, 10);
-
-    const [snapResult] = await Promise.allSettled([
-      syncUserSnapshots(session.user.id, session.accessToken, date),
-      syncUserWorkouts(session.user.id, session.accessToken, syncSince, date),
-    ]);
-
-    if (snapResult.status === "rejected") {
+  } else if (GOOGLE_HEALTH_SYNC.backgroundHomeSync) {
+    const cooldownMs = await homeSyncCooldownRemainingMs(session.user.id, date);
+    if (cooldownMs === 0) {
+      const userId = session.user.id;
+      const accessToken = session.accessToken;
       syncStatus = {
-        ok: false,
-        code: "api_error",
-        message:
-          snapResult.reason instanceof Error
-            ? snapResult.reason.message
-            : "Health sync failed",
+        ok: true,
+        updating: true,
+        message: "Updating health data in the background…",
         grantedScopes,
       };
-    } else if (snapResult.value.apiError) {
-      const err = snapResult.value.apiError.toLowerCase();
-      const looksLikeAuth =
-        err.includes("403") ||
-        err.includes("401") ||
-        err.includes("permission") ||
-        err.includes("scope") ||
-        err.includes("insufficient");
-      syncStatus = {
-        ok: false,
-        code: looksLikeAuth ? "missing_scopes" : "api_error",
-        message: looksLikeAuth
-          ? `Health API denied access (${snapResult.value.apiError}). Google likely did not grant Health scopes — check Cloud Console OAuth scopes, then sign out and sign in again.`
-          : snapResult.value.apiError,
-        grantedScopes,
-      };
-    } else if (snapResult.value.daysWithAnyData === 0) {
+      after(() => {
+        console.info(
+          `${GOOGLE_HEALTH_LOG_PREFIX} background-sync start user=${userId} date=${date}`,
+        );
+        void syncUserHealth(userId, accessToken, date)
+          .then((result) => {
+            console.info(
+              `${GOOGLE_HEALTH_LOG_PREFIX} background-sync done user=${userId} ` +
+                `fetched=${result.daysSynced} skipped=${result.daysSkipped} ` +
+                `withData=${result.daysWithAnyData} error=${result.apiError ?? "none"}`,
+            );
+          })
+          .catch((err) => {
+            console.warn(
+              `${GOOGLE_HEALTH_LOG_PREFIX} background-sync failed user=${userId} ` +
+                `error=${err instanceof Error ? err.message : String(err)}`,
+            );
+          });
+      });
+    } else if (windowStats.daysWithAnyData === 0) {
       syncStatus = {
         ok: false,
         code: "empty",
         message:
-          "Health API returned no data. Check that Fitbit is linked to Google Health and data has synced overnight.",
+          "No wearable data stored yet. Check that Fitbit is linked to Google Health, then wait a moment or use Catch up on History.",
+        grantedScopes,
+      };
+    }
+  } else {
+    // Legacy blocking sync path (config off)
+    try {
+      const snapResult = await syncUserHealth(
+        session.user.id,
+        session.accessToken,
+        date,
+      );
+      if (snapResult.apiError) {
+        const err = snapResult.apiError.toLowerCase();
+        const looksLikeAuth =
+          err.includes("403") ||
+          err.includes("401") ||
+          err.includes("permission") ||
+          err.includes("scope") ||
+          err.includes("insufficient");
+        syncStatus = {
+          ok: false,
+          code: looksLikeAuth ? "missing_scopes" : "api_error",
+          message: looksLikeAuth
+            ? `Health API denied access (${snapResult.apiError}). Google likely did not grant Health scopes — check Cloud Console OAuth scopes, then sign out and sign in again.`
+            : snapResult.apiError,
+          grantedScopes,
+        };
+      } else if (snapResult.daysWithAnyData === 0) {
+        syncStatus = {
+          ok: false,
+          code: "empty",
+          message:
+            "Health API returned no data. Check that Fitbit is linked to Google Health and data has synced overnight.",
+          grantedScopes,
+        };
+      }
+    } catch (err) {
+      syncStatus = {
+        ok: false,
+        code: "api_error",
+        message: err instanceof Error ? err.message : "Health sync failed",
         grantedScopes,
       };
     }

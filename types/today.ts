@@ -140,11 +140,14 @@ export interface TodayState {
    *  - missing_scopes: Google did not grant Health API scopes
    *  - api_error: Health API returned an error (auth / permission / network)
    *  - empty: API succeeded but returned no data for the window
+   * updating: background Google sync was scheduled; UI may soft-refresh.
    */
   syncStatus?: {
     ok: boolean;
     code?: "missing_scopes" | "api_error" | "empty";
     message?: string;
     grantedScopes?: string;
+    /** True when Home returned DB data and a Google sync is running in the background. */
+    updating?: boolean;
   };
 }

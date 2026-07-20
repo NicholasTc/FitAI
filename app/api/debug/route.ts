@@ -5,6 +5,7 @@
 import { auth } from "@/lib/auth";
 import { computeBaseline } from "@/lib/baseline";
 import { fetchDaySnapshot, fetchRecentWorkouts } from "@/lib/health";
+import { googleHealthFetch } from "@/lib/googleHealth/rateLimiter";
 import { loadSnapshots } from "@/lib/sync";
 import { db } from "@/lib/db";
 
@@ -15,7 +16,11 @@ function parseCivilDate(dateStr: string) {
   return { year, month, day };
 }
 
-async function fetchCaloriesRollup(accessToken: string, date: string) {
+async function fetchCaloriesRollup(
+  userId: string,
+  accessToken: string,
+  date: string,
+) {
   const nextDate = new Date(`${date}T00:00:00`);
   nextDate.setDate(nextDate.getDate() + 1);
   const endDateStr = nextDate.toISOString().slice(0, 10);
@@ -28,29 +33,25 @@ async function fetchCaloriesRollup(accessToken: string, date: string) {
     windowSizeDays: 1,
   };
 
-  const res = await fetch(
+  const result = await googleHealthFetch<{
+    rollupDataPoints?: Array<{ totalCalories?: { kcalSum?: number } }>;
+  }>(
+    userId,
     `${HEALTH_API_BASE}/users/me/dataTypes/total-calories/dataPoints:dailyRollUp`,
+    accessToken,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      cache: "no-store",
     },
   );
 
-  const json = await res.json();
-
   return {
-    status: res.status,
-    ok: res.ok,
-    raw: json,
+    status: result.status,
+    ok: result.ok,
+    raw: result.data ?? { error: result.error },
     parsed:
-      (json as { rollupDataPoints?: Array<{ totalCalories?: { kcalSum?: number } }> })
-        ?.rollupDataPoints?.[0]?.totalCalories?.kcalSum ?? null,
+      result.data?.rollupDataPoints?.[0]?.totalCalories?.kcalSum ?? null,
   };
 }
 
@@ -72,7 +73,8 @@ export async function GET() {
   let rawSnapshot = null;
   let rawError = null;
   try {
-    const result = await fetchDaySnapshot(session.accessToken, localDate);
+    if (!userId) throw new Error("Missing user id");
+    const result = await fetchDaySnapshot(userId, session.accessToken, localDate);
     rawSnapshot = result.snapshot;
     rawError = result.apiError;
   } catch (e) {
@@ -104,7 +106,13 @@ export async function GET() {
   let rawWorkouts = null;
   let rawWorkoutsError = null;
   try {
-    rawWorkouts = await fetchRecentWorkouts(session.accessToken, windowStart, localDate);
+    if (!userId) throw new Error("Missing user id");
+    rawWorkouts = await fetchRecentWorkouts(
+      userId,
+      session.accessToken,
+      windowStart,
+      localDate,
+    );
   } catch (e) {
     rawWorkoutsError = e instanceof Error ? e.message : String(e);
   }
@@ -113,7 +121,8 @@ export async function GET() {
   let rawCalories = null;
   let rawCaloriesError = null;
   try {
-    rawCalories = await fetchCaloriesRollup(session.accessToken, localDate);
+    if (!userId) throw new Error("Missing user id");
+    rawCalories = await fetchCaloriesRollup(userId, session.accessToken, localDate);
   } catch (e) {
     rawCaloriesError = e instanceof Error ? e.message : String(e);
   }

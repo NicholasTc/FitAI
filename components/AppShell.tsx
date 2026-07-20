@@ -79,7 +79,7 @@ function DarkSpinner() {
   return (
     <div className="flex min-h-[50vh] items-center justify-center gap-3 text-[#9aa398]">
       <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-[#b7ec4a] border-t-transparent" />
-      <span className="text-sm">Syncing health data…</span>
+      <span className="text-sm">Loading…</span>
     </div>
   );
 }
@@ -99,9 +99,12 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
   });
   const dateKey = today.toLocaleDateString("en-CA");
 
-  function fetchData() {
-    setLoading(true);
-    setError(null);
+  function fetchData(opts?: { soft?: boolean }) {
+    const soft = opts?.soft === true;
+    if (!soft) {
+      setLoading(true);
+      setError(null);
+    }
     fetch(`/api/today?date=${dateKey}`)
       .then((res) => {
         if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -110,10 +113,17 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
       .then((json) => {
         setData(json);
         setLoading(false);
+        // Background sync: pull again once Google has had time to land in DB.
+        if (!soft && json.syncStatus?.updating) {
+          window.setTimeout(() => fetchData({ soft: true }), 3500);
+          window.setTimeout(() => fetchData({ soft: true }), 9000);
+        }
       })
       .catch((e: Error) => {
-        setError(e.message);
-        setLoading(false);
+        if (!soft) {
+          setError(e.message);
+          setLoading(false);
+        }
       });
   }
 
@@ -145,7 +155,7 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
       return (
         <div className="mt-6 rounded-2xl border border-[rgba(239,91,91,0.3)] bg-[rgba(239,91,91,0.08)] p-5 text-sm text-[#ef8b8b]">
           {error}
-          <button className="ml-3 underline" onClick={fetchData}>
+          <button className="ml-3 underline" onClick={() => fetchData()}>
             Retry
           </button>
         </div>

@@ -12,13 +12,16 @@
  * Only days with ≥1 manual log are interactive by default.
  * Tapping a day opens HistoryDayPanel.
  *
- * On mount: triggers a best-effort 30-day wearable backfill so day detail
- * has context (non-blocking — calendar renders immediately from manual logs).
+ * Wearable backfill is opt-in ("Catch up") — not on every calendar open.
  */
 
 import { useEffect, useState } from "react";
+import { GOOGLE_HEALTH_SYNC } from "@/lib/googleHealth/config";
 import HistoryDayPanel from "./HistoryDayPanel";
 import type { HistoryDaySummary, HistoryMonthResponse } from "@/types/history";
+
+const BACKFILL_DAYS = GOOGLE_HEALTH_SYNC.historyBackfillDays;
+const BACKFILL_DONE_KEY = "fitai:history-backfill-done";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -183,6 +186,111 @@ function Legend() {
   );
 }
 
+// ─── Opt-in wearable backfill ─────────────────────────────────────────────────
+
+type BackfillState = "idle" | "running" | "done" | "error";
+
+function readBackfillDone(): boolean {
+  try {
+    return Boolean(localStorage.getItem(BACKFILL_DONE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+function markBackfillDone(): void {
+  try {
+    localStorage.setItem(BACKFILL_DONE_KEY, new Date().toISOString());
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function WearableBackfillBar() {
+  const [hasDoneOnce, setHasDoneOnce] = useState(false);
+  const [state, setState] = useState<BackfillState>("idle");
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHasDoneOnce(readBackfillDone());
+  }, []);
+
+  async function runBackfill() {
+    if (state === "running") return;
+    setState("running");
+    setMessage(null);
+    const today = new Date().toLocaleDateString("en-CA");
+    try {
+      const res = await fetch(
+        `/api/sync?days=${BACKFILL_DAYS}&date=${today}`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        throw new Error(`Sync failed (${res.status})`);
+      }
+      const body = (await res.json()) as {
+        sync?: { apiError?: string | null; daysSynced?: number; daysSkipped?: number };
+      };
+      if (body.sync?.apiError) {
+        setState("error");
+        setMessage(body.sync.apiError);
+        return;
+      }
+      markBackfillDone();
+      setHasDoneOnce(true);
+      setState("done");
+      const fetched = body.sync?.daysSynced ?? 0;
+      const skipped = body.sync?.daysSkipped ?? 0;
+      setMessage(
+        fetched === 0
+          ? `Wearable history already up to date (${skipped} days).`
+          : `Caught up ${fetched} day${fetched === 1 ? "" : "s"} (${skipped} already fresh).`,
+      );
+    } catch (e) {
+      setState("error");
+      setMessage(e instanceof Error ? e.message : "Catch up failed");
+    }
+  }
+
+  const prominent = !hasDoneOnce && state !== "done";
+
+  return (
+    <div className="gcard flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-[12.5px] font-semibold text-[#f4f6f2]">
+          {prominent ? "Catch up wearable history" : "Wearable history"}
+        </p>
+        <p className="mt-0.5 text-[11.5px] leading-snug text-[#6d766b]">
+          {message ??
+            (prominent
+              ? `Pull the last ${BACKFILL_DAYS} days from Google Health once — not run automatically.`
+              : `Optional refresh of the last ${BACKFILL_DAYS} days for day detail context.`)}
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={state === "running"}
+        onClick={() => void runBackfill()}
+        className={`
+          shrink-0 rounded-[10px] px-3.5 py-2 text-[12.5px] font-semibold transition
+          disabled:cursor-wait disabled:opacity-60
+          ${
+            prominent
+              ? "bg-[#b7ec4a] text-[#0c1004] hover:brightness-110"
+              : "bg-[rgba(255,255,255,0.06)] text-[#f4f6f2] hover:bg-[rgba(255,255,255,0.1)]"
+          }
+        `}
+      >
+        {state === "running"
+          ? "Catching up…"
+          : prominent
+            ? `Catch up (${BACKFILL_DAYS}d)`
+            : "Refresh"}
+      </button>
+    </div>
+  );
+}
+
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 interface HistoryViewProps {
@@ -206,14 +314,6 @@ export default function HistoryView({ embedded = false }: HistoryViewProps) {
       })
       .catch(() => setLoading(false));
   }, [month]);
-
-  // Best-effort 30-day wearable backfill on mount (non-blocking)
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    void fetch(`/api/sync?days=30&date=${today}`, { method: "POST" }).catch(() => {
-      /* ignore */
-    });
-  }, []);
 
   const cells = buildMonthGrid(month);
   const summaryMap = new Map((data?.days ?? []).map((d) => [d.date, d]));
@@ -263,6 +363,8 @@ export default function HistoryView({ embedded = false }: HistoryViewProps) {
       </div>
 
       {!loading && data && <MonthStats data={data} />}
+
+      <WearableBackfillBar />
 
       {/* Calendar grid */}
       <div className="gcard p-4">

@@ -114,7 +114,13 @@ export default function HomeView({
             <p className="mt-1 text-[12px] leading-relaxed text-[#9aa398]">{syncStatus.message}</p>
           </div>
         )}
-        {syncStatus?.ok && baseline.status === "forming" && (
+        {syncStatus?.ok && syncStatus.updating && (
+          <div className="mt-2 flex items-center gap-2 rounded-[16px] border border-[rgba(183,236,74,0.2)] bg-[rgba(183,236,74,0.06)] px-4 py-3 text-[12.5px] text-[#b7ec4a] lg:mt-0">
+            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#b7ec4a] border-t-transparent" />
+            Updating health data…
+          </div>
+        )}
+        {syncStatus?.ok && !syncStatus.updating && baseline.status === "forming" && (
           <div className="mt-2 flex items-center gap-2 rounded-[16px] border border-[rgba(183,236,74,0.2)] bg-[rgba(183,236,74,0.06)] px-4 py-3 text-[12.5px] text-[#b7ec4a] lg:mt-0">
             <span className="h-1.5 w-1.5 rounded-full bg-[#b7ec4a]" />
             Baseline forming — {baseline.daysWithData}/7 days. Readiness sharpens daily.

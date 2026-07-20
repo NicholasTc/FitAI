@@ -100,10 +100,16 @@ body {
   overflow: visible;
 }
 /* Compact variant — for orbs shown without the halo (e.g. Stimulus Reserve),
-   so they don't reserve the same empty vertical space as the main hero. */
+   so they don't reserve the same empty vertical space as the main hero.
+   Explicit width matches .orb-wrap so the box can never collapse to 0 (and
+   throw off the centered children) when dropped into a flex layout, since
+   every child of .hero is absolutely positioned and contributes no
+   intrinsic size of its own. */
 .hero-compact {
+  width: 206px;
   height: 236px;
   margin-top: 0;
+  flex-shrink: 0;
 }
 .orb-halo {
   position: absolute;
@@ -309,10 +315,53 @@ body {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
+/* Soft glint sitting right at the liquid's surface — the only "shine" the
+   tank keeps, and it moves with the fill level instead of sitting fixed
+   at the bottom, so it reads as light catching the liquid, not decoration. */
+.orb-liquid-glint {
+  position: absolute;
+  top: -3px; left: 18%;
+  width: 64%; height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(226, 255, 170, 0.55), transparent);
+  filter: blur(2.5px);
+  animation: glintBreathe 7s ease-in-out infinite;
+}
+.orb-liquid.caution .orb-liquid-glint {
+  background: linear-gradient(90deg, transparent, rgba(240, 210, 140, 0.5), transparent);
+}
+@keyframes glintBreathe {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
+/* Tank variant — a calmer instrument than the Home hero. Drop the external
+   bloom and the fixed bottom hotspot (both tuned for the "glowing orb of
+   vitality" look); keep the rim/fresnel for glass continuity with the rest
+   of the app, and let the liquid glint above carry the one accent of light. */
+.orb-wrap.tank .orb-glow { opacity: 0; }
+.orb-wrap.tank .orb-ring-glow { opacity: 0.16; filter: blur(4px); }
+.orb-wrap.tank .orb::after { opacity: 0; }
+/* .orb's own box-shadow bleeds a bright green bloom past the sphere's edge
+   (tuned for Home's glowing-orb look). Keep the inset shadows — they shape
+   the glass interior, not the outside — but replace the external ones with
+   a single, much fainter ambient contact shadow. */
+.orb-wrap.tank .orb {
+  box-shadow:
+    inset 0 -14px 24px rgba(150, 230, 72, 0.16),
+    inset 0 30px 52px rgba(0, 0, 0, 0.66),
+    inset 0 0 46px 12px rgba(0, 0, 0, 0.52),
+    inset 0 2px 3px rgba(205, 230, 245, 0.2),
+    0 4px 14px -4px rgba(125, 195, 85, 0.14);
+}
 
 .orb-score {
   position: absolute;
-  top: 40%; left: 50%;
+  /* Fixed to orb-wrap's actual vertical center (top:16px + 206px/2), not a
+     percentage of .hero's height — a percentage only happened to line up
+     with Home's 300px hero and drifted ~25px off-center in .hero-compact,
+     which uses a shorter box since it has no halo to leave room for. */
+  top: 119px; left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
   width: 100%;
@@ -396,5 +445,5 @@ body {
   .orb-halo, .orb-glow, .orb-fresnel, .orb-ring-glow { animation: none !important; }
   .orb-reveal, .screen-in { animation: none !important; }
   .orb-liquid { transition: none !important; }
-  .orb-liquid-body, .orb-liquid-surface svg { animation: none !important; }
+  .orb-liquid-body, .orb-liquid-surface svg, .orb-liquid-glint { animation: none !important; }
 }

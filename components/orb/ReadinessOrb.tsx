@@ -135,7 +135,7 @@ export default function ReadinessOrb({
           <g ref={haloRef} />
         </svg>
       )}
-      <div className="orb-wrap">
+      <div className={`orb-wrap${liquid ? " tank" : ""}`}>
         <div className="orb-glow" />
         <div className="orb-ring-glow" />
         <div className="orb">
@@ -144,6 +144,7 @@ export default function ReadinessOrb({
               className={`orb-liquid${caution ? " caution" : ""}`}
               style={{ height: `${Math.max(0, Math.min(100, liquidLevel))}%` }}
             >
+              <div className="orb-liquid-glint" />
               <div className="orb-liquid-surface">
                 <svg viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
                   <path d="M0,10 C25,0 75,0 100,10 C125,20 175,20 200,10 C225,0 275,0 300,10 C325,20 375,20 400,10 L400,20 L0,20 Z" />

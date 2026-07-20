@@ -6,8 +6,8 @@
  * Shows a month grid. Each day cell:
  *   - Background tint from stored day type (ScoreAudit)
  *   - Dot for reflection (color = accuracy)
- *   - Circle outline for check-in
- *   - Barbell icon count for workouts
+ *   - Ring for check-in
+ *   - Dot for workouts
  *
  * Only days with ≥1 manual log are interactive by default.
  * Tapping a day opens HistoryDayPanel.
@@ -16,7 +16,6 @@
  * has context (non-blocking — calendar renders immediately from manual logs).
  */
 
-import { AppIcon } from "@/components/AppIcon";
 import { useEffect, useState } from "react";
 import HistoryDayPanel from "./HistoryDayPanel";
 import type { HistoryDaySummary, HistoryMonthResponse } from "@/types/history";
@@ -61,15 +60,15 @@ const TODAY = new Date().toISOString().slice(0, 10);
 // ─── Cell rendering ───────────────────────────────────────────────────────────
 
 const DAY_TYPE_BG: Record<string, string> = {
-  push:     "bg-[#fff0ee]",
-  maintain: "bg-[#edfaf5]",
-  recover:  "bg-[#f4f0ff]",
+  push:     "bg-[rgba(239,91,91,0.14)]",
+  maintain: "bg-[rgba(88,194,122,0.14)]",
+  recover:  "bg-[rgba(139,124,246,0.16)]",
 };
 
 const ACCURACY_DOT: Record<string, string> = {
-  yes:      "bg-[#009e83]",
-  somewhat: "bg-[#e8a022]",
-  no:       "bg-[#e05f3c]",
+  yes:      "bg-[#58c27a]",
+  somewhat: "bg-[#e8b45a]",
+  no:       "bg-[#ef5b5b]",
 };
 
 interface DayCell {
@@ -78,13 +77,7 @@ interface DayCell {
   isToday: boolean;
 }
 
-function CalendarCell({
-  cell,
-  onClick,
-}: {
-  cell: DayCell;
-  onClick: (date: string) => void;
-}) {
+function CalendarCell({ cell, onClick }: { cell: DayCell; onClick: (date: string) => void }) {
   const { date, summary, isToday } = cell;
   const dayNum = parseInt(date.slice(8), 10);
   const hasManual = summary && (summary.hasCheckIn || summary.hasReflection || summary.workoutCount > 0);
@@ -95,48 +88,34 @@ function CalendarCell({
       disabled={!hasManual}
       onClick={() => hasManual && onClick(date)}
       className={`
-        relative flex flex-col items-center rounded-[10px] p-1.5 transition-all
-        ${hasManual ? "cursor-pointer hover:brightness-95" : "cursor-default opacity-40"}
+        relative flex aspect-square flex-col items-center justify-center rounded-[10px] p-1 transition
+        ${hasManual ? "cursor-pointer hover:brightness-125" : "cursor-default opacity-45"}
         ${dtBg || "bg-transparent"}
-        ${isToday ? "ring-2 ring-[#4a7df6] ring-offset-1" : ""}
+        ${isToday ? "ring-2 ring-[#b7ec4a] ring-offset-2 ring-offset-[#0b0d10]" : ""}
       `}
     >
-      {/* Date number */}
-      <span className={`text-[12.5px] font-medium ${isToday ? "font-bold text-[#4a7df6]" : "text-[#1b2040]"}`}>
+      <span className={`text-[12.5px] font-medium ${isToday ? "font-bold text-[#b7ec4a]" : "text-[#f4f6f2]"}`}>
         {dayNum}
       </span>
 
-      {/* Indicators row */}
       {hasManual && (
         <div className="mt-0.5 flex items-center gap-0.5">
-          {/* Reflection dot */}
           {summary.hasReflection && (
             <span
-              className={`h-2 w-2 rounded-full ${ACCURACY_DOT[summary.reflectionAccuracy ?? ""] ?? "bg-[#4a7df6]"}`}
+              className={`h-2 w-2 rounded-full ${ACCURACY_DOT[summary.reflectionAccuracy ?? ""] ?? "bg-[#9aa398]"}`}
               title={`Reflection: ${summary.reflectionAccuracy ?? "submitted"}`}
             />
           )}
-          {/* Check-in ring */}
-          {summary.hasCheckIn && !summary.hasReflection && (
-            <span
-              className="h-2 w-2 rounded-full border border-[#4a7df6]"
-              title="Check-in"
-            />
+          {summary.hasCheckIn && (
+            <span className="h-2 w-2 rounded-full border border-[#8b7cf6]" title="Check-in" />
           )}
-          {summary.hasCheckIn && summary.hasReflection && (
-            <span
-              className="h-1.5 w-1.5 rounded-full border border-[#4a7df6] bg-transparent"
-              title="Check-in"
-            />
-          )}
-          {/* Workout count */}
           {summary.workoutCount > 0 && (
             <span
-              className="flex h-2 w-2 items-center justify-center rounded-full bg-[#e05f3c]"
+              className="flex h-2 w-2 items-center justify-center rounded-full bg-[#b7ec4a]"
               title={`${summary.workoutCount} workout${summary.workoutCount > 1 ? "s" : ""}`}
             >
               {summary.workoutCount > 1 && (
-                <span className="text-[7px] font-bold leading-none text-white">{summary.workoutCount}</span>
+                <span className="text-[7px] font-bold leading-none text-[#0c1004]">{summary.workoutCount}</span>
               )}
             </span>
           )}
@@ -151,21 +130,19 @@ function CalendarCell({
 function MonthStats({ data }: { data: HistoryMonthResponse }) {
   const { stats } = data;
   const totalReflections = stats.reflectionsSubmitted;
-  const accuracyPct = totalReflections > 0
-    ? Math.round((stats.accuracyYes / totalReflections) * 100)
-    : null;
+  const accuracyPct = totalReflections > 0 ? Math.round((stats.accuracyYes / totalReflections) * 100) : null;
 
   return (
-    <div className="flex flex-wrap gap-3 rounded-[14px] border border-[rgba(148,162,218,0.14)] bg-white/70 px-4 py-3 backdrop-blur-sm">
+    <div className="gcard flex flex-wrap gap-5 px-4 py-3">
       {[
-        { label: "Reflections",   value: stats.reflectionsSubmitted },
-        { label: "Check-ins",     value: stats.checkInsSubmitted },
-        { label: "Workouts",      value: stats.workoutsLogged },
-        { label: "Accuracy",      value: accuracyPct !== null ? `${accuracyPct}%` : "—" },
+        { label: "Reflections", value: stats.reflectionsSubmitted },
+        { label: "Check-ins", value: stats.checkInsSubmitted },
+        { label: "Workouts", value: stats.workoutsLogged },
+        { label: "Accuracy", value: accuracyPct !== null ? `${accuracyPct}%` : "—" },
       ].map(({ label, value }) => (
         <div key={label} className="flex flex-col">
-          <span className="text-[18px] font-bold text-[#1b2040]">{value}</span>
-          <span className="text-[11px] text-[#9ea8c4]">{label}</span>
+          <span className="text-[18px] font-bold text-[#f4f6f2]">{value}</span>
+          <span className="text-[11px] text-[#6d766b]">{label}</span>
         </div>
       ))}
     </div>
@@ -175,69 +152,69 @@ function MonthStats({ data }: { data: HistoryMonthResponse }) {
 // ─── Legend ───────────────────────────────────────────────────────────────────
 
 function Legend() {
+  const items = [
+    { c: "bg-[#58c27a]", label: "Accurate reflection" },
+    { c: "bg-[#e8b45a]", label: "Somewhat accurate" },
+    { c: "bg-[#ef5b5b]", label: "Inaccurate" },
+    { c: "border border-[#8b7cf6]", label: "Check-in" },
+    { c: "bg-[#b7ec4a]", label: "Workout logged" },
+  ];
+  const tints = [
+    { c: "bg-[rgba(239,91,91,0.4)]", label: "Push" },
+    { c: "bg-[rgba(88,194,122,0.4)]", label: "Maintain" },
+    { c: "bg-[rgba(139,124,246,0.5)]", label: "Recover" },
+  ];
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1">
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[#9ea8c4] w-full">Legend</p>
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#009e83]" />
-        <span className="text-[11px] text-[#63708f]">Accurate reflection</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#e8a022]" />
-        <span className="text-[11px] text-[#63708f]">Somewhat accurate</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#e05f3c]" />
-        <span className="text-[11px] text-[#63708f]">Inaccurate reflection</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-full border border-[#4a7df6]" />
-        <span className="text-[11px] text-[#63708f]">Check-in only</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#e05f3c]" />
-        <span className="text-[11px] text-[#63708f]">Workout logged</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-[4px] bg-[#edfaf5]" />
-        <span className="text-[11px] text-[#63708f]">Maintain</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-[4px] bg-[#fff0ee]" />
-        <span className="text-[11px] text-[#63708f]">Push</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-[4px] bg-[#f4f0ff]" />
-        <span className="text-[11px] text-[#63708f]">Recover</span>
-      </div>
+      <p className="w-full text-[10px] font-[650] uppercase tracking-[1.2px] text-[#6d766b]">Legend</p>
+      {items.map((it) => (
+        <div key={it.label} className="flex items-center gap-1.5">
+          <span className={`h-2.5 w-2.5 rounded-full ${it.c}`} />
+          <span className="text-[11px] text-[#9aa398]">{it.label}</span>
+        </div>
+      ))}
+      {tints.map((it) => (
+        <div key={it.label} className="flex items-center gap-1.5">
+          <span className={`h-2.5 w-2.5 rounded-[4px] ${it.c}`} />
+          <span className="text-[11px] text-[#9aa398]">{it.label}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
 // ─── Main view ────────────────────────────────────────────────────────────────
 
-export default function HistoryView() {
-  const [month,       setMonth]       = useState(yyyyMM(new Date()));
-  const [data,        setData]        = useState<HistoryMonthResponse | null>(null);
-  const [loading,     setLoading]     = useState(true);
+interface HistoryViewProps {
+  /** When true, drops the max-width wrapper so it fills an embedding container. */
+  embedded?: boolean;
+}
+
+export default function HistoryView({ embedded = false }: HistoryViewProps) {
+  const [month, setMonth] = useState(yyyyMM(new Date()));
+  const [data, setData] = useState<HistoryMonthResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  // Fetch month data
   useEffect(() => {
     setLoading(true);
     fetch(`/api/history?month=${month}`)
       .then((r) => r.json() as Promise<HistoryMonthResponse>)
-      .then((d) => { setData(d); setLoading(false); })
+      .then((d) => {
+        setData(d);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [month]);
 
   // Best-effort 30-day wearable backfill on mount (non-blocking)
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    void fetch(`/api/sync?days=30&date=${today}`, { method: "POST" }).catch(() => {/* ignore */});
+    void fetch(`/api/sync?days=30&date=${today}`, { method: "POST" }).catch(() => {
+      /* ignore */
+    });
   }, []);
 
-  // Build grid
   const cells = buildMonthGrid(month);
   const summaryMap = new Map((data?.days ?? []).map((d) => [d.date, d]));
 
@@ -250,14 +227,14 @@ export default function HistoryView() {
   ).length;
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4">
-
+    <div className={embedded ? "flex flex-col gap-3" : "screen-in mx-auto flex max-w-xl flex-col gap-3"}>
       {/* Month navigator */}
-      <div className="flex items-center justify-between rounded-2xl border border-[rgba(148,162,218,0.18)] bg-white/70 px-4 py-3 backdrop-blur-sm">
+      <div className="gcard flex items-center justify-between px-4 py-3">
         <button
           disabled={!canGoPrev}
           onClick={() => setMonth(prevMonth(month))}
-          className="flex h-8 w-8 items-center justify-center rounded-xl text-[#63708f] transition-colors hover:bg-[#f4f5fb] disabled:opacity-30"
+          className="flex h-8 w-8 items-center justify-center rounded-[10px] text-[#9aa398] transition hover:bg-[rgba(255,255,255,0.05)] disabled:opacity-30"
+          aria-label="Previous month"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -265,9 +242,9 @@ export default function HistoryView() {
         </button>
 
         <div className="text-center">
-          <p className="text-[15px] font-bold text-[#1b2040]">{monthLabel(month)}</p>
+          <p className="text-[15px] font-bold text-[#f4f6f2]">{monthLabel(month)}</p>
           {!loading && data && (
-            <p className="text-[11px] text-[#9ea8c4]">
+            <p className="text-[11px] text-[#6d766b]">
               {activeDaysCount} {activeDaysCount === 1 ? "day" : "days"} with logs
             </p>
           )}
@@ -276,7 +253,8 @@ export default function HistoryView() {
         <button
           disabled={!canGoNext}
           onClick={() => setMonth(nextMonth(month))}
-          className="flex h-8 w-8 items-center justify-center rounded-xl text-[#63708f] transition-colors hover:bg-[#f4f5fb] disabled:opacity-30"
+          className="flex h-8 w-8 items-center justify-center rounded-[10px] text-[#9aa398] transition hover:bg-[rgba(255,255,255,0.05)] disabled:opacity-30"
+          aria-label="Next month"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -284,15 +262,13 @@ export default function HistoryView() {
         </button>
       </div>
 
-      {/* Stats bar */}
       {!loading && data && <MonthStats data={data} />}
 
       {/* Calendar grid */}
-      <div className="rounded-2xl border border-[rgba(148,162,218,0.18)] bg-white/70 p-4 backdrop-blur-sm">
-        {/* Weekday headers (Mon–Sun) */}
+      <div className="gcard p-4">
         <div className="mb-2 grid grid-cols-7 gap-1">
-          {["Mo","Tu","We","Th","Fr","Sa","Su"].map((d) => (
-            <div key={d} className="text-center text-[10.5px] font-semibold uppercase tracking-wider text-[#9ea8c4]">
+          {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
+            <div key={d} className="text-center text-[10px] font-[650] uppercase tracking-wider text-[#6d766b]">
               {d}
             </div>
           ))}
@@ -300,7 +276,7 @@ export default function HistoryView() {
 
         {loading ? (
           <div className="flex h-48 items-center justify-center">
-            <p className="text-[13px] text-[#9ea8c4]">Loading…</p>
+            <p className="text-[13px] text-[#6d766b]">Loading…</p>
           </div>
         ) : (
           <div className="grid grid-cols-7 gap-1">
@@ -313,45 +289,41 @@ export default function HistoryView() {
                 />
               ) : (
                 <div key={`pad-${i}`} />
-              )
+              ),
             )}
           </div>
         )}
 
         {!loading && data && activeDaysCount === 0 && (
-          <p className="mt-4 text-center text-[12.5px] text-[#9ea8c4]">
-            No manual logs this month — check-ins, reflections, and workouts will appear here.
+          <p className="mt-4 text-center text-[12.5px] text-[#6d766b]">
+            No manual logs this month — check-ins, reflections, and workouts appear here.
           </p>
         )}
       </div>
 
-      {/* Legend */}
       <Legend />
 
-      {/* Earliest log note */}
       {!loading && data?.earliestManualDate && (
-        <p className="text-center text-[11px] text-[#b0baca]">
-          Your earliest log: {new Date(data.earliestManualDate + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+        <p className="text-center text-[11px] text-[#6d766b]">
+          Your earliest log:{" "}
+          {new Date(data.earliestManualDate + "T12:00:00").toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })}
         </p>
       )}
 
       {!loading && !data?.earliestManualDate && (
-        <div className="rounded-2xl border border-[rgba(148,162,218,0.14)] bg-[#f4f5fb] p-5 text-center">
-          <AppIcon name="history" size={24} className="mx-auto mb-2 text-[#9ea8c4]" />
-          <p className="text-[13px] font-semibold text-[#1b2040]">No manual logs yet</p>
-          <p className="mt-1 text-[12px] text-[#9ea8c4]">
-            Complete a morning check-in, a night reflection, or log a workout — they'll all show up here.
+        <div className="gcard p-5 text-center">
+          <p className="text-[13px] font-semibold text-[#f4f6f2]">No manual logs yet</p>
+          <p className="mt-1 text-[12px] text-[#6d766b]">
+            Complete a morning check-in, a night reflection, or log a workout — they&apos;ll all show up here.
           </p>
         </div>
       )}
 
-      {/* Day detail panel */}
-      {selectedDay && (
-        <HistoryDayPanel
-          date={selectedDay}
-          onClose={() => setSelectedDay(null)}
-        />
-      )}
+      {selectedDay && <HistoryDayPanel date={selectedDay} onClose={() => setSelectedDay(null)} />}
     </div>
   );
 }

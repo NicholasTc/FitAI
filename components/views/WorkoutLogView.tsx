@@ -11,7 +11,6 @@
  * are logged (≥3 sessions in the last 28 days).
  */
 
-import { AppIcon } from "@/components/AppIcon";
 import { useEffect, useState } from "react";
 
 const TYPE_LABELS = ["Strength", "Cardio", "Mixed", "Sport", "Other"] as const;
@@ -50,14 +49,22 @@ function sessionLoadLabel(load: number): string {
 }
 
 function sessionLoadColor(load: number): string {
-  if (load < 100) return "text-[#9ea8c4]";
-  if (load < 250) return "text-[#2cb67d]";
-  if (load < 450) return "text-[#009e83]";
-  if (load < 700) return "text-[#e8a022]";
-  return "text-[#e05f3c]";
+  if (load < 100) return "text-[#6d766b]";
+  if (load < 250) return "text-[#58c27a]";
+  if (load < 450) return "text-[#b7ec4a]";
+  if (load < 700) return "text-[#e8b45a]";
+  return "text-[#ef5b5b]";
 }
 
-export default function WorkoutLogView() {
+const INPUT_CLS =
+  "w-full rounded-[11px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] px-3.5 py-2.5 text-[13px] text-[#f4f6f2] outline-none transition [color-scheme:dark] focus:border-[rgba(183,236,74,0.4)]";
+
+interface WorkoutLogViewProps {
+  /** When true, drops the max-width wrapper so it fills an embedding container. */
+  embedded?: boolean;
+}
+
+export default function WorkoutLogView({ embedded = false }: WorkoutLogViewProps) {
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +92,9 @@ export default function WorkoutLogView() {
     }
   }
 
-  useEffect(() => { void loadSessions(); }, []);
+  useEffect(() => {
+    void loadSessions();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -101,12 +110,11 @@ export default function WorkoutLogView() {
       });
 
       if (!res.ok) {
-        const data = await res.json() as { error?: string };
+        const data = (await res.json()) as { error?: string };
         throw new Error(data.error ?? "Failed to save session");
       }
 
-      setSuccess("Session logged. Training load will update on next dashboard sync.");
-      // Reset form to defaults
+      setSuccess("Session logged. Training load updates on next sync.");
       setDate(TODAY);
       setTypeLabel("Strength");
       setDuration(45);
@@ -135,74 +143,63 @@ export default function WorkoutLogView() {
   const previewLoad = rpe * duration;
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-5">
-
-      {/* Header explanation */}
-      <div className="rounded-2xl border border-[rgba(148,162,218,0.18)] bg-white/70 p-5 backdrop-blur-sm">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[#fff3f0]">
-            <AppIcon name="workout" size={16} className="text-[#e05f3c]" />
-          </div>
+    <div className={embedded ? "flex flex-col gap-3" : "screen-in mx-auto flex max-w-xl flex-col gap-3"}>
+      {/* Log form */}
+      <form onSubmit={handleSubmit} className="gcard p-5">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[rgba(183,236,74,0.25)] bg-[rgba(183,236,74,0.09)] text-[#b7ec4a]">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+              <path d="M6.5 6.5v11M17.5 6.5v11M4 9h2.5M17.5 9H20M4 15h2.5M17.5 15H20M6.5 12h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </span>
           <div>
-            <p className="text-[14px] font-semibold text-[#1b2040]">Manual Workout Log</p>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-[#63708f]">
-              Log your sessions using the <strong>session RPE method</strong> (Foster 2001).
-              Rate how hard the overall session felt (1–10), not individual exercises.
-              This feeds directly into your readiness score training load calculation.
-            </p>
+            <p className="text-[14px] font-bold text-[#f4f6f2]">Log a workout</p>
+            <p className="text-[11.5px] text-[#6d766b]">Session RPE (Foster 2001) — rate the whole session, not each set.</p>
           </div>
         </div>
-      </div>
 
-      {/* Log form */}
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-2xl border border-[rgba(148,162,218,0.18)] bg-white/70 p-5 backdrop-blur-sm"
-      >
-        <p className="mb-4 text-[13px] font-semibold text-[#1b2040]">Log a session</p>
-
-        <div className="flex flex-col gap-4">
-          {/* Date */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-medium text-[#63708f]">Date</label>
-            <input
-              type="date"
-              value={date}
-              max={TODAY}
-              onChange={(e) => setDate(e.target.value)}
-              required
-              className="w-full rounded-[10px] border border-[rgba(148,162,218,0.22)] bg-[#f4f5fb] px-3 py-2 text-[13px] text-[#1b2040] outline-none focus:border-[#4a7df6] focus:ring-2 focus:ring-[rgba(74,125,246,0.15)]"
-            />
-          </div>
-
-          {/* Type */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-medium text-[#63708f]">Type</label>
-            <select
-              value={typeLabel}
-              onChange={(e) => setTypeLabel(e.target.value as TypeLabel)}
-              className="w-full rounded-[10px] border border-[rgba(148,162,218,0.22)] bg-[#f4f5fb] px-3 py-2 text-[13px] text-[#1b2040] outline-none focus:border-[#4a7df6] focus:ring-2 focus:ring-[rgba(74,125,246,0.15)]"
-            >
-              {TYPE_LABELS.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+        <div className="mt-4 flex flex-col gap-4">
+          {/* Date + Type */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-[#9aa398]">Date</label>
+              <input
+                type="date"
+                value={date}
+                max={TODAY}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className={INPUT_CLS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[12px] font-medium text-[#9aa398]">Type</label>
+              <select value={typeLabel} onChange={(e) => setTypeLabel(e.target.value as TypeLabel)} className={INPUT_CLS}>
+                {TYPE_LABELS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Duration */}
           <div className="flex flex-col gap-1.5">
-            <label className="flex items-center justify-between text-[12px] font-medium text-[#63708f]">
+            <label className="flex items-center justify-between text-[12px] font-medium text-[#9aa398]">
               <span>Duration</span>
-              <span className="text-[#1b2040] font-semibold">{duration} min</span>
+              <span className="font-semibold text-[#f4f6f2]">{duration} min</span>
             </label>
             <input
               type="range"
-              min={5} max={180} step={5}
+              min={5}
+              max={180}
+              step={5}
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
-              className="w-full accent-[#4a7df6]"
+              className="w-full accent-[#b7ec4a]"
             />
-            <div className="flex justify-between text-[10.5px] text-[#9ea8c4]">
+            <div className="flex justify-between text-[10.5px] text-[#6d766b]">
               <span>5 min</span>
               <span>180 min</span>
             </div>
@@ -210,101 +207,93 @@ export default function WorkoutLogView() {
 
           {/* RPE */}
           <div className="flex flex-col gap-1.5">
-            <label className="flex items-center justify-between text-[12px] font-medium text-[#63708f]">
-              <span>Session RPE — how hard did it feel overall?</span>
-              <span className="text-[#1b2040] font-semibold">{rpe}/10</span>
+            <label className="flex items-center justify-between text-[12px] font-medium text-[#9aa398]">
+              <span>Session RPE — how hard did it feel?</span>
+              <span className="font-semibold text-[#f4f6f2]">{rpe}/10</span>
             </label>
             <input
               type="range"
-              min={1} max={10} step={1}
+              min={1}
+              max={10}
+              step={1}
               value={rpe}
               onChange={(e) => setRpe(Number(e.target.value))}
-              className="w-full accent-[#4a7df6]"
+              className="w-full accent-[#b7ec4a]"
             />
-            <p className="text-[11.5px] italic text-[#9ea8c4]">{RPE_DESCRIPTORS[rpe]}</p>
+            <p className="text-[11.5px] italic text-[#6d766b]">{RPE_DESCRIPTORS[rpe]}</p>
           </div>
 
           {/* Live preview */}
-          <div className="flex items-center justify-between rounded-[10px] bg-[#f4f5fb] px-4 py-3">
+          <div className="flex items-center justify-between rounded-[11px] border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.04)] px-4 py-3">
             <div>
-              <p className="text-[11.5px] text-[#63708f]">Session load (RPE × duration)</p>
-              <p className="text-[13px] font-semibold text-[#1b2040]">
+              <p className="text-[11.5px] text-[#6d766b]">Session load (RPE × duration)</p>
+              <p className="text-[13px] font-semibold text-[#f4f6f2]">
                 {rpe} × {duration} = <span className={sessionLoadColor(previewLoad)}>{previewLoad} AU</span>
               </p>
             </div>
-            <span className={`text-[12px] font-semibold ${sessionLoadColor(previewLoad)}`}>
-              {sessionLoadLabel(previewLoad)}
-            </span>
+            <span className={`text-[12px] font-semibold ${sessionLoadColor(previewLoad)}`}>{sessionLoadLabel(previewLoad)}</span>
           </div>
 
-          {error && (
-            <p className="text-[12px] text-red-500">{error}</p>
-          )}
-          {success && (
-            <p className="text-[12px] text-[#2cb67d]">{success}</p>
-          )}
+          {error && <p className="text-[12px] text-[#ef5b5b]">{error}</p>}
+          {success && <p className="text-[12px] text-[#b7ec4a]">{success}</p>}
 
           <button
             type="submit"
             disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-gradient-to-r from-[#4a7df6] to-[#7850e2] py-3 text-[13.5px] font-semibold text-white shadow-[0_4px_14px_rgba(74,125,246,0.3)] transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-[rgba(183,236,74,0.4)] bg-[rgba(183,236,74,0.14)] py-3 text-[13.5px] font-bold text-[#b7ec4a] transition hover:bg-[rgba(183,236,74,0.2)] active:scale-[0.99] disabled:opacity-50"
           >
-            <AppIcon name="workout" size={15} className="text-white" />
-            {submitting ? "Saving…" : "Log Session"}
+            {submitting ? "Saving…" : "Log session"}
           </button>
         </div>
       </form>
 
       {/* Session history */}
-      <div className="rounded-2xl border border-[rgba(148,162,218,0.18)] bg-white/70 p-5 backdrop-blur-sm">
-        <p className="mb-3 text-[13px] font-semibold text-[#1b2040]">Recent sessions (28 days)</p>
+      <div className="gcard p-5">
+        <p className="mb-3 text-[10.5px] font-[650] uppercase tracking-[1.4px] text-[#6d766b]">Recent sessions · 28 days</p>
         {loading ? (
-          <p className="text-[12px] text-[#9ea8c4]">Loading…</p>
+          <p className="text-[12px] text-[#6d766b]">Loading…</p>
         ) : sessions.length === 0 ? (
-          <p className="text-[12px] text-[#9ea8c4]">No sessions logged yet. Sessions you log above will appear here and feed into your readiness score.</p>
+          <p className="text-[12px] text-[#6d766b]">
+            No sessions logged yet. Sessions you log above feed into your readiness training load.
+          </p>
         ) : (
           <div className="flex flex-col gap-2">
             {sessions.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center gap-3 rounded-[10px] border border-[rgba(148,162,218,0.12)] bg-[#f8f9ff] px-4 py-3"
+                className="flex items-center gap-3 rounded-[11px] border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] px-4 py-3"
               >
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[#eef3ff]">
-                  <AppIcon name="workout" size={14} className="text-[#4a7df6]" />
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-[rgba(255,255,255,0.05)] text-[#9aa398]">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                    <path d="M6.5 6.5v11M17.5 6.5v11M4 9h2.5M17.5 9H20M4 15h2.5M17.5 15H20M6.5 12h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-[13px] font-semibold text-[#1b2040]">{s.typeLabel}</p>
-                    <span className={`text-[11px] font-medium ${sessionLoadColor(s.sessionLoad)}`}>
-                      {sessionLoadLabel(s.sessionLoad)}
-                    </span>
+                    <p className="text-[13px] font-semibold text-[#f4f6f2]">{s.typeLabel}</p>
+                    <span className={`text-[11px] font-medium ${sessionLoadColor(s.sessionLoad)}`}>{sessionLoadLabel(s.sessionLoad)}</span>
                   </div>
-                  <p className="text-[11.5px] text-[#63708f]">
+                  <p className="text-[11.5px] text-[#6d766b]">
                     {s.date} · {s.durationMinutes} min · RPE {s.rpe} · {s.sessionLoad} AU
                   </p>
                 </div>
                 <button
                   onClick={() => handleDelete(s.id)}
                   disabled={deleteId === s.id}
-                  className="flex-shrink-0 rounded-lg p-1.5 text-[#9ea8c4] transition-colors hover:bg-red-50 hover:text-red-400 disabled:opacity-40"
+                  className="flex-shrink-0 rounded-lg p-1.5 text-[#6d766b] transition hover:bg-[rgba(239,91,91,0.1)] hover:text-[#ef5b5b] disabled:opacity-40"
                   title="Delete session"
+                  aria-label="Delete session"
                 >
-                  <AppIcon name="skip" size={14} />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
               </div>
             ))}
           </div>
         )}
-      </div>
-
-      {/* Training load info */}
-      <div className="rounded-2xl border border-[rgba(148,162,218,0.18)] bg-[#f4f5fb] px-4 py-4">
-        <p className="text-[11.5px] leading-relaxed text-[#63708f]">
-          <strong className="text-[#1b2040]">How this affects your readiness:</strong>{" "}
-          Once you have ≥3 sessions logged in the past 28 days, your score will use the
-          acute:chronic workload ratio (ACWR) based on session load instead of the
-          &ldquo;active minutes&rdquo; proxy — which is more accurate at estimating fatigue and
-          freshness.
+        <p className="mt-3 text-[11px] leading-[1.5] text-[#6d766b]">
+          With ≥3 sessions in 28 days, your score uses the acute:chronic workload ratio instead of the active-minutes proxy.
         </p>
       </div>
     </div>

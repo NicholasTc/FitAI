@@ -10,6 +10,8 @@ import {
 } from "@/lib/healthView";
 import type { HealthInsightRequest } from "@/app/api/health-insight/route";
 import { readinessWord } from "@/lib/readiness";
+import HistoryView from "@/components/views/HistoryView";
+import WorkoutLogView from "@/components/views/WorkoutLogView";
 import type { TodayState } from "@/types/today";
 import type { TrendPoint, TrendsRange, TrendsResponse } from "@/types/trends";
 
@@ -596,6 +598,13 @@ export default function HealthView({ data }: HealthViewProps) {
 
       {/* AI interpretation */}
       <AiInterpretation data={data} />
+
+      {/* ── Training log: log a workout + calendar ── */}
+      <div className="section-label">Log a workout</div>
+      <WorkoutLogView embedded />
+
+      <div className="section-label">Training calendar</div>
+      <HistoryView embedded />
     </div>
   );
 }

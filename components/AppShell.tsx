@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { TodayState } from "@/types/today";
 import { dayTypeLabel } from "@/lib/readiness";
 import HomeView from "@/components/views/HomeView";
+import HealthView from "@/components/views/HealthView";
 import PendingScreen from "@/components/views/PendingScreen";
 import TodayView from "@/components/views/TodayView";
 import CheckInView from "@/components/views/CheckInView";
@@ -165,15 +166,7 @@ export default function AppShell({ userName, userInitial }: AppShellProps) {
         return data ? <TrendsView data={data} /> : null;
 
       case "health":
-        return (
-          <PendingScreen
-            phase="Redesign · Phase 3"
-            title="Health"
-            description="Your full metric breakdown, sleep detail and AI metric explainers are being rebuilt in the glass-orb style. They're still live on the current dashboard."
-            actionLabel="Open current health metrics"
-            onAction={() => go("legacy")}
-          />
-        );
+        return data ? <HealthView data={data} /> : null;
 
       case "coach":
         return (

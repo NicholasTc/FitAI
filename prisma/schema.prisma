@@ -32,10 +32,28 @@ model DailyHealthSnapshot {
   activeMinutes Int?   // active minutes
   totalCalories Float? // total kcal burned (resting + active)
 
-  // Google Health time-in-heart-rate-zone (FAT_BURN / CARDIO / PEAK)
+  // Google Health active-zone-minutes (Fitbit FAT_BURN / CARDIO / PEAK) —
+  // kept for Fitbit's own Active Zone Minutes gamification; no longer the
+  // source for the Cardio Zones card (see docs/cardio-zones-plan.md).
   fatBurnMin Int?
   cardioMin  Int?
   peakMin    Int?
+
+  // Karvonen (heart-rate-reserve) cardio zones — daily-heart-rate-zones
+  // (personalized bpm boundaries) + time-in-heart-rate-zone (minutes spent
+  // per zone). LIGHT / MODERATE / VIGOROUS / PEAK. See docs/cardio-zones-plan.md.
+  zoneLightMin    Int?
+  zoneModerateMin Int?
+  zoneVigorousMin Int?
+  zonePeakMin     Int?
+  zoneLightMinBpm     Int?
+  zoneLightMaxBpm     Int?
+  zoneModerateMinBpm  Int?
+  zoneModerateMaxBpm  Int?
+  zoneVigorousMinBpm  Int?
+  zoneVigorousMaxBpm  Int?
+  zonePeakMinBpm      Int?
+  zonePeakMaxBpm      Int?
 
   syncedAt DateTime @default(now()) @updatedAt
 

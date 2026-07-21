@@ -27,26 +27,8 @@ import {
 import { db } from "@/lib/db";
 import type { CheckInData, TodayState, UserSettings } from "@/types/today";
 import { DEFAULT_SETTINGS } from "@/types/today";
-import type { DailySnapshot } from "@/types/snapshot";
+import { emptySnapshot } from "@/types/snapshot";
 import { after, type NextRequest, NextResponse } from "next/server";
-
-const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
-  date,
-  sleepMinutes: null,
-  sleepEfficiency: null,
-  sleepDeepMin: null,
-  sleepRemMin: null,
-  sleepLightMin: null,
-  sleepAwakeMin: null,
-  restingHr: null,
-  hrv: null,
-  steps: null,
-  activeMinutes: null,
-  totalCalories: null,
-  fatBurnMin: null,
-  cardioMin: null,
-  peakMin: null,
-});
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -183,7 +165,7 @@ export async function GET(request: NextRequest) {
     loadSnapshots(session.user.id, date, 28), // Phase 2: up to 28 days
     loadLastWorkout(session.user.id, sinceDate),
   ]);
-  const today = history.find((s) => s.date === date) ?? NULL_SNAPSHOT(date);
+  const today = history.find((s) => s.date === date) ?? emptySnapshot(date);
   const { baseline } = computeBaseline(history, today);
 
   // 3. Load today's check-in + user settings (parallel)

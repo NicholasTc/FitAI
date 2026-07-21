@@ -5,6 +5,7 @@ import {
   GOOGLE_HEALTH_SYNC,
 } from "@/lib/googleHealth/config";
 import { loadSnapshots, syncUserSnapshots, MAX_BACKFILL_DAYS } from "@/lib/sync";
+import { emptySnapshot } from "@/types/snapshot";
 import { type NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -50,23 +51,7 @@ export async function POST(request: NextRequest) {
   }
 
   const history = await loadSnapshots(session.user.id, date, days);
-  const today = history.find((s) => s.date === date) ?? {
-    date,
-    sleepMinutes: null,
-    sleepEfficiency: null,
-    sleepDeepMin: null,
-    sleepRemMin: null,
-    sleepLightMin: null,
-    sleepAwakeMin: null,
-    restingHr: null,
-    hrv: null,
-    steps: null,
-    activeMinutes: null,
-    totalCalories: null,
-    fatBurnMin: null,
-    cardioMin: null,
-    peakMin: null,
-  };
+  const today = history.find((s) => s.date === date) ?? emptySnapshot(date);
 
   const baseline = computeBaseline(history, today);
 

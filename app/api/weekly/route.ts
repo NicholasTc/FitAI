@@ -14,7 +14,7 @@ import { computeReadiness } from "@/lib/readiness";
 import { loadSnapshots } from "@/lib/sync";
 import { db } from "@/lib/db";
 import type { CheckInData, DayType } from "@/types/today";
-import type { DailySnapshot } from "@/types/snapshot";
+import { emptySnapshot } from "@/types/snapshot";
 import { type NextRequest, NextResponse } from "next/server";
 
 function avg(values: (number | null)[]): number | null {
@@ -27,24 +27,6 @@ function round(v: number | null, dp = 0): number | null {
   if (v === null) return null;
   return Math.round(v * 10 ** dp) / 10 ** dp;
 }
-
-const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
-  date,
-  sleepMinutes: null,
-  sleepEfficiency: null,
-  sleepDeepMin: null,
-  sleepRemMin: null,
-  sleepLightMin: null,
-  sleepAwakeMin: null,
-  restingHr: null,
-  hrv: null,
-  steps: null,
-  activeMinutes: null,
-  totalCalories: null,
-  fatBurnMin: null,
-  cardioMin: null,
-  peakMin: null,
-});
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -87,7 +69,7 @@ export async function GET(request: NextRequest) {
           motivation: rawCheckIn.motivation,
         }
       : null;
-    const today = history.find((h) => h.date === s.date) ?? NULL_SNAPSHOT(s.date);
+    const today = history.find((h) => h.date === s.date) ?? emptySnapshot(s.date);
     const { dayType, score } = computeReadiness(today, baseline, checkIn);
     const reflection = reflectionMap.get(s.date) ?? null;
 

@@ -8,6 +8,7 @@ import { fetchDaySnapshot, fetchRecentWorkouts } from "@/lib/health";
 import { googleHealthFetch } from "@/lib/googleHealth/rateLimiter";
 import { loadSnapshots } from "@/lib/sync";
 import { db } from "@/lib/db";
+import { emptySnapshot } from "@/types/snapshot";
 
 const HEALTH_API_BASE = "https://health.googleapis.com/v4";
 
@@ -140,13 +141,7 @@ export async function GET() {
   let computedBaseline = null;
   if (userId) {
     const history = await loadSnapshots(userId, localDate, 28);
-    const today = history.find((s) => s.date === localDate) ?? {
-      date: localDate,
-      sleepMinutes: null, sleepEfficiency: null, sleepDeepMin: null,
-      sleepRemMin: null, sleepLightMin: null, sleepAwakeMin: null,
-      restingHr: null, hrv: null, steps: null, activeMinutes: null, totalCalories: null,
-      fatBurnMin: null, cardioMin: null, peakMin: null,
-    };
+    const today = history.find((s) => s.date === localDate) ?? emptySnapshot(localDate);
     computedBaseline = computeBaseline(history, today);
   }
 

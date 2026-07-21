@@ -19,29 +19,11 @@ import { computeGuardrails } from "@/lib/guardrails";
 import { db } from "@/lib/db";
 import { loadSnapshots, loadLastWorkout } from "@/lib/sync";
 import type { CheckInData } from "@/types/today";
-import type { DailySnapshot } from "@/types/snapshot";
+import { emptySnapshot } from "@/types/snapshot";
 import type { StrategyAction, StrategyResponse } from "@/types/strategy";
 import { type NextRequest } from "next/server";
 
 const JSON_MARKER = "[[JSON_START]]";
-
-const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
-  date,
-  sleepMinutes: null,
-  sleepEfficiency: null,
-  sleepDeepMin: null,
-  sleepRemMin: null,
-  sleepLightMin: null,
-  sleepAwakeMin: null,
-  restingHr: null,
-  hrv: null,
-  steps: null,
-  activeMinutes: null,
-  totalCalories: null,
-  fatBurnMin: null,
-  cardioMin: null,
-  peakMin: null,
-});
 
 function isStrategyResponse(v: unknown): v is StrategyResponse {
   if (typeof v !== "object" || v === null) return false;
@@ -110,7 +92,7 @@ export async function POST(request: NextRequest) {
     loadLastWorkout(session.user.id, sinceDate),
     db.userSettings.findUnique({ where: { userId: session.user.id } }),
   ]);
-  const today = history.find((s) => s.date === date) ?? NULL_SNAPSHOT(date);
+  const today = history.find((s) => s.date === date) ?? emptySnapshot(date);
   const { baseline } = computeBaseline(history, today);
 
   const userProfile = rawSettings && (rawSettings.age || rawSettings.sex)

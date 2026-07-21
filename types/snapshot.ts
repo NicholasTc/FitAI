@@ -20,10 +20,28 @@ export interface DailySnapshot {
   activeMinutes: number | null;
   totalCalories: number | null; // kcal
 
-  // Google Health time-in-heart-rate-zone (FAT_BURN / CARDIO / PEAK)
+  // Google Health active-zone-minutes (Fitbit Fat Burn / Cardio / Peak) —
+  // kept for Fitbit's own Active Zone Minutes gamification; no longer the
+  // source for the Cardio Zones card (see docs/cardio-zones-plan.md).
   fatBurnMin: number | null;
   cardioMin: number | null;
   peakMin: number | null;
+
+  // Karvonen (heart-rate-reserve) cardio zones — daily-heart-rate-zones +
+  // time-in-heart-rate-zone. Minutes spent per zone today, plus each zone's
+  // personalized bpm boundaries for that day. See docs/cardio-zones-plan.md.
+  zoneLightMin: number | null;
+  zoneModerateMin: number | null;
+  zoneVigorousMin: number | null;
+  zonePeakMin: number | null;
+  zoneLightMinBpm: number | null;
+  zoneLightMaxBpm: number | null;
+  zoneModerateMinBpm: number | null;
+  zoneModerateMaxBpm: number | null;
+  zoneVigorousMinBpm: number | null;
+  zoneVigorousMaxBpm: number | null;
+  zonePeakMinBpm: number | null;
+  zonePeakMaxBpm: number | null;
 }
 
 // Seven-day (or longer) rolling baselines.
@@ -93,5 +111,17 @@ export function emptySnapshot(date: string): DailySnapshot {
     fatBurnMin: null,
     cardioMin: null,
     peakMin: null,
+    zoneLightMin: null,
+    zoneModerateMin: null,
+    zoneVigorousMin: null,
+    zonePeakMin: null,
+    zoneLightMinBpm: null,
+    zoneLightMaxBpm: null,
+    zoneModerateMinBpm: null,
+    zoneModerateMaxBpm: null,
+    zoneVigorousMinBpm: null,
+    zoneVigorousMaxBpm: null,
+    zonePeakMinBpm: null,
+    zonePeakMaxBpm: null,
   };
 }

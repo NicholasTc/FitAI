@@ -16,6 +16,7 @@ import WorkoutLogView from "@/components/views/WorkoutLogView";
 import ReadinessOrb from "@/components/orb/ReadinessOrb";
 import type { TodayState } from "@/types/today";
 import type { HealthDetailResponse } from "@/types/healthDetail";
+import type { CardioZoneBpm } from "@/lib/zoneMinutes";
 import type { TrendPoint, TrendsRange, TrendsResponse } from "@/types/trends";
 
 const WEARABLE_DISMISS_KEY = "fitai:dismissedWearableImpact";
@@ -35,6 +36,15 @@ const TONE_TEXT: Record<Tone, string> = {
   warn: "text-[#e8b45a]",
   neutral: "text-[#9aa398]",
 };
+
+// Karvonen cardio zones (Zone 1–4 = Light/Moderate/Vigorous/Peak) —
+// see docs/cardio-zones-plan.md. Blue→green→amber→red intensity progression.
+const ZONE_COLORS = {
+  light: "#7ea6d6",
+  moderate: "#58c27a",
+  vigorous: "#e8b45a",
+  peak: "#ef5b5b",
+} as const;
 
 // ─── Icons ─────────────────────────────────────────────────────────────────
 
@@ -364,6 +374,27 @@ function ProgressBar({
   );
 }
 
+function ZoneLegendItem({
+  label,
+  minutes,
+  bpm,
+  color,
+}: {
+  label: string;
+  minutes: number;
+  bpm: CardioZoneBpm;
+  color: string;
+}) {
+  return (
+    <span>
+      <span style={{ color }}>●</span> {label} {minutes}m
+      {bpm.minBpm !== null && bpm.maxBpm !== null && (
+        <span className="text-[#6d766b]"> · {bpm.minBpm}–{bpm.maxBpm} bpm</span>
+      )}
+    </span>
+  );
+}
+
 // ─── AI Interpretation card ───────────────────────────────────────────────────
 
 type InsightState =
@@ -548,18 +579,31 @@ export default function HealthView({ data }: HealthViewProps) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/health-detail?date=${data.date}`)
-      .then((res) => (res.ok ? (res.json() as Promise<HealthDetailResponse>) : null))
-      .then((json) => {
-        if (!cancelled && json) setDetail(json);
-      })
-      .catch(() => {
-        /* non-blocking */
-      });
+
+    function loadDetail() {
+      fetch(`/api/health-detail?date=${data.date}`)
+        .then((res) => (res.ok ? (res.json() as Promise<HealthDetailResponse>) : null))
+        .then((json) => {
+          if (!cancelled && json) setDetail(json);
+        })
+        .catch(() => {
+          /* non-blocking */
+        });
+    }
+
+    loadDetail();
+
+    // /api/today returns DB data first while Google sync runs in the background.
+    // Zone minutes often land after the first health-detail fetch — refresh again.
+    const t1 = window.setTimeout(loadDetail, 3500);
+    const t2 = window.setTimeout(loadDetail, 9000);
+
     return () => {
       cancelled = true;
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
     };
-  }, [data.date]);
+  }, [data.date, data.snapshot.steps, data.snapshot.totalCalories, data.syncStatus?.updating]);
 
   const metrics = useMemo(() => buildHealthMetrics(data), [data]);
   const baseSignals = useMemo(() => buildRecoverySignals(data), [data]);
@@ -814,53 +858,84 @@ export default function HealthView({ data }: HealthViewProps) {
           <div className="section-label">Cardio zones</div>
           <div className="gcard p-4">
             <p className="text-[11px] font-[650] uppercase tracking-[1.1px] text-[#6d766b]">
-              Today · Fat Burn / Cardio / Peak
+              Today · Zone 1–4
             </p>
-            <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-              <div
-                style={{
-                  width: `${(zones.today.fatBurnMin / todayTotal) * 100}%`,
-                  background: "#58c27a",
-                }}
-              />
-              <div
-                style={{
-                  width: `${(zones.today.cardioMin / todayTotal) * 100}%`,
-                  background: "#e8b45a",
-                }}
-              />
-              <div
-                style={{
-                  width: `${(zones.today.peakMin / todayTotal) * 100}%`,
-                  background: "#ef5b5b",
-                }}
-              />
-            </div>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-[#9aa398]">
-              <span>
-                <span className="text-[#58c27a]">●</span> Fat Burn {zones.today.fatBurnMin}m
-              </span>
-              <span>
-                <span className="text-[#e8b45a]">●</span> Cardio {zones.today.cardioMin}m
-              </span>
-              <span>
-                <span className="text-[#ef5b5b]">●</span> Peak {zones.today.peakMin}m
-              </span>
-            </div>
+
+            {zones.today.usedKarvonenZones ? (
+              <>
+                <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+                  <div
+                    style={{
+                      width: `${(zones.today.zoneLightMin / todayTotal) * 100}%`,
+                      background: ZONE_COLORS.light,
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: `${(zones.today.zoneModerateMin / todayTotal) * 100}%`,
+                      background: ZONE_COLORS.moderate,
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: `${(zones.today.zoneVigorousMin / todayTotal) * 100}%`,
+                      background: ZONE_COLORS.vigorous,
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: `${(zones.today.zonePeakMin / todayTotal) * 100}%`,
+                      background: ZONE_COLORS.peak,
+                    }}
+                  />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-[#9aa398]">
+                  <ZoneLegendItem
+                    label="Zone 1 · Light"
+                    minutes={zones.today.zoneLightMin}
+                    bpm={zones.today.bpm.light}
+                    color={ZONE_COLORS.light}
+                  />
+                  <ZoneLegendItem
+                    label="Zone 2 · Moderate"
+                    minutes={zones.today.zoneModerateMin}
+                    bpm={zones.today.bpm.moderate}
+                    color={ZONE_COLORS.moderate}
+                  />
+                  <ZoneLegendItem
+                    label="Zone 3 · Vigorous"
+                    minutes={zones.today.zoneVigorousMin}
+                    bpm={zones.today.bpm.vigorous}
+                    color={ZONE_COLORS.vigorous}
+                  />
+                  <ZoneLegendItem
+                    label="Zone 4 · Peak"
+                    minutes={zones.today.zonePeakMin}
+                    bpm={zones.today.bpm.peak}
+                    color={ZONE_COLORS.peak}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="mt-2 text-[12px] text-[#6d766b]">
+                Pending — appears after today&apos;s heart-rate zones sync from Fitbit.
+              </p>
+            )}
+
             <div className="mt-4 flex flex-col gap-3">
               <ProgressBar
-                label="Fat Burn (moderate)"
+                label="Zone 2 · Moderate"
                 value={zones.weekTotals.moderateMin}
                 target={zones.targets.weeklyModerateTargetMin}
                 pct={zones.progress.moderatePct}
-                color="#58c27a"
+                color={ZONE_COLORS.moderate}
               />
               <ProgressBar
-                label="Cardio + Peak (vigorous)"
+                label="Zone 3–4 · Vigorous"
                 value={zones.weekTotals.vigorousMin}
                 target={zones.targets.weeklyVigorousTargetMin}
                 pct={zones.progress.vigorousPct}
-                color="#e8b45a"
+                color={ZONE_COLORS.vigorous}
               />
             </div>
           </div>

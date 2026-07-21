@@ -240,16 +240,17 @@ interface TotalCaloriesRollup {
   }>;
 }
 
-interface TimeInHeartRateZoneValue {
-  heartRateZone?: string; // FAT_BURN | CARDIO | PEAK
-  duration?: string; // protobuf Duration e.g. "3600s"
-}
-
-interface TimeInHeartRateZoneRollup {
+/**
+ * Fitbit-style Fat Burn / Cardio / Peak minutes come from `active-zone-minutes`,
+ * NOT `time-in-heart-rate-zone` (that type uses LIGHT/MODERATE/VIGOROUS/PEAK).
+ */
+interface ActiveZoneMinutesRollup {
   rollupDataPoints?: Array<{
     civilStartTime?: CivilDateTime;
-    timeInHeartRateZone?: {
-      timeInHeartRateZones?: TimeInHeartRateZoneValue[];
+    activeZoneMinutes?: {
+      sumInFatBurnHeartZone?: Num;
+      sumInCardioHeartZone?: Num;
+      sumInPeakHeartZone?: Num;
     };
   }>;
 }
@@ -258,6 +259,68 @@ export interface ZoneMinutes {
   fatBurnMin: number | null;
   cardioMin: number | null;
   peakMin: number | null;
+}
+
+/**
+ * Karvonen (heart-rate-reserve) cardio zones — see docs/cardio-zones-plan.md.
+ * `daily-heart-rate-zones` gives personalized bpm boundaries (Daily record,
+ * `list` only — no rollup); `time-in-heart-rate-zone` gives actual minutes
+ * spent per zone (Interval record, supports `dailyRollUp`). Both use the same
+ * LIGHT/MODERATE/VIGOROUS/PEAK taxonomy, distinct from active-zone-minutes'
+ * Fitbit-branded FAT_BURN/CARDIO/PEAK.
+ */
+interface DailyHeartRateZonesResponse {
+  dataPoints?: Array<{
+    date?: { year?: number; month?: number; day?: number };
+    dailyHeartRateZones?: {
+      heartRateZones?: Array<{
+        heartRateZoneType?: string; // "LIGHT" | "MODERATE" | "VIGOROUS" | "PEAK"
+        minBeatsPerMinute?: Num;
+        maxBeatsPerMinute?: Num;
+      }>;
+    };
+  }>;
+}
+
+interface TimeInHeartRateZoneRollup {
+  rollupDataPoints?: Array<{
+    civilStartTime?: CivilDateTime;
+    timeInHeartRateZone?: {
+      timeInHeartRateZones?: Array<{
+        heartRateZone?: string; // "LIGHT" | "MODERATE" | "VIGOROUS" | "PEAK"
+        duration?: string; // google-duration, e.g. "930.5s"
+      }>;
+    };
+  }>;
+}
+
+export interface CardioZoneBpm {
+  minBpm: number | null;
+  maxBpm: number | null;
+}
+
+export interface CardioZones {
+  lightMin: number | null;
+  moderateMin: number | null;
+  vigorousMin: number | null;
+  peakMin: number | null;
+  light: CardioZoneBpm;
+  moderate: CardioZoneBpm;
+  vigorous: CardioZoneBpm;
+  peak: CardioZoneBpm;
+}
+
+function emptyCardioZones(): CardioZones {
+  return {
+    lightMin: null,
+    moderateMin: null,
+    vigorousMin: null,
+    peakMin: null,
+    light: { minBpm: null, maxBpm: null },
+    moderate: { minBpm: null, maxBpm: null },
+    vigorous: { minBpm: null, maxBpm: null },
+    peak: { minBpm: null, maxBpm: null },
+  };
 }
 
 // ─── Coercion helpers ─────────────────────────────────────────────────────────
@@ -274,34 +337,94 @@ function toFloat(v: Num): number | null {
   return isNaN(n) ? null : n;
 }
 
-/** Parse Google protobuf Duration ("3600s" / "3.5s") to whole minutes. */
-function durationToMinutes(duration: string | undefined): number | null {
-  if (!duration) return null;
-  const m = /^(-?\d+(?:\.\d+)?)s$/i.exec(duration.trim());
-  if (!m) return null;
-  const secs = parseFloat(m[1]!);
-  if (!Number.isFinite(secs) || secs < 0) return null;
-  return Math.round(secs / 60);
+/** Parses a Google "google-duration" string, e.g. "930.5s", into seconds. */
+function parseGoogleDurationSeconds(v: string | undefined): number | null {
+  if (!v) return null;
+  const n = parseFloat(v.replace(/s$/, ""));
+  return isNaN(n) ? null : n;
+}
+
+function parseHeartRateZoneBounds(
+  point: NonNullable<DailyHeartRateZonesResponse["dataPoints"]>[number] | undefined,
+): Pick<CardioZones, "light" | "moderate" | "vigorous" | "peak"> {
+  const zones = point?.dailyHeartRateZones?.heartRateZones ?? [];
+  const find = (type: string) => zones.find((z) => z.heartRateZoneType === type);
+  const toBpm = (z: (typeof zones)[number] | undefined): CardioZoneBpm => ({
+    minBpm: toInt(z?.minBeatsPerMinute),
+    maxBpm: toInt(z?.maxBeatsPerMinute),
+  });
+  return {
+    light: toBpm(find("LIGHT")),
+    moderate: toBpm(find("MODERATE")),
+    vigorous: toBpm(find("VIGOROUS")),
+    peak: toBpm(find("PEAK")),
+  };
+}
+
+function parseTimeInHeartRateZoneMinutes(
+  point: NonNullable<TimeInHeartRateZoneRollup["rollupDataPoints"]>[number] | undefined,
+): Pick<CardioZones, "lightMin" | "moderateMin" | "vigorousMin" | "peakMin"> {
+  const entries = point?.timeInHeartRateZone?.timeInHeartRateZones ?? [];
+  const minutesFor = (type: string): number | null => {
+    const e = entries.find((x) => x.heartRateZone === type);
+    if (!e) return null;
+    const secs = parseGoogleDurationSeconds(e.duration);
+    return secs !== null ? Math.round(secs / 60) : 0;
+  };
+  return {
+    lightMin: minutesFor("LIGHT"),
+    moderateMin: minutesFor("MODERATE"),
+    vigorousMin: minutesFor("VIGOROUS"),
+    peakMin: minutesFor("PEAK"),
+  };
+}
+
+/**
+ * Combines the two zone fetches into one CardioZones record.
+ * Null when the API call itself failed; 0 (not null) minutes when the call
+ * succeeded but returned no entry for a zone — same "present but zero is
+ * real data" rule as parseZoneMinutesFromRollup.
+ */
+function parseCardioZones(
+  bounds: FetchResult<DailyHeartRateZonesResponse> | Pick<CardioZones, "light" | "moderate" | "vigorous" | "peak"> | null,
+  minutes: FetchResult<TimeInHeartRateZoneRollup> | Pick<CardioZones, "lightMin" | "moderateMin" | "vigorousMin" | "peakMin"> | null,
+): CardioZones {
+  const empty = emptyCardioZones();
+
+  const boundsPart =
+    bounds && "ok" in bounds
+      ? bounds.ok
+        ? parseHeartRateZoneBounds(bounds.data?.dataPoints?.[0])
+        : { light: empty.light, moderate: empty.moderate, vigorous: empty.vigorous, peak: empty.peak }
+      : (bounds ?? { light: empty.light, moderate: empty.moderate, vigorous: empty.vigorous, peak: empty.peak });
+
+  const minutesPart =
+    minutes && "ok" in minutes
+      ? minutes.ok
+        ? parseTimeInHeartRateZoneMinutes(minutes.data?.rollupDataPoints?.[0])
+        : { lightMin: null, moderateMin: null, vigorousMin: null, peakMin: null }
+      : (minutes ?? { lightMin: null, moderateMin: null, vigorousMin: null, peakMin: null });
+
+  return { ...boundsPart, ...minutesPart };
 }
 
 function parseZoneMinutesFromRollup(
-  point: NonNullable<TimeInHeartRateZoneRollup["rollupDataPoints"]>[number] | undefined,
+  point: NonNullable<ActiveZoneMinutesRollup["rollupDataPoints"]>[number] | undefined,
 ): ZoneMinutes {
   const empty: ZoneMinutes = { fatBurnMin: null, cardioMin: null, peakMin: null };
-  if (!point) return empty;
-  const zones = point.timeInHeartRateZone?.timeInHeartRateZones ?? [];
-  let fatBurnMin: number | null = null;
-  let cardioMin: number | null = null;
-  let peakMin: number | null = null;
-  for (const z of zones) {
-    const mins = durationToMinutes(z.duration);
-    if (mins === null) continue;
-    const key = (z.heartRateZone ?? "").toUpperCase();
-    if (key === "FAT_BURN") fatBurnMin = (fatBurnMin ?? 0) + mins;
-    else if (key === "CARDIO") cardioMin = (cardioMin ?? 0) + mins;
-    else if (key === "PEAK") peakMin = (peakMin ?? 0) + mins;
-  }
-  return { fatBurnMin, cardioMin, peakMin };
+  if (!point?.activeZoneMinutes) return empty;
+  const azm = point.activeZoneMinutes;
+  // Fields are already in minutes (int64 as string). Present-but-zero is valid data.
+  const hasAny =
+    azm.sumInFatBurnHeartZone !== undefined ||
+    azm.sumInCardioHeartZone !== undefined ||
+    azm.sumInPeakHeartZone !== undefined;
+  if (!hasAny) return empty;
+  return {
+    fatBurnMin: toInt(azm.sumInFatBurnHeartZone) ?? 0,
+    cardioMin: toInt(azm.sumInCardioHeartZone) ?? 0,
+    peakMin: toInt(azm.sumInPeakHeartZone) ?? 0,
+  };
 }
 
 // ─── Normalization ────────────────────────────────────────────────────────────
@@ -314,7 +437,9 @@ function normalizeSnapshot(
   hrv: FetchResult<HrvResponse>,
   activeMinutes: FetchResult<ActiveMinutesRollup>,
   totalCalories: FetchResult<TotalCaloriesRollup>,
-  zones: FetchResult<TimeInHeartRateZoneRollup> | ZoneMinutes | null,
+  zones: FetchResult<ActiveZoneMinutesRollup> | ZoneMinutes | null,
+  zoneBounds: FetchResult<DailyHeartRateZonesResponse> | Pick<CardioZones, "light" | "moderate" | "vigorous" | "peak"> | null,
+  zoneTime: FetchResult<TimeInHeartRateZoneRollup> | Pick<CardioZones, "lightMin" | "moderateMin" | "vigorousMin" | "peakMin"> | null,
 ): DailySnapshot {
   const sleepPoint = sleep.data?.dataPoints?.[0]?.sleep;
   const sleepSummary = sleepPoint?.summary;
@@ -347,10 +472,23 @@ function normalizeSnapshot(
 
   let zoneMins: ZoneMinutes = { fatBurnMin: null, cardioMin: null, peakMin: null };
   if (zones && "ok" in zones) {
-    zoneMins = parseZoneMinutesFromRollup(zones.data?.rollupDataPoints?.[0]);
+    if (zones.ok) {
+      zoneMins = parseZoneMinutesFromRollup(zones.data?.rollupDataPoints?.[0]);
+      // Successful API response with no AZM for the day → store 0 so we don't
+      // keep treating the day as "never ingested". Real minutes overwrite on later syncs.
+      if (
+        zoneMins.fatBurnMin === null &&
+        zoneMins.cardioMin === null &&
+        zoneMins.peakMin === null
+      ) {
+        zoneMins = { fatBurnMin: 0, cardioMin: 0, peakMin: 0 };
+      }
+    }
   } else if (zones) {
     zoneMins = zones;
   }
+
+  const cardioZones = parseCardioZones(zoneBounds, zoneTime);
 
   return {
     date,
@@ -368,6 +506,18 @@ function normalizeSnapshot(
     fatBurnMin: zoneMins.fatBurnMin,
     cardioMin: zoneMins.cardioMin,
     peakMin: zoneMins.peakMin,
+    zoneLightMin: cardioZones.lightMin,
+    zoneModerateMin: cardioZones.moderateMin,
+    zoneVigorousMin: cardioZones.vigorousMin,
+    zonePeakMin: cardioZones.peakMin,
+    zoneLightMinBpm: cardioZones.light.minBpm,
+    zoneLightMaxBpm: cardioZones.light.maxBpm,
+    zoneModerateMinBpm: cardioZones.moderate.minBpm,
+    zoneModerateMaxBpm: cardioZones.moderate.maxBpm,
+    zoneVigorousMinBpm: cardioZones.vigorous.minBpm,
+    zoneVigorousMaxBpm: cardioZones.vigorous.maxBpm,
+    zonePeakMinBpm: cardioZones.peak.minBpm,
+    zonePeakMaxBpm: cardioZones.peak.maxBpm,
   };
 }
 
@@ -406,10 +556,24 @@ export async function fetchDaySnapshot(
     ),
   ]);
 
-  const [steps, activeMinutes, totalCalories, zones] = await Promise.all([
+  const [steps, activeMinutes, totalCalories, zones, zoneBounds, zoneTime] = await Promise.all([
     dailyRollUp<StepsRollup>(userId, accessToken, "steps", date),
     dailyRollUp<ActiveMinutesRollup>(userId, accessToken, "active-minutes", date),
     dailyRollUp<TotalCaloriesRollup>(userId, accessToken, "total-calories", date),
+    dailyRollUp<ActiveZoneMinutesRollup>(
+      userId,
+      accessToken,
+      "active-zone-minutes",
+      date,
+    ),
+    // Daily record type — list only, no rollup (see docs/cardio-zones-plan.md).
+    dailyList<DailyHeartRateZonesResponse>(
+      userId,
+      accessToken,
+      "daily-heart-rate-zones",
+      "daily_heart_rate_zones",
+      date,
+    ),
     dailyRollUp<TimeInHeartRateZoneRollup>(
       userId,
       accessToken,
@@ -426,6 +590,8 @@ export async function fetchDaySnapshot(
     (!activeMinutes.ok ? activeMinutes.error : null) ??
     (!totalCalories.ok ? totalCalories.error : null) ??
     (!zones.ok ? zones.error : null) ??
+    // Cardio-zone fetch failures are non-fatal — never block the whole sync
+    // (or surface a misleading top-level error) over a supplementary metric.
     null;
 
   return {
@@ -438,6 +604,8 @@ export async function fetchDaySnapshot(
       activeMinutes,
       totalCalories,
       zones,
+      zoneBounds,
+      zoneTime,
     ),
     apiError,
   };
@@ -571,7 +739,7 @@ async function fetchSnapshotsRangeBatched(
     })(),
   ]);
 
-  const [stepsRes, activeRes, calRes, zonesRes] = await Promise.all([
+  const [stepsRes, activeRes, calRes, zonesRes, zoneBoundsRes, zoneTimeRes] = await Promise.all([
     fetchRollupByDate<NonNullable<StepsRollup["rollupDataPoints"]>[number]>(
       userId,
       accessToken,
@@ -596,6 +764,35 @@ async function fetchSnapshotsRangeBatched(
       endInclusive,
       constrainedRollupMaxDays,
     ),
+    fetchRollupByDate<NonNullable<ActiveZoneMinutesRollup["rollupDataPoints"]>[number]>(
+      userId,
+      accessToken,
+      "active-zone-minutes",
+      start,
+      endInclusive,
+      defaultRangeMaxDays,
+    ),
+    // Daily record type — list only, no rollup (see docs/cardio-zones-plan.md).
+    (async () => {
+      const byDate = new Map<string, NonNullable<DailyHeartRateZonesResponse["dataPoints"]>[number]>();
+      let error: string | null = null;
+      for (const chunk of chunkInclusiveRange(start, endInclusive, defaultRangeMaxDays)) {
+        const res = await dailyListRange<DailyHeartRateZonesResponse>(
+          userId,
+          accessToken,
+          "daily-heart-rate-zones",
+          "daily_heart_rate_zones",
+          chunk.start,
+          chunk.endInclusive,
+        );
+        if (!error && !res.ok) error = res.error ?? "Cardio zone bounds fetch failed";
+        for (const dp of res.data?.dataPoints ?? []) {
+          const d = formatCivilDate(dp.date);
+          if (d && want.has(d)) byDate.set(d, dp);
+        }
+      }
+      return { byDate, error };
+    })(),
     fetchRollupByDate<NonNullable<TimeInHeartRateZoneRollup["rollupDataPoints"]>[number]>(
       userId,
       accessToken,
@@ -614,6 +811,9 @@ async function fetchSnapshotsRangeBatched(
     activeRes.error ??
     calRes.error ??
     zonesRes.error ??
+    // Cardio-zone fetch failures (zoneBoundsRes/zoneTimeRes) are non-fatal —
+    // same policy as fetchDaySnapshot, never block the whole sync over a
+    // supplementary metric.
     null;
 
   const snapshots = dates.map((date) => {
@@ -624,6 +824,8 @@ async function fetchSnapshotsRangeBatched(
     const activePt = activeRes.byDate.get(date);
     const calPt = calRes.byDate.get(date);
     const zonePt = zonesRes.byDate.get(date);
+    const zoneBoundsPt = zoneBoundsRes.byDate.get(date);
+    const zoneTimePt = zoneTimeRes.byDate.get(date);
 
     return normalizeSnapshot(
       date,
@@ -638,6 +840,8 @@ async function fetchSnapshotsRangeBatched(
         rollupDataPoints: calPt ? [calPt] : [],
       }),
       parseZoneMinutesFromRollup(zonePt),
+      parseHeartRateZoneBounds(zoneBoundsPt),
+      parseTimeInHeartRateZoneMinutes(zoneTimePt),
     );
   });
 

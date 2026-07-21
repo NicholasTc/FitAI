@@ -15,27 +15,8 @@ import { computeReadiness } from "@/lib/readiness";
 import { loadSnapshots } from "@/lib/sync";
 import { db } from "@/lib/db";
 import type { CheckInData } from "@/types/today";
-import type { DailySnapshot } from "@/types/snapshot";
 import type { TrendPoint, TrendStats, TrendsRange, TrendsResponse } from "@/types/trends";
 import { type NextRequest, NextResponse } from "next/server";
-
-const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
-  date,
-  sleepMinutes: null,
-  sleepEfficiency: null,
-  sleepDeepMin: null,
-  sleepRemMin: null,
-  sleepLightMin: null,
-  sleepAwakeMin: null,
-  restingHr: null,
-  hrv: null,
-  steps: null,
-  activeMinutes: null,
-  totalCalories: null,
-  fatBurnMin: null,
-  cardioMin: null,
-  peakMin: null,
-});
 
 function avg(values: (number | null)[]): number | null {
   const nums = values.filter((v): v is number => v !== null);

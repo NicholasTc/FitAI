@@ -34,6 +34,7 @@ Concise inventory of what is built today.
 | HRV | Requires full tracked sleep + stages |
 | Steps | |
 | Active minutes | Pulled; lightly used in UI |
+| Cardio zones — Zone 1–4 (Light/Moderate/Vigorous/Peak) | Karvonen (heart-rate-reserve) zones from `daily-heart-rate-zones` (personalized bpm boundaries) + `time-in-heart-rate-zone` (minutes per zone). Replaces Fitbit's Fat Burn/Cardio/Peak branding on the Health tab's Cardio Zones card; falls back to `active-zone-minutes` for days synced before this shipped. See `docs/cardio-zones-plan.md`. |
 
 **Deferred:** stress score, SpO2, respiratory rate, sleep temperature, distance
 

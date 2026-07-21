@@ -132,6 +132,18 @@ async function upsertSnapshot(
       fatBurnMin: snapshot.fatBurnMin,
       cardioMin: snapshot.cardioMin,
       peakMin: snapshot.peakMin,
+      zoneLightMin: snapshot.zoneLightMin,
+      zoneModerateMin: snapshot.zoneModerateMin,
+      zoneVigorousMin: snapshot.zoneVigorousMin,
+      zonePeakMin: snapshot.zonePeakMin,
+      zoneLightMinBpm: snapshot.zoneLightMinBpm,
+      zoneLightMaxBpm: snapshot.zoneLightMaxBpm,
+      zoneModerateMinBpm: snapshot.zoneModerateMinBpm,
+      zoneModerateMaxBpm: snapshot.zoneModerateMaxBpm,
+      zoneVigorousMinBpm: snapshot.zoneVigorousMinBpm,
+      zoneVigorousMaxBpm: snapshot.zoneVigorousMaxBpm,
+      zonePeakMinBpm: snapshot.zonePeakMinBpm,
+      zonePeakMaxBpm: snapshot.zonePeakMaxBpm,
     },
     update: {
       sleepMinutes: nz(snapshot.sleepMinutes),
@@ -148,6 +160,18 @@ async function upsertSnapshot(
       fatBurnMin: nz(snapshot.fatBurnMin),
       cardioMin: nz(snapshot.cardioMin),
       peakMin: nz(snapshot.peakMin),
+      zoneLightMin: nz(snapshot.zoneLightMin),
+      zoneModerateMin: nz(snapshot.zoneModerateMin),
+      zoneVigorousMin: nz(snapshot.zoneVigorousMin),
+      zonePeakMin: nz(snapshot.zonePeakMin),
+      zoneLightMinBpm: nz(snapshot.zoneLightMinBpm),
+      zoneLightMaxBpm: nz(snapshot.zoneLightMaxBpm),
+      zoneModerateMinBpm: nz(snapshot.zoneModerateMinBpm),
+      zoneModerateMaxBpm: nz(snapshot.zoneModerateMaxBpm),
+      zoneVigorousMinBpm: nz(snapshot.zoneVigorousMinBpm),
+      zoneVigorousMaxBpm: nz(snapshot.zoneVigorousMaxBpm),
+      zonePeakMinBpm: nz(snapshot.zonePeakMinBpm),
+      zonePeakMaxBpm: nz(snapshot.zonePeakMaxBpm),
     },
   });
 }
@@ -169,14 +193,50 @@ async function syncUserSnapshotsUnlocked(
       hrv: true,
       steps: true,
       totalCalories: true,
+      fatBurnMin: true,
+      cardioMin: true,
+      peakMin: true,
+      zoneLightMin: true,
+      zoneModerateMin: true,
+      zoneVigorousMin: true,
+      zonePeakMin: true,
     },
   });
   const byDate = new Map(existing.map((r) => [r.date, r]));
   const nowMs = Date.now();
 
-  const staleDates = dates.filter(
-    (d) => !isSnapshotFresh(byDate.get(d), d, today, nowMs),
-  );
+  // Zone columns are new — force a re-fetch while zone minutes are still all-null
+  // so we don't sit on a "fresh" snapshot that predates AZM ingestion.
+  const missingZones = (row: {
+    fatBurnMin: number | null;
+    cardioMin: number | null;
+    peakMin: number | null;
+  } | undefined) =>
+    !!row &&
+    row.fatBurnMin === null &&
+    row.cardioMin === null &&
+    row.peakMin === null;
+
+  // Same rule for the Karvonen zones (daily-heart-rate-zones /
+  // time-in-heart-rate-zone) — a row can already have AZM but still predate
+  // this ingestion, so this is checked independently of missingZones.
+  const missingKarvonenZones = (row: {
+    zoneLightMin: number | null;
+    zoneModerateMin: number | null;
+    zoneVigorousMin: number | null;
+    zonePeakMin: number | null;
+  } | undefined) =>
+    !!row &&
+    row.zoneLightMin === null &&
+    row.zoneModerateMin === null &&
+    row.zoneVigorousMin === null &&
+    row.zonePeakMin === null;
+
+  const staleDates = dates.filter((d) => {
+    const row = byDate.get(d);
+    if (missingZones(row) || missingKarvonenZones(row)) return true;
+    return !isSnapshotFresh(row, d, today, nowMs);
+  });
   const daysSkipped = dates.length - staleDates.length;
 
   if (daysSkipped > 0) {
@@ -361,7 +421,34 @@ export async function syncUserHealth(
 ): Promise<SnapshotSyncResult> {
   const safeDays = Math.min(days, MAX_BACKFILL_DAYS);
 
-  const cooldownMs = await homeSyncCooldownRemainingMs(userId, today);
+  // Bypass Home cooldown when today's zone minutes were never ingested —
+  // otherwise a recent pre-AZM (or pre-Karvonen-zone) sync would block the
+  // fix for up to 5 minutes.
+  const todayZones = await db.dailyHealthSnapshot.findUnique({
+    where: { userId_date: { userId, date: today } },
+    select: {
+      fatBurnMin: true,
+      cardioMin: true,
+      peakMin: true,
+      zoneLightMin: true,
+      zoneModerateMin: true,
+      zoneVigorousMin: true,
+      zonePeakMin: true,
+    },
+  });
+  const needsZoneBackfill =
+    !!todayZones &&
+    ((todayZones.fatBurnMin === null &&
+      todayZones.cardioMin === null &&
+      todayZones.peakMin === null) ||
+      (todayZones.zoneLightMin === null &&
+        todayZones.zoneModerateMin === null &&
+        todayZones.zoneVigorousMin === null &&
+        todayZones.zonePeakMin === null));
+
+  const cooldownMs = needsZoneBackfill
+    ? 0
+    : await homeSyncCooldownRemainingMs(userId, today);
   if (cooldownMs > 0) {
     const stats = await snapshotWindowStats(userId, today, safeDays);
     console.info(
@@ -384,7 +471,9 @@ export async function syncUserHealth(
 
   return runExclusiveUserSync(userId, jobKey, async () => {
     // Another Home request may have finished while we waited for the lock.
-    const againMs = await homeSyncCooldownRemainingMs(userId, today);
+    const againMs = needsZoneBackfill
+      ? 0
+      : await homeSyncCooldownRemainingMs(userId, today);
     if (againMs > 0) {
       const stats = await snapshotWindowStats(userId, today, safeDays);
       console.info(
@@ -481,5 +570,17 @@ export async function loadSnapshots(
     fatBurnMin: r.fatBurnMin ?? null,
     cardioMin: r.cardioMin ?? null,
     peakMin: r.peakMin ?? null,
+    zoneLightMin: r.zoneLightMin ?? null,
+    zoneModerateMin: r.zoneModerateMin ?? null,
+    zoneVigorousMin: r.zoneVigorousMin ?? null,
+    zonePeakMin: r.zonePeakMin ?? null,
+    zoneLightMinBpm: r.zoneLightMinBpm ?? null,
+    zoneLightMaxBpm: r.zoneLightMaxBpm ?? null,
+    zoneModerateMinBpm: r.zoneModerateMinBpm ?? null,
+    zoneModerateMaxBpm: r.zoneModerateMaxBpm ?? null,
+    zoneVigorousMinBpm: r.zoneVigorousMinBpm ?? null,
+    zoneVigorousMaxBpm: r.zoneVigorousMaxBpm ?? null,
+    zonePeakMinBpm: r.zonePeakMinBpm ?? null,
+    zonePeakMaxBpm: r.zonePeakMaxBpm ?? null,
   }));
 }

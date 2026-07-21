@@ -21,7 +21,7 @@ import { computeReadiness } from "@/lib/readiness";
 import { db } from "@/lib/db";
 import { loadSnapshots, loadLastWorkout } from "@/lib/sync";
 import type { CheckInData } from "@/types/today";
-import type { DailySnapshot } from "@/types/snapshot";
+import { emptySnapshot } from "@/types/snapshot";
 import type { StrategyAction } from "@/types/strategy";
 import { type NextRequest } from "next/server";
 
@@ -39,24 +39,6 @@ interface ChatRequest {
   originalResponse: string;
   history: ChatMessage[];
 }
-
-const NULL_SNAPSHOT = (date: string): DailySnapshot => ({
-  date,
-  sleepMinutes: null,
-  sleepEfficiency: null,
-  sleepDeepMin: null,
-  sleepRemMin: null,
-  sleepLightMin: null,
-  sleepAwakeMin: null,
-  restingHr: null,
-  hrv: null,
-  steps: null,
-  activeMinutes: null,
-  totalCalories: null,
-  fatBurnMin: null,
-  cardioMin: null,
-  peakMin: null,
-});
 
 const CHAT_SYSTEM_PROMPT = `\
 You are FitAI, a personal recovery coach. The user trains 4–5x/week (strength + cardio).
@@ -117,7 +99,7 @@ export async function POST(request: NextRequest) {
     loadSnapshots(session.user.id, date),
     loadLastWorkout(session.user.id, sinceDate),
   ]);
-  const today = snapHistory.find((s) => s.date === date) ?? NULL_SNAPSHOT(date);
+  const today = snapHistory.find((s) => s.date === date) ?? emptySnapshot(date);
   const { baseline } = computeBaseline(snapHistory, today);
 
   const rawCheckIn = await db.checkIn.findUnique({

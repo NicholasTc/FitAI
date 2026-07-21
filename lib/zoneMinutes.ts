@@ -1,8 +1,15 @@
 /**
  * Weekly cardio-zone tracker — Feature 2.
  *
- * Uses Google Health's native 3-zone model (FAT_BURN / CARDIO / PEAK).
- * FAT_BURN ≈ moderate; CARDIO+PEAK ≈ vigorous / high-intensity.
+ * Primary source: Karvonen (heart-rate-reserve) cardio zones from
+ * `daily-heart-rate-zones` + `time-in-heart-rate-zone` — LIGHT / MODERATE /
+ * VIGOROUS / PEAK, with personalized bpm boundaries. See docs/cardio-zones-plan.md.
+ *
+ * Falls back to Fitbit Active Zone Minutes (`active-zone-minutes`,
+ * FAT_BURN / CARDIO / PEAK) for any day synced before the Karvonen zones
+ * shipped — Fat Burn ≈ moderate, Cardio+Peak ≈ vigorous, same mapping this
+ * module always used. The fallback is per-day, so a mixed-source week (some
+ * days old data, some new) still produces a sane weekly total.
  */
 
 import type { DailySnapshot } from "@/types/snapshot";
@@ -13,16 +20,39 @@ export interface ZoneTargets {
   weeklyVigorousTargetMin: number;
 }
 
+export interface CardioZoneBpm {
+  minBpm: number | null;
+  maxBpm: number | null;
+}
+
+export interface CardioZoneBpmRanges {
+  light: CardioZoneBpm;
+  moderate: CardioZoneBpm;
+  vigorous: CardioZoneBpm;
+  peak: CardioZoneBpm;
+}
+
 export interface DayZoneMinutes {
   date: string;
+  /** Legacy AZM (Fitbit Fat Burn / Cardio / Peak) — fallback source only. */
   fatBurnMin: number;
   cardioMin: number;
   peakMin: number;
-  /** Fat Burn minutes (moderate proxy). */
+  /** Karvonen zones — minutes spent in each, when available for this day. */
+  zoneLightMin: number;
+  zoneModerateMin: number;
+  zoneVigorousMin: number;
+  zonePeakMin: number;
+  /** True when moderateMin/vigorousMin below came from the Karvonen zones
+   *  rather than the legacy AZM fallback. */
+  usedKarvonenZones: boolean;
+  /** Moderate-or-above minutes counted toward the weekly moderate target. */
   moderateMin: number;
-  /** Cardio + Peak minutes (vigorous proxy). */
+  /** Vigorous-or-above minutes counted toward the weekly vigorous target. */
   vigorousMin: number;
   totalZoneMin: number;
+  /** Personalized bpm boundaries per zone for this day (null when unavailable). */
+  bpm: CardioZoneBpmRanges;
 }
 
 export interface WeeklyZoneMinutes {
@@ -32,6 +62,10 @@ export interface WeeklyZoneMinutes {
     fatBurnMin: number;
     cardioMin: number;
     peakMin: number;
+    zoneLightMin: number;
+    zoneModerateMin: number;
+    zoneVigorousMin: number;
+    zonePeakMin: number;
     moderateMin: number;
     vigorousMin: number;
     totalZoneMin: number;
@@ -65,14 +99,45 @@ function dayFromSnapshot(s: DailySnapshot): DayZoneMinutes {
   const fatBurnMin = s.fatBurnMin ?? 0;
   const cardioMin = s.cardioMin ?? 0;
   const peakMin = s.peakMin ?? 0;
+
+  const zoneLightMin = s.zoneLightMin ?? 0;
+  const zoneModerateMin = s.zoneModerateMin ?? 0;
+  const zoneVigorousMin = s.zoneVigorousMin ?? 0;
+  const zonePeakMin = s.zonePeakMin ?? 0;
+
+  // A day only counts as "has Karvonen zones" once any of the four minute
+  // fields is non-null — a successful sync stores 0 for zones with no time
+  // spent, so present-but-zero is real data (same rule as AZM parsing).
+  const usedKarvonenZones =
+    s.zoneLightMin !== null ||
+    s.zoneModerateMin !== null ||
+    s.zoneVigorousMin !== null ||
+    s.zonePeakMin !== null;
+
+  const moderateMin = usedKarvonenZones ? zoneModerateMin : fatBurnMin;
+  const vigorousMin = usedKarvonenZones
+    ? zoneVigorousMin + zonePeakMin
+    : cardioMin + peakMin;
+
   return {
     date: s.date,
     fatBurnMin,
     cardioMin,
     peakMin,
-    moderateMin: fatBurnMin,
-    vigorousMin: cardioMin + peakMin,
-    totalZoneMin: fatBurnMin + cardioMin + peakMin,
+    zoneLightMin,
+    zoneModerateMin,
+    zoneVigorousMin,
+    zonePeakMin,
+    usedKarvonenZones,
+    moderateMin,
+    vigorousMin,
+    totalZoneMin: moderateMin + vigorousMin,
+    bpm: {
+      light: { minBpm: s.zoneLightMinBpm, maxBpm: s.zoneLightMaxBpm },
+      moderate: { minBpm: s.zoneModerateMinBpm, maxBpm: s.zoneModerateMaxBpm },
+      vigorous: { minBpm: s.zoneVigorousMinBpm, maxBpm: s.zoneVigorousMaxBpm },
+      peak: { minBpm: s.zonePeakMinBpm, maxBpm: s.zonePeakMaxBpm },
+    },
   };
 }
 
@@ -82,9 +147,20 @@ function emptyDay(date: string): DayZoneMinutes {
     fatBurnMin: 0,
     cardioMin: 0,
     peakMin: 0,
+    zoneLightMin: 0,
+    zoneModerateMin: 0,
+    zoneVigorousMin: 0,
+    zonePeakMin: 0,
+    usedKarvonenZones: false,
     moderateMin: 0,
     vigorousMin: 0,
     totalZoneMin: 0,
+    bpm: {
+      light: { minBpm: null, maxBpm: null },
+      moderate: { minBpm: null, maxBpm: null },
+      vigorous: { minBpm: null, maxBpm: null },
+      peak: { minBpm: null, maxBpm: null },
+    },
   };
 }
 
@@ -123,6 +199,10 @@ export function computeWeeklyZoneMinutes(
       fatBurnMin: acc.fatBurnMin + d.fatBurnMin,
       cardioMin: acc.cardioMin + d.cardioMin,
       peakMin: acc.peakMin + d.peakMin,
+      zoneLightMin: acc.zoneLightMin + d.zoneLightMin,
+      zoneModerateMin: acc.zoneModerateMin + d.zoneModerateMin,
+      zoneVigorousMin: acc.zoneVigorousMin + d.zoneVigorousMin,
+      zonePeakMin: acc.zonePeakMin + d.zonePeakMin,
       moderateMin: acc.moderateMin + d.moderateMin,
       vigorousMin: acc.vigorousMin + d.vigorousMin,
       totalZoneMin: acc.totalZoneMin + d.totalZoneMin,
@@ -131,6 +211,10 @@ export function computeWeeklyZoneMinutes(
       fatBurnMin: 0,
       cardioMin: 0,
       peakMin: 0,
+      zoneLightMin: 0,
+      zoneModerateMin: 0,
+      zoneVigorousMin: 0,
+      zonePeakMin: 0,
       moderateMin: 0,
       vigorousMin: 0,
       totalZoneMin: 0,
